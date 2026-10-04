@@ -1,10 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useTransition } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { toast } from "sonner";
 import { RefreshCwIcon } from "lucide-react";
 import { resetStudentPassword } from "@/app/(teacher)/teacher/students/actions";
 import { FormError } from "@/components/common/form-field";
-import { formError, useFormAction } from "@/components/common/use-form-action";
+import { applyServerErrors } from "@/components/common/form-errors";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -17,6 +20,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { generatePassword } from "@/lib/students/generate-password";
+import { resetPasswordSchema } from "@/lib/validators/student";
 import type { StudentRow } from "./types";
 
 export function ResetPasswordDialog({
@@ -51,40 +55,55 @@ function ResetForm({
   studentId: string;
   onDone: () => void;
 }) {
-  const [state, action, pending] = useFormAction(
-    resetStudentPassword.bind(null, studentId),
-    onDone,
+  const [pending, startTransition] = useTransition();
+  const form = useForm({
+    resolver: zodResolver(resetPasswordSchema),
+    defaultValues: { password: generatePassword() },
+  });
+  const { errors } = form.formState;
+
+  const onSubmit = form.handleSubmit((values) =>
+    startTransition(async () => {
+      const result = await resetStudentPassword(studentId, values);
+      if (result.ok) {
+        toast.success(result.message);
+        onDone();
+      } else {
+        applyServerErrors(form, result);
+      }
+    }),
   );
-  const [password, setPassword] = useState(generatePassword);
 
   return (
-    <form action={action} className="flex flex-col gap-4">
+    <form onSubmit={onSubmit} className="flex flex-col gap-4" noValidate>
       <div className="flex flex-col gap-2">
         <Label htmlFor="new-password">Yangi parol</Label>
         <div className="flex gap-2">
           <Input
             id="new-password"
-            name="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
             autoComplete="off"
-            required
-            minLength={6}
-            maxLength={72}
             className="font-mono"
+            aria-invalid={!!errors.password}
+            {...form.register("password")}
           />
           <Button
             type="button"
             variant="outline"
             size="icon"
             aria-label="Yangi parol yaratish"
-            onClick={() => setPassword(generatePassword())}
+            onClick={() =>
+              form.setValue("password", generatePassword(), {
+                shouldValidate: true,
+              })
+            }
           >
             <RefreshCwIcon />
           </Button>
         </div>
       </div>
-      <FormError message={formError(state)} />
+      <FormError
+        message={errors.password?.message ?? errors.root?.server?.message}
+      />
       <DialogFooter>
         <Button type="submit" disabled={pending}>
           Parolni saqlash

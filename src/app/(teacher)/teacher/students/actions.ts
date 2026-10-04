@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import type { ActionResult } from "@/lib/action-result";
+import { validationFailed, type ActionResult } from "@/lib/action-result";
 import { hashPassword } from "@/lib/auth/password";
 import { requireTeacher } from "@/lib/auth/guards";
 import { db } from "@/lib/db";
@@ -16,17 +16,16 @@ import {
 } from "@/lib/students/import";
 import {
   fullNameSchema,
-  passwordSchema,
+  resetPasswordSchema,
+  studentCreateSchema,
+  studentUpdateSchema,
   usernameSchema,
+  type ResetPasswordInput,
+  type StudentCreateInput,
+  type StudentUpdateInput,
 } from "@/lib/validators/student";
 
 const idSchema = z.string().min(1);
-
-const studentFieldsSchema = z.object({
-  fullName: fullNameSchema,
-  username: usernameSchema,
-  groupId: z.string().min(1, "Guruhni tanlang"),
-});
 
 function revalidate() {
   revalidatePath("/teacher/students");
@@ -51,29 +50,12 @@ async function groupExists(groupId: string): Promise<boolean> {
   return (await db.group.count({ where: { id: groupId } })) > 0;
 }
 
-function formFields(formData: FormData) {
-  return {
-    fullName: formData.get("fullName"),
-    username: formData.get("username"),
-    groupId: formData.get("groupId"),
-  };
-}
-
 export async function createStudent(
-  _prev: ActionResult | null,
-  formData: FormData,
+  input: StudentCreateInput,
 ): Promise<ActionResult> {
   await requireTeacher();
-  const parsed = studentFieldsSchema
-    .extend({ password: passwordSchema })
-    .safeParse({ ...formFields(formData), password: formData.get("password") });
-  if (!parsed.success) {
-    return {
-      ok: false,
-      error: "Maydonlarni tekshiring",
-      fieldErrors: z.flattenError(parsed.error).fieldErrors,
-    };
-  }
+  const parsed = studentCreateSchema.safeParse(input);
+  if (!parsed.success) return validationFailed(parsed.error);
   const { fullName, username, groupId, password } = parsed.data;
 
   if (!(await groupExists(groupId)))
@@ -112,19 +94,12 @@ export async function createStudent(
 
 export async function updateStudent(
   studentId: string,
-  _prev: ActionResult | null,
-  formData: FormData,
+  input: StudentUpdateInput,
 ): Promise<ActionResult> {
   await requireTeacher();
   const id = idSchema.parse(studentId);
-  const parsed = studentFieldsSchema.safeParse(formFields(formData));
-  if (!parsed.success) {
-    return {
-      ok: false,
-      error: "Maydonlarni tekshiring",
-      fieldErrors: z.flattenError(parsed.error).fieldErrors,
-    };
-  }
+  const parsed = studentUpdateSchema.safeParse(input);
+  if (!parsed.success) return validationFailed(parsed.error);
   const { fullName, username, groupId } = parsed.data;
 
   if (!(await groupExists(groupId)))
@@ -160,19 +135,17 @@ export async function updateStudent(
 
 export async function resetStudentPassword(
   studentId: string,
-  _prev: ActionResult | null,
-  formData: FormData,
+  input: ResetPasswordInput,
 ): Promise<ActionResult> {
   await requireTeacher();
   const id = idSchema.parse(studentId);
-  const parsed = passwordSchema.safeParse(formData.get("password"));
-  if (!parsed.success)
-    return { ok: false, error: parsed.error.issues[0].message };
+  const parsed = resetPasswordSchema.safeParse(input);
+  if (!parsed.success) return validationFailed(parsed.error);
 
   try {
     await db.user.update({
       where: { id, role: "STUDENT" },
-      data: { passwordHash: await hashPassword(parsed.data) },
+      data: { passwordHash: await hashPassword(parsed.data.password) },
     });
   } catch (e) {
     if (isNotFound(e)) return { ok: false, error: "O'quvchi topilmadi" };

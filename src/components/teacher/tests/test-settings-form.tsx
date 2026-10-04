@@ -1,15 +1,20 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useTransition } from "react";
+import { Controller, useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 import { updateTestSettings } from "@/app/(teacher)/teacher/tests/actions";
-import { FormError } from "@/components/common/form-field";
+import { applyServerErrors } from "@/components/common/form-errors";
+import { FormError, FormField } from "@/components/common/form-field";
+import type { GroupOption } from "@/components/teacher/students/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import type { GroupOption } from "@/components/teacher/students/types";
-import type { TestSettings } from "./types";
+import {
+  testSettingsSchema,
+  type TestSettingsInput,
+} from "@/lib/validators/test";
 
 const FLAGS = [
   {
@@ -35,76 +40,72 @@ export function TestSettingsForm({
   groups,
 }: {
   testId: string;
-  initial: TestSettings;
+  initial: TestSettingsInput;
   groups: GroupOption[];
 }) {
-  const [settings, setSettings] = useState(initial);
-  const [error, setError] = useState<string>();
   const [pending, startTransition] = useTransition();
+  const form = useForm({
+    resolver: zodResolver(testSettingsSchema),
+    defaultValues: initial,
+  });
+  const { errors } = form.formState;
 
-  function set<K extends keyof TestSettings>(key: K, value: TestSettings[K]) {
-    setSettings((s) => ({ ...s, [key]: value }));
-  }
-
-  function toggleGroup(id: string, checked: boolean) {
-    set(
-      "groupIds",
-      checked
-        ? [...settings.groupIds, id]
-        : settings.groupIds.filter((g) => g !== id),
-    );
-  }
-
-  function save(e: React.FormEvent) {
-    e.preventDefault();
+  const onSubmit = form.handleSubmit((values) =>
     startTransition(async () => {
-      const result = await updateTestSettings(testId, settings);
+      const result = await updateTestSettings(testId, values);
       if (result.ok) {
-        setError(undefined);
         toast.success(result.message);
+        // Yangi qiymatlar "boshlang'ich" bo'ladi (isDirty to'g'ri ishlashi uchun)
+        form.reset(form.getValues());
       } else {
-        setError(result.error);
+        applyServerErrors(form, result);
       }
-    });
-  }
+    }),
+  );
 
   return (
-    <form onSubmit={save} className="flex flex-col gap-4 rounded-lg border p-4">
+    <form
+      onSubmit={onSubmit}
+      className="flex flex-col gap-4 rounded-lg border p-4"
+      noValidate
+    >
       <h2 className="font-semibold">Sozlamalar</h2>
       <div className="grid gap-4 sm:grid-cols-[1fr_10rem]">
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="title">Nomi</Label>
+        <FormField id="title" label="Nomi" error={errors.title?.message}>
           <Input
             id="title"
-            value={settings.title}
-            onChange={(e) => set("title", e.target.value)}
-            required
             maxLength={200}
+            aria-invalid={!!errors.title}
+            {...form.register("title")}
           />
-        </div>
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="durationMin">Vaqt (daqiqa)</Label>
+        </FormField>
+        <FormField
+          id="durationMin"
+          label="Vaqt (daqiqa)"
+          error={errors.durationMin?.message}
+        >
           <Input
             id="durationMin"
             type="number"
             min={1}
             max={300}
-            value={settings.durationMin}
-            onChange={(e) => set("durationMin", Number(e.target.value))}
-            required
+            aria-invalid={!!errors.durationMin}
+            {...form.register("durationMin", { valueAsNumber: true })}
           />
-        </div>
+        </FormField>
       </div>
-      <div className="flex flex-col gap-2">
-        <Label htmlFor="description">Tavsif</Label>
+      <FormField
+        id="description"
+        label="Tavsif"
+        error={errors.description?.message}
+      >
         <Textarea
           id="description"
-          value={settings.description}
-          onChange={(e) => set("description", e.target.value)}
           maxLength={2000}
           rows={2}
+          {...form.register("description")}
         />
-      </div>
+      </FormField>
 
       <fieldset className="flex flex-col gap-2">
         <legend className="mb-2 text-sm font-medium">Qoidalar</legend>
@@ -113,8 +114,7 @@ export function TestSettingsForm({
             <input
               type="checkbox"
               className="accent-primary mt-0.5 size-4"
-              checked={settings[key]}
-              onChange={(e) => set(key, e.target.checked)}
+              {...form.register(key)}
             />
             <span>
               {label}
@@ -126,33 +126,49 @@ export function TestSettingsForm({
         ))}
       </fieldset>
 
-      <fieldset className="flex flex-col gap-2">
-        <legend className="mb-2 text-sm font-medium">Guruhlar</legend>
-        {groups.length === 0 ? (
-          <p className="text-muted-foreground text-sm">Guruhlar yo&apos;q.</p>
-        ) : (
-          <div className="flex flex-wrap gap-x-6 gap-y-2">
-            {groups.map((g) => (
-              <label key={g.id} className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  className="accent-primary size-4"
-                  checked={settings.groupIds.includes(g.id)}
-                  onChange={(e) => toggleGroup(g.id, e.target.checked)}
-                />
-                {g.name}
-              </label>
-            ))}
-          </div>
+      <Controller
+        control={form.control}
+        name="groupIds"
+        render={({ field }) => (
+          <fieldset className="flex flex-col gap-2">
+            <legend className="mb-2 text-sm font-medium">Guruhlar</legend>
+            {groups.length === 0 ? (
+              <p className="text-muted-foreground text-sm">
+                Guruhlar yo&apos;q.
+              </p>
+            ) : (
+              <div className="flex flex-wrap gap-x-6 gap-y-2">
+                {groups.map((g) => (
+                  <label key={g.id} className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      className="accent-primary size-4"
+                      checked={field.value.includes(g.id)}
+                      onChange={(e) =>
+                        field.onChange(
+                          e.target.checked
+                            ? [...field.value, g.id]
+                            : field.value.filter((id) => id !== g.id),
+                        )
+                      }
+                    />
+                    {g.name}
+                  </label>
+                ))}
+              </div>
+            )}
+            {field.value.length === 0 && groups.length > 0 && (
+              <p className="text-muted-foreground text-sm">
+                Guruh tanlanmasa, testni hech kim ko&apos;rmaydi.
+              </p>
+            )}
+          </fieldset>
         )}
-        {settings.groupIds.length === 0 && groups.length > 0 && (
-          <p className="text-muted-foreground text-sm">
-            Guruh tanlanmasa, testni hech kim ko&apos;rmaydi.
-          </p>
-        )}
-      </fieldset>
+      />
 
-      <FormError message={error} />
+      <FormError
+        message={errors.groupIds?.message ?? errors.root?.server?.message}
+      />
       <div>
         <Button type="submit" disabled={pending}>
           Saqlash

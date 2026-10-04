@@ -1,6 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { toast } from "sonner";
 import { MoreHorizontalIcon } from "lucide-react";
 import {
   deleteGroup,
@@ -8,7 +11,7 @@ import {
 } from "@/app/(teacher)/teacher/groups/actions";
 import { ConfirmAction } from "@/components/common/confirm-action";
 import { FormError } from "@/components/common/form-field";
-import { formError, useFormAction } from "@/components/common/use-form-action";
+import { applyServerErrors } from "@/components/common/form-errors";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -24,6 +27,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import { groupFormSchema } from "@/lib/validators/student";
 
 export function GroupRowActions({
   group,
@@ -93,22 +97,37 @@ function RenameForm({
   group: { id: string; name: string };
   onDone: () => void;
 }) {
-  const [state, action, pending] = useFormAction(
-    renameGroup.bind(null, group.id),
-    onDone,
+  const [pending, startTransition] = useTransition();
+  const form = useForm({
+    resolver: zodResolver(groupFormSchema),
+    defaultValues: { name: group.name },
+  });
+  const { errors } = form.formState;
+
+  const onSubmit = form.handleSubmit((values) =>
+    startTransition(async () => {
+      const result = await renameGroup(group.id, values);
+      if (result.ok) {
+        toast.success(result.message);
+        onDone();
+      } else {
+        applyServerErrors(form, result);
+      }
+    }),
   );
 
   return (
-    <form action={action} className="flex flex-col gap-4">
+    <form onSubmit={onSubmit} className="flex flex-col gap-4" noValidate>
       <Input
-        name="name"
-        defaultValue={group.name}
         aria-label="Guruh nomi"
-        required
+        aria-invalid={!!errors.name}
         maxLength={64}
         autoFocus
+        {...form.register("name")}
       />
-      <FormError message={formError(state)} />
+      <FormError
+        message={errors.name?.message ?? errors.root?.server?.message}
+      />
       <DialogFooter>
         <Button type="submit" disabled={pending}>
           Saqlash

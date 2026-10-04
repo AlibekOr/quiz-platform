@@ -28,3 +28,24 @@ export const groupNameSchema = z
   .trim()
   .min(1, "Guruh nomini kiriting")
   .max(64, "Guruh nomi 64 belgidan oshmasin");
+
+export const groupFormSchema = z.object({ name: groupNameSchema });
+export type GroupFormInput = z.input<typeof groupFormSchema>;
+
+const studentFields = {
+  fullName: fullNameSchema,
+  username: usernameSchema,
+  groupId: z.string().min(1, "Guruhni tanlang"),
+};
+
+export const studentCreateSchema = z.object({
+  ...studentFields,
+  password: passwordSchema,
+});
+export type StudentCreateInput = z.input<typeof studentCreateSchema>;
+
+export const studentUpdateSchema = z.object(studentFields);
+export type StudentUpdateInput = z.input<typeof studentUpdateSchema>;
+
+export const resetPasswordSchema = z.object({ password: passwordSchema });
+export type ResetPasswordInput = z.input<typeof resetPasswordSchema>;

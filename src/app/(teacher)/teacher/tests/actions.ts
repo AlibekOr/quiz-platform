@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import type { ActionResult } from "@/lib/action-result";
+import { validationFailed, type ActionResult } from "@/lib/action-result";
 import { requireTeacher } from "@/lib/auth/guards";
 import { db } from "@/lib/db";
 import { isNotFound } from "@/lib/prisma-errors";
@@ -14,7 +14,9 @@ import {
   type ParsedQuestion,
 } from "@/lib/tests/import";
 import {
+  createTestSchema,
   issueMessages,
+  type CreateTestInput,
   questionInputSchema,
   testSettingsSchema,
   type QuestionInput,
@@ -30,27 +32,12 @@ function revalidateTest(testId: string) {
 
 // ---------- Test ----------
 
-const createTestSchema = z.object({
-  title: testSettingsSchema.shape.title,
-  durationMin: testSettingsSchema.shape.durationMin,
-});
-
 export async function createTest(
-  _prev: ActionResult | null,
-  formData: FormData,
+  input: CreateTestInput,
 ): Promise<ActionResult> {
   const teacher = await requireTeacher();
-  const parsed = createTestSchema.safeParse({
-    title: formData.get("title"),
-    durationMin: formData.get("durationMin"),
-  });
-  if (!parsed.success) {
-    return {
-      ok: false,
-      error: "Maydonlarni tekshiring",
-      fieldErrors: z.flattenError(parsed.error).fieldErrors,
-    };
-  }
+  const parsed = createTestSchema.safeParse(input);
+  if (!parsed.success) return validationFailed(parsed.error);
 
   const test = await db.test.create({
     data: { ...parsed.data, createdById: teacher.id },

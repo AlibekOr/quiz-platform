@@ -1,6 +1,8 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import type { ActionResult } from "@/lib/action-result";
+import { loginSchema, type LoginInput } from "@/lib/validators/auth";
 import { db } from "@/lib/db";
 import { homePathFor } from "./jwt";
 import { verifyAgainstDummy, verifyPassword } from "./password";
@@ -11,29 +13,18 @@ import {
 } from "./rate-limit";
 import { createSession, deleteSession } from "./session";
 
-export type LoginState = { error?: string; username?: string };
-
 const INVALID_CREDENTIALS = "Login yoki parol noto'g'ri";
 
-export async function login(
-  _prev: LoginState,
-  formData: FormData,
-): Promise<LoginState> {
-  const username = String(formData.get("username") ?? "").trim();
-  const password = String(formData.get("password") ?? "");
-
-  if (!username || !password) {
-    return { error: "Login va parolni kiriting", username };
-  }
-  if (username.length > 64 || password.length > 128) {
-    return { error: INVALID_CREDENTIALS, username };
-  }
+export async function login(input: LoginInput): Promise<ActionResult> {
+  const parsed = loginSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: INVALID_CREDENTIALS };
+  const { username, password } = parsed.data;
 
   if (await isLoginLocked(username)) {
     return {
+      ok: false,
       error:
         "Juda ko'p noto'g'ri urinish. 15 daqiqadan keyin qayta urinib ko'ring",
-      username,
     };
   }
 
@@ -53,10 +44,10 @@ export async function login(
 
   if (!user || !passwordOk) {
     await recordLoginFailure(username);
-    return { error: INVALID_CREDENTIALS, username };
+    return { ok: false, error: INVALID_CREDENTIALS };
   }
   if (!user.isActive) {
-    return { error: INVALID_CREDENTIALS, username };
+    return { ok: false, error: INVALID_CREDENTIALS };
   }
 
   await clearLoginFailures(username);

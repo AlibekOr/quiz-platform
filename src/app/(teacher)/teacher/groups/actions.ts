@@ -2,11 +2,11 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import type { ActionResult } from "@/lib/action-result";
+import { validationFailed, type ActionResult } from "@/lib/action-result";
 import { requireTeacher } from "@/lib/auth/guards";
 import { db } from "@/lib/db";
 import { isNotFound, isUniqueViolation } from "@/lib/prisma-errors";
-import { groupNameSchema } from "@/lib/validators/student";
+import { groupFormSchema, type GroupFormInput } from "@/lib/validators/student";
 
 const idSchema = z.string().min(1);
 
@@ -16,19 +16,21 @@ function revalidate() {
 }
 
 export async function createGroup(
-  _prev: ActionResult | null,
-  formData: FormData,
+  input: GroupFormInput,
 ): Promise<ActionResult> {
   await requireTeacher();
-  const parsed = groupNameSchema.safeParse(formData.get("name"));
-  if (!parsed.success)
-    return { ok: false, error: parsed.error.issues[0].message };
+  const parsed = groupFormSchema.safeParse(input);
+  if (!parsed.success) return validationFailed(parsed.error);
 
   try {
-    await db.group.create({ data: { name: parsed.data } });
+    await db.group.create({ data: { name: parsed.data.name } });
   } catch (e) {
     if (isUniqueViolation(e))
-      return { ok: false, error: "Bunday nomli guruh bor" };
+      return {
+        ok: false,
+        error: "Maydonlarni tekshiring",
+        fieldErrors: { name: ["Bunday nomli guruh bor"] },
+      };
     throw e;
   }
   revalidate();
@@ -37,20 +39,22 @@ export async function createGroup(
 
 export async function renameGroup(
   groupId: string,
-  _prev: ActionResult | null,
-  formData: FormData,
+  input: GroupFormInput,
 ): Promise<ActionResult> {
   await requireTeacher();
   const id = idSchema.parse(groupId);
-  const parsed = groupNameSchema.safeParse(formData.get("name"));
-  if (!parsed.success)
-    return { ok: false, error: parsed.error.issues[0].message };
+  const parsed = groupFormSchema.safeParse(input);
+  if (!parsed.success) return validationFailed(parsed.error);
 
   try {
-    await db.group.update({ where: { id }, data: { name: parsed.data } });
+    await db.group.update({ where: { id }, data: { name: parsed.data.name } });
   } catch (e) {
     if (isUniqueViolation(e))
-      return { ok: false, error: "Bunday nomli guruh bor" };
+      return {
+        ok: false,
+        error: "Maydonlarni tekshiring",
+        fieldErrors: { name: ["Bunday nomli guruh bor"] },
+      };
     if (isNotFound(e)) return { ok: false, error: "Guruh topilmadi" };
     throw e;
   }

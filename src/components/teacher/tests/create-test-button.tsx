@@ -1,14 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { PlusIcon } from "lucide-react";
 import { createTest } from "@/app/(teacher)/teacher/tests/actions";
 import { FormError, FormField } from "@/components/common/form-field";
-import {
-  fieldError,
-  formError,
-  useFormAction,
-} from "@/components/common/use-form-action";
+import { applyServerErrors } from "@/components/common/form-errors";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -18,6 +16,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { createTestSchema } from "@/lib/validators/test";
 
 export function CreateTestButton() {
   const [open, setOpen] = useState(false);
@@ -41,34 +40,47 @@ export function CreateTestButton() {
 }
 
 function CreateTestForm() {
-  // Muvaffaqiyatda action test sahifasiga redirect qiladi
-  const [state, action, pending] = useFormAction(createTest);
+  const [pending, startTransition] = useTransition();
+  const form = useForm({
+    resolver: zodResolver(createTestSchema),
+    defaultValues: { title: "", durationMin: 20 },
+  });
+  const { errors } = form.formState;
+
+  const onSubmit = form.handleSubmit((values) =>
+    startTransition(async () => {
+      // Muvaffaqiyatda action test sahifasiga redirect qiladi
+      const result = await createTest(values);
+      applyServerErrors(form, result);
+    }),
+  );
 
   return (
-    <form action={action} className="flex flex-col gap-4">
-      <FormField
-        id="title"
-        label="Test nomi"
-        error={fieldError(state, "title")}
-      >
-        <Input id="title" name="title" required maxLength={200} autoFocus />
+    <form onSubmit={onSubmit} className="flex flex-col gap-4" noValidate>
+      <FormField id="title" label="Test nomi" error={errors.title?.message}>
+        <Input
+          id="title"
+          maxLength={200}
+          autoFocus
+          aria-invalid={!!errors.title}
+          {...form.register("title")}
+        />
       </FormField>
       <FormField
         id="durationMin"
         label="Vaqt (daqiqa)"
-        error={fieldError(state, "durationMin")}
+        error={errors.durationMin?.message}
       >
         <Input
           id="durationMin"
-          name="durationMin"
           type="number"
           min={1}
           max={300}
-          defaultValue={20}
-          required
+          aria-invalid={!!errors.durationMin}
+          {...form.register("durationMin", { valueAsNumber: true })}
         />
       </FormField>
-      <FormError message={formError(state)} />
+      <FormError message={errors.root?.server?.message} />
       <DialogFooter>
         <Button type="submit" disabled={pending}>
           Yaratish

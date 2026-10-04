@@ -1,13 +1,16 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useTransition } from "react";
+import { useFieldArray, useForm, useWatch } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { PlusIcon, Trash2Icon } from "lucide-react";
 import { toast } from "sonner";
 import {
   createQuestion,
   updateQuestion,
 } from "@/app/(teacher)/teacher/tests/actions";
-import { FormError } from "@/components/common/form-field";
+import { applyServerErrors } from "@/components/common/form-errors";
+import { FormError, FormField } from "@/components/common/form-field";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -17,21 +20,29 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   NativeSelect,
   NativeSelectOption,
 } from "@/components/ui/native-select";
 import { Textarea } from "@/components/ui/textarea";
-import { MAX_OPTIONS } from "@/lib/validators/test";
-import type { EditorOption, EditorQuestion } from "./types";
+import {
+  MAX_OPTIONS,
+  questionFormSchema,
+  type QuestionFormInput,
+} from "@/lib/validators/test";
+import type { EditorQuestion } from "./types";
 
-const EMPTY_OPTIONS: EditorOption[] = [
-  { text: "", isCorrect: true },
-  { text: "", isCorrect: false },
-  { text: "", isCorrect: false },
-  { text: "", isCorrect: false },
-];
+const NEW_QUESTION: QuestionFormInput = {
+  text: "",
+  type: "SINGLE",
+  points: 1,
+  options: [
+    { text: "", isCorrect: true },
+    { text: "", isCorrect: false },
+    { text: "", isCorrect: false },
+    { text: "", isCorrect: false },
+  ],
+};
 
 export function QuestionEditorDialog({
   open,
@@ -72,47 +83,36 @@ function QuestionForm({
   question?: EditorQuestion;
   onDone: () => void;
 }) {
-  const [text, setText] = useState(question?.text ?? "");
-  const [type, setType] = useState<EditorQuestion["type"]>(
-    question?.type ?? "SINGLE",
-  );
-  const [points, setPoints] = useState(question?.points ?? 1);
-  const [options, setOptions] = useState<EditorOption[]>(
-    question?.options ?? EMPTY_OPTIONS,
-  );
-  const [error, setError] = useState<string>();
   const [pending, startTransition] = useTransition();
+  const form = useForm({
+    resolver: zodResolver(questionFormSchema),
+    defaultValues: question ?? NEW_QUESTION,
+  });
+  const options = useFieldArray({ control: form.control, name: "options" });
+  const { errors } = form.formState;
+  const type = useWatch({ control: form.control, name: "type" });
+  const values = useWatch({ control: form.control, name: "options" });
 
   function changeType(next: EditorQuestion["type"]) {
-    setType(next);
+    form.setValue("type", next);
     if (next === "SINGLE") {
       // SINGLE ga o'tganda faqat birinchi to'g'ri javob qoladi
-      const first = options.findIndex((o) => o.isCorrect);
-      setOptions(options.map((o, i) => ({ ...o, isCorrect: i === first })));
+      const first = values.findIndex((o) => o.isCorrect);
+      values.forEach((_, i) =>
+        form.setValue(`options.${i}.isCorrect`, i === first),
+      );
     }
   }
 
   function setCorrect(index: number, checked: boolean) {
-    setOptions(
-      options.map((o, i) =>
-        type === "SINGLE"
-          ? { ...o, isCorrect: i === index }
-          : i === index
-            ? { ...o, isCorrect: checked }
-            : o,
-      ),
-    );
+    if (type === "SINGLE")
+      values.forEach((_, i) =>
+        form.setValue(`options.${i}.isCorrect`, i === index),
+      );
+    else form.setValue(`options.${index}.isCorrect`, checked);
   }
 
-  function submit(e: React.FormEvent) {
-    e.preventDefault();
-    const input = {
-      text,
-      type,
-      points,
-      // Bo'sh qoldirilgan variantlar yuborilmaydi
-      options: options.filter((o) => o.text.trim() !== ""),
-    };
+  const onSubmit = form.handleSubmit((input) =>
     startTransition(async () => {
       const result = question
         ? await updateQuestion(question.id, input)
@@ -121,28 +121,27 @@ function QuestionForm({
         if (result.message) toast.success(result.message);
         onDone();
       } else {
-        setError(result.error);
+        applyServerErrors(form, result);
       }
-    });
-  }
+    }),
+  );
+
+  const optionsError = errors.options?.root?.message ?? errors.options?.message;
 
   return (
-    <form onSubmit={submit} className="flex flex-col gap-4">
-      <div className="flex flex-col gap-2">
-        <Label htmlFor="q-text">Savol</Label>
+    <form onSubmit={onSubmit} className="flex flex-col gap-4" noValidate>
+      <FormField id="q-text" label="Savol" error={errors.text?.message}>
         <Textarea
           id="q-text"
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          required
           maxLength={2000}
           rows={3}
           autoFocus
+          aria-invalid={!!errors.text}
+          {...form.register("text")}
         />
-      </div>
+      </FormField>
       <div className="grid grid-cols-2 gap-4">
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="q-type">Turi</Label>
+        <FormField id="q-type" label="Turi" error={errors.type?.message}>
           <NativeSelect
             id="q-type"
             value={type}
@@ -155,85 +154,83 @@ function QuestionForm({
               Bir nechta javob
             </NativeSelectOption>
           </NativeSelect>
-        </div>
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="q-points">Ball</Label>
+        </FormField>
+        <FormField id="q-points" label="Ball" error={errors.points?.message}>
           <Input
             id="q-points"
             type="number"
             min={1}
             max={100}
-            value={points}
-            onChange={(e) => setPoints(Number(e.target.value))}
-            required
+            aria-invalid={!!errors.points}
+            {...form.register("points", { valueAsNumber: true })}
           />
-        </div>
+        </FormField>
       </div>
 
       <fieldset className="flex flex-col gap-2">
         <legend className="mb-2 text-sm font-medium">
           Variantlar{" "}
           <span className="text-muted-foreground font-normal">
-            (to&apos;g&apos;ri javobni belgilang)
+            (to&apos;g&apos;ri javobni belgilang, bo&apos;sh qatorlar hisobga
+            olinmaydi)
           </span>
         </legend>
-        {options.map((option, i) => (
-          <div
-            key={option.id ?? `new-${i}`}
-            className="flex items-center gap-2"
-          >
-            <input
-              type={type === "SINGLE" ? "radio" : "checkbox"}
-              name="correct"
-              aria-label={`${String.fromCharCode(65 + i)} varianti to'g'ri`}
-              className="accent-primary size-4 shrink-0"
-              checked={option.isCorrect}
-              onChange={(e) => setCorrect(i, e.target.checked)}
-            />
-            <span className="text-muted-foreground w-4 shrink-0 text-sm">
-              {String.fromCharCode(65 + i)}
-            </span>
-            <Input
-              value={option.text}
-              aria-label={`${String.fromCharCode(65 + i)} varianti matni`}
-              onChange={(e) =>
-                setOptions(
-                  options.map((o, j) =>
-                    j === i ? { ...o, text: e.target.value } : o,
-                  ),
-                )
-              }
-              maxLength={500}
-            />
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-sm"
-              aria-label={`${String.fromCharCode(65 + i)} variantini o'chirish`}
-              disabled={options.length <= 2}
-              onClick={() => setOptions(options.filter((_, j) => j !== i))}
-            >
-              <Trash2Icon />
-            </Button>
-          </div>
-        ))}
+        {options.fields.map((field, i) => {
+          const letter = String.fromCharCode(65 + i);
+          return (
+            <div key={field.id} className="flex flex-col gap-1">
+              <div className="flex items-center gap-2">
+                <input
+                  type={type === "SINGLE" ? "radio" : "checkbox"}
+                  name="correct"
+                  aria-label={`${letter} varianti to'g'ri`}
+                  className="accent-primary size-4 shrink-0"
+                  checked={values[i]?.isCorrect ?? false}
+                  onChange={(e) => setCorrect(i, e.target.checked)}
+                />
+                <span className="text-muted-foreground w-4 shrink-0 text-sm">
+                  {letter}
+                </span>
+                <Input
+                  aria-label={`${letter} varianti matni`}
+                  maxLength={500}
+                  {...form.register(`options.${i}.text`)}
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label={`${letter} variantini o'chirish`}
+                  disabled={options.fields.length <= 2}
+                  onClick={() => options.remove(i)}
+                >
+                  <Trash2Icon />
+                </Button>
+              </div>
+              {errors.options?.[i]?.text?.message && (
+                <p className="text-destructive pl-10 text-sm">
+                  {errors.options[i].text.message}
+                </p>
+              )}
+            </div>
+          );
+        })}
         <div>
           <Button
             type="button"
             variant="outline"
             size="sm"
-            disabled={options.length >= MAX_OPTIONS}
-            onClick={() =>
-              setOptions([...options, { text: "", isCorrect: false }])
-            }
+            disabled={options.fields.length >= MAX_OPTIONS}
+            onClick={() => options.append({ text: "", isCorrect: false })}
           >
             <PlusIcon />
             Variant qo&apos;shish
           </Button>
         </div>
+        <FormError message={optionsError} />
       </fieldset>
 
-      <FormError message={error} />
+      <FormError message={errors.root?.server?.message} />
       <DialogFooter>
         <Button type="submit" disabled={pending}>
           Saqlash

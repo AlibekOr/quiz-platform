@@ -1,17 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useTransition } from "react";
+import { FormProvider, useForm, useFormContext } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { RefreshCwIcon } from "lucide-react";
+import { toast } from "sonner";
 import {
   createStudent,
   updateStudent,
 } from "@/app/(teacher)/teacher/students/actions";
+import { applyServerErrors } from "@/components/common/form-errors";
 import { FormError, FormField } from "@/components/common/form-field";
-import {
-  fieldError,
-  formError,
-  useFormAction,
-} from "@/components/common/use-form-action";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -27,6 +26,11 @@ import {
   NativeSelectOption,
 } from "@/components/ui/native-select";
 import { generatePassword } from "@/lib/students/generate-password";
+import {
+  studentCreateSchema,
+  studentUpdateSchema,
+  type StudentUpdateInput,
+} from "@/lib/validators/student";
 import type { GroupOption, StudentRow } from "./types";
 
 export function StudentDialog({
@@ -41,6 +45,7 @@ export function StudentDialog({
   /** Berilmasa — yangi o'quvchi */
   student?: StudentRow;
 }) {
+  const onDone = () => onOpenChange(false);
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
@@ -54,102 +59,165 @@ export function StudentDialog({
             </DialogDescription>
           )}
         </DialogHeader>
-        <StudentForm
-          groups={groups}
-          student={student}
-          onDone={() => onOpenChange(false)}
-        />
+        {student ? (
+          <EditStudentForm groups={groups} student={student} onDone={onDone} />
+        ) : (
+          <CreateStudentForm groups={groups} onDone={onDone} />
+        )}
       </DialogContent>
     </Dialog>
   );
 }
 
-function StudentForm({
+function CreateStudentForm({
   groups,
-  student,
   onDone,
 }: {
   groups: GroupOption[];
-  student?: StudentRow;
   onDone: () => void;
 }) {
-  const [state, action, pending] = useFormAction(
-    student ? updateStudent.bind(null, student.id) : createStudent,
-    onDone,
-  );
-  const [password, setPassword] = useState(() =>
-    student ? "" : generatePassword(),
+  const [pending, startTransition] = useTransition();
+  const form = useForm({
+    resolver: zodResolver(studentCreateSchema),
+    defaultValues: {
+      fullName: "",
+      username: "",
+      groupId: "",
+      password: generatePassword(),
+    },
+  });
+  const { errors } = form.formState;
+
+  const onSubmit = form.handleSubmit((values) =>
+    startTransition(async () => {
+      const result = await createStudent(values);
+      if (result.ok) {
+        toast.success(result.message);
+        onDone();
+      } else {
+        applyServerErrors(form, result);
+      }
+    }),
   );
 
   return (
-    <form action={action} className="flex flex-col gap-4">
-      <FormField
-        id="fullName"
-        label="F.I.Sh"
-        error={fieldError(state, "fullName")}
-      >
-        <Input
-          id="fullName"
-          name="fullName"
-          defaultValue={student?.fullName}
-          required
-          maxLength={100}
-        />
-      </FormField>
-      <FormField
-        id="username"
-        label="Login"
-        error={fieldError(state, "username")}
-      >
-        <Input
-          id="username"
-          name="username"
-          defaultValue={student?.username}
-          autoCapitalize="none"
-          autoComplete="off"
-          required
-          maxLength={32}
-        />
-      </FormField>
-      {!student && (
-        <FormField
-          id="password"
-          label="Parol"
-          error={fieldError(state, "password")}
-        >
+    <FormProvider {...form}>
+      <form onSubmit={onSubmit} className="flex flex-col gap-4" noValidate>
+        <StudentFields groups={groups} />
+        <FormField id="password" label="Parol" error={errors.password?.message}>
           <div className="flex gap-2">
             <Input
               id="password"
-              name="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
               autoComplete="off"
-              required
-              minLength={6}
-              maxLength={72}
+              aria-invalid={!!errors.password}
+              {...form.register("password")}
             />
             <Button
               type="button"
               variant="outline"
               size="icon"
               aria-label="Yangi parol yaratish"
-              onClick={() => setPassword(generatePassword())}
+              onClick={() =>
+                form.setValue("password", generatePassword(), {
+                  shouldValidate: true,
+                })
+              }
             >
               <RefreshCwIcon />
             </Button>
           </div>
         </FormField>
-      )}
-      <FormField
-        id="groupId"
-        label="Guruh"
-        error={fieldError(state, "groupId")}
-      >
+        <FormError message={errors.root?.server?.message} />
+        <DialogFooter>
+          <Button type="submit" disabled={pending}>
+            Qo&apos;shish
+          </Button>
+        </DialogFooter>
+      </form>
+    </FormProvider>
+  );
+}
+
+function EditStudentForm({
+  groups,
+  student,
+  onDone,
+}: {
+  groups: GroupOption[];
+  student: StudentRow;
+  onDone: () => void;
+}) {
+  const [pending, startTransition] = useTransition();
+  const form = useForm({
+    resolver: zodResolver(studentUpdateSchema),
+    defaultValues: {
+      fullName: student.fullName,
+      username: student.username,
+      groupId: student.groupId ?? "",
+    },
+  });
+  const { errors } = form.formState;
+
+  const onSubmit = form.handleSubmit((values) =>
+    startTransition(async () => {
+      const result = await updateStudent(student.id, values);
+      if (result.ok) {
+        toast.success(result.message);
+        onDone();
+      } else {
+        applyServerErrors(form, result);
+      }
+    }),
+  );
+
+  return (
+    <FormProvider {...form}>
+      <form onSubmit={onSubmit} className="flex flex-col gap-4" noValidate>
+        <StudentFields groups={groups} />
+        <FormError message={errors.root?.server?.message} />
+        <DialogFooter>
+          <Button type="submit" disabled={pending}>
+            Saqlash
+          </Button>
+        </DialogFooter>
+      </form>
+    </FormProvider>
+  );
+}
+
+/** Yaratish va tahrirlash formalari uchun umumiy maydonlar (fullName, username, groupId) */
+function StudentFields({ groups }: { groups: GroupOption[] }) {
+  // Ikkala forma ham shu uch maydonga ega
+  const {
+    register,
+    formState: { errors },
+  } = useFormContext<StudentUpdateInput>();
+
+  return (
+    <>
+      <FormField id="fullName" label="F.I.Sh" error={errors.fullName?.message}>
+        <Input
+          id="fullName"
+          maxLength={100}
+          aria-invalid={!!errors.fullName}
+          {...register("fullName")}
+        />
+      </FormField>
+      <FormField id="username" label="Login" error={errors.username?.message}>
+        <Input
+          id="username"
+          autoCapitalize="none"
+          autoComplete="off"
+          maxLength={32}
+          aria-invalid={!!errors.username}
+          {...register("username")}
+        />
+      </FormField>
+      <FormField id="groupId" label="Guruh" error={errors.groupId?.message}>
         <NativeSelect
           id="groupId"
-          name="groupId"
-          defaultValue={student?.groupId ?? ""}
-          required
+          aria-invalid={!!errors.groupId}
+          {...register("groupId")}
         >
           <NativeSelectOption value="" disabled>
             Guruhni tanlang
@@ -161,12 +229,6 @@ function StudentForm({
           ))}
         </NativeSelect>
       </FormField>
-      <FormError message={formError(state)} />
-      <DialogFooter>
-        <Button type="submit" disabled={pending}>
-          {student ? "Saqlash" : "Qo'shish"}
-        </Button>
-      </DialogFooter>
-    </form>
+    </>
   );
 }

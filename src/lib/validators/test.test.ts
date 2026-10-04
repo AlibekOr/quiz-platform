@@ -71,11 +71,11 @@ describe("questionInputSchema", () => {
 });
 
 describe("testSettingsSchema", () => {
-  it("bo'sh tavsifni null qiladi va vaqtni songa aylantiradi", () => {
+  it("bo'sh tavsifni null qiladi va nomni trim qiladi", () => {
     const r = testSettingsSchema.parse({
       title: " CSS ",
       description: "  ",
-      durationMin: "20",
+      durationMin: 20,
       allowRetake: false,
       showAnswers: true,
       shuffleQuestions: false,

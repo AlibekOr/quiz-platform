@@ -63,7 +63,7 @@ export const questionInputSchema = z
     }
   });
 
-export type QuestionInput = z.infer<typeof questionInputSchema>;
+export type QuestionInput = z.input<typeof questionInputSchema>;
 
 export const testSettingsSchema = z.object({
   title: z
@@ -75,8 +75,9 @@ export const testSettingsSchema = z.object({
     .string()
     .trim()
     .max(2000, "Tavsif 2000 belgidan oshmasin")
+    .nullable()
     .transform((v) => v || null),
-  durationMin: z.coerce
+  durationMin: z
     .number({ error: "Vaqt son bo'lsin" })
     .int("Vaqt butun son bo'lsin")
     .min(1, "Vaqt kamida 1 daqiqa")
@@ -87,9 +88,40 @@ export const testSettingsSchema = z.object({
   groupIds: z.array(z.string().min(1)).max(200),
 });
 
-export type TestSettingsInput = z.infer<typeof testSettingsSchema>;
+export type TestSettingsInput = z.input<typeof testSettingsSchema>;
+
+export const createTestSchema = testSettingsSchema.pick({
+  title: true,
+  durationMin: true,
+});
+export type CreateTestInput = z.input<typeof createTestSchema>;
 
 /** Zod xatolaridan birinchi xabarlar ro'yxati (takrorsiz) */
 export function issueMessages(error: z.ZodError): string[] {
   return [...new Set(error.issues.map((i) => i.message))];
 }
+
+/**
+ * Savol muharriri formasi: bo'sh qoldirilgan variant qatorlari olib tashlanadi,
+ * qolgani serverdagi bilan bir xil questionInputSchema dan o'tadi.
+ */
+export const questionFormSchema = z
+  .object({
+    text: z.string(),
+    type: z.enum(["SINGLE", "MULTIPLE"]),
+    points: z.number({ error: "Ball son bo'lsin" }),
+    options: z.array(
+      z.object({
+        id: z.string().optional(),
+        text: z.string(),
+        isCorrect: z.boolean(),
+      }),
+    ),
+  })
+  .transform((q) => ({
+    ...q,
+    options: q.options.filter((o) => o.text.trim() !== ""),
+  }))
+  .pipe(questionInputSchema);
+
+export type QuestionFormInput = z.input<typeof questionFormSchema>;
