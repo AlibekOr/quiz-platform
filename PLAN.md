@@ -3,15 +3,15 @@
 ## Rollar va asosiy imkoniyatlar
 
 **O'qituvchi (TEACHER)**
-
-- Guruhlar yaratadi
+- Guruhlar yaratadi va har bir guruhning dars jadvalini kiritadi (qaysi kunlari, soat nechada)
+- Har bir dars uchun davomat belgilaydi (kim keldi, kim kelmadi) va uni Excel'ga yuklab oladi
 - O'quvchi akkauntlarini ochadi: bittalab yoki Excel'dan import qiladi. Parolni tiklaydi, akkauntni bloklaydi
+- O'quvchilarning shaxsiy ma'lumotlarini yuritadi: o'quvchi telefoni va Telegrami, ota yoki onasining ismi va telefoni
 - Test yaratadi: savollar, variantlar, vaqt, sozlamalar. Testni guruhlarga biriktiradi va faollashtiradi
 - Savollarni JSON/Excel'dan import qiladi
 - Natijalar va statistikani ko'radi. Reytingni istalgan guruh bo'yicha ko'radi
 
 **O'quvchi (STUDENT)**
-
 - Faqat o'qituvchi bergan username + parol bilan kiradi (o'zi ro'yxatdan o'ta olmaydi)
 - O'z guruhiga biriktirilgan faol testlarni ko'radi va ishlaydi
 - Natijasini ko'radi (to'g'ri javoblar faqat `showAnswers = true` bo'lsa)
@@ -41,6 +41,18 @@ enum QuestionType {
   MULTIPLE
 }
 
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LATE
+}
+
+enum ParentRelation {
+  FATHER
+  MOTHER
+  OTHER
+}
+
 enum AttemptStatus {
   IN_PROGRESS
   FINISHED
@@ -57,6 +69,8 @@ model User {
   groupId      String?
   group        Group?    @relation(fields: [groupId], references: [id])
   attempts     Attempt[]
+  attendances  Attendance[]
+  profile      StudentProfile?
   createdTests Test[]    @relation("TestAuthor")
   createdAt    DateTime  @default(now())
 }
@@ -66,6 +80,8 @@ model Group {
   name      String   @unique
   students  User[]
   tests     Test[]
+  schedules GroupSchedule[]
+  lessons   Lesson[]
   createdAt DateTime @default(now())
 }
 
@@ -139,6 +155,58 @@ model Answer {
 
   @@unique([attemptId, questionId])
 }
+
+// O'quvchining shaxsiy va aloqa ma'lumotlari (faqat o'qituvchi ko'radi)
+model StudentProfile {
+  id             String          @id @default(cuid())
+  userId         String          @unique
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  phone          String?         // +998901234567
+  telegram       String?         // @username yoki +998...
+  parentName     String?
+  parentRelation ParentRelation?
+  parentPhone    String?
+  note           String?
+  updatedAt      DateTime        @updatedAt
+}
+
+// Guruhning haftalik dars jadvali: har bir dars kuni uchun bitta qator
+model GroupSchedule {
+  id        String @id @default(cuid())
+  groupId   String
+  group     Group  @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  weekday   Int    // 1 = Dushanba ... 7 = Yakshanba
+  startTime String // "14:00"
+  endTime   String // "16:00"
+
+  @@unique([groupId, weekday])
+}
+
+// Bitta o'tilgan dars (ma'lum sana)
+model Lesson {
+  id          String       @id @default(cuid())
+  groupId     String
+  group       Group        @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  date        DateTime     @db.Date
+  topic       String?
+  attendances Attendance[]
+  createdAt   DateTime     @default(now())
+
+  @@unique([groupId, date])
+}
+
+model Attendance {
+  id        String           @id @default(cuid())
+  lessonId  String
+  lesson    Lesson           @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  studentId String
+  student   User             @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  status    AttendanceStatus
+  note      String?
+  updatedAt DateTime         @updatedAt
+
+  @@unique([lessonId, studentId])
+}
 ```
 
 ---
@@ -146,13 +214,11 @@ model Answer {
 ## Biznes qoidalar
 
 **Baholash (`lib/grading.ts`)**
-
 - SINGLE: tanlangan variant to'g'ri bo'lsa, `points` beriladi.
 - MULTIPLE: tanlanganlar to'plami to'g'ri variantlar to'plamiga **aynan teng** bo'lsagina `points` beriladi, aks holda 0 (qisman ball yo'q).
 - `maxScore` = barcha savollar `points` yig'indisi.
 
 **Attempt hayot sikli**
-
 - Boshlash: test faol bo'lishi va o'quvchining guruhiga biriktirilgan bo'lishi kerak. `deadlineAt = now + durationMin`.
 - O'quvchida shu testda `IN_PROGRESS` attempt bo'lsa, yangisi ochilmaydi, o'sha davom ettiriladi (sahifa yangilansa ham).
 - `allowRetake = false` bo'lsa, `FINISHED/EXPIRED` attempt bor ekan, qayta boshlab bo'lmaydi.
@@ -163,7 +229,6 @@ model Answer {
 - Muddati o'tgan, lekin topshirilmagan attemptlar: `finalizeExpiredAttempts(testId)` funksiyasi saqlangan javoblar bo'yicha baholab, `status = EXPIRED` qiladi (`durationSec = durationMin*60`). Bu funksiya reyting va natijalar o'qilishidan oldin chaqiriladi.
 
 **Reyting (`lib/leaderboard.ts`)**
-
 - Faqat `isFirst = true` va `status IN (FINISHED, EXPIRED)` attemptlar hisoblanadi.
 - Tartib: `score DESC`, keyin `durationSec ASC`. O'rin `RANK()` bilan hisoblanadi (teng natijalar bir xil o'rin oladi).
 - **Test reytingi:** bitta test bo'yicha.
@@ -172,8 +237,23 @@ model Answer {
 - Top 50 qaytariladi + joriy o'quvchining o'z qatori (top 50 da bo'lmasa ham) alohida `me` maydonida.
 - Bloklangan (`isActive = false`) o'quvchilar reytingda ko'rinmaydi.
 
-**Auth**
+**Davomat**
+- Vaqt zonasi: `Asia/Tashkent`. "Bugun" va dars sanasi shu zonada hisoblanadi (server UTC'da ishlasa ham).
+- Davomat sahifasi ochilganda bugungi kun jadvaliga ko'ra dars bo'lishi kerak bo'lgan guruhlar ko'rsatiladi. Jadvalda bo'lmagan kunga ham qo'lda dars qo'shish mumkin (qo'shimcha dars).
+- `Lesson` birinchi marta davomat saqlanganda yaratiladi (bir guruh + bir sana = bitta dars).
+- Davomat sahifasida guruhning hozirgi faol o'quvchilari chiqadi. Avval saqlangan dars ochilsa, o'sha darsdagi yozuvlar chiqadi (o'quvchi keyin boshqa guruhga o'tgan bo'lsa ham tarix saqlanadi).
+- Statuslar: `PRESENT` (keldi), `ABSENT` (kelmadi), `LATE` (kechikdi). Hisobotda `LATE` "keldi" deb hisoblanadi. Alohida "sababli" status yo'q: sababli qolgan o'quvchi ham `ABSENT` (kelmadi) bo'ladi va foizga kelmagan sifatida kiradi. Sababini `note` maydoniga yozish mumkin.
+- Kelajakdagi sana uchun davomat belgilab bo'lmaydi. O'tgan darslarni tahrirlash mumkin.
+- Davomatni faqat o'qituvchi ko'radi va o'zgartiradi.
 
+**Davomatni Excel'ga eksport (exceljs)**
+- Parametrlar: guruh + davr (oy yoki ixtiyoriy `from`–`to`).
+- Varaq tuzilmasi: tepada guruh nomi, dars jadvali va davr; qatorlar o'quvchilar (alifbo bo'yicha), ustunlar dars sanalari (`04.10`), kataklarda `+` (keldi), `−` (kelmadi), `K` (kechikdi). Agar `note` bo'lsa, katakka izoh (comment) sifatida qo'shiladi.
+- Oxirgi ustunlar: kelgan, kelmagan, davomat foizi. Pastki qatorda har bir dars bo'yicha kelganlar soni.
+- Ranglar: `−` qizil fon, `K` sariq. Sarlavha qatori va birinchi ustun muzlatilgan (freeze).
+- Fayl nomi: `davomat_<guruh>_<YYYY-MM>.xlsx`.
+
+**Auth**
 - Login: username + parol. Xato bo'lsa umumiy xabar: "Login yoki parol noto'g'ri".
 - Session: JWT (`jose`, HS256), payload: `userId`, `role`, `groupId`. httpOnly, secure, sameSite=lax cookie, muddati 7 kun.
 - Login urinishlariga oddiy cheklov: bir username uchun 15 daqiqada 10 ta xato bo'lsa, vaqtincha bloklanadi.
@@ -184,22 +264,27 @@ model Answer {
 
 ## Sahifalar
 
-| Yo'l                          | Kim                        | Vazifasi                                                              |
-| ----------------------------- | -------------------------- | --------------------------------------------------------------------- |
-| `/login`                      | hamma                      | Kirish                                                                |
-| `/dashboard`                  | student                    | Mavjud testlar, o'z natijalari                                        |
-| `/test/[id]`                  | student                    | Test ishlash (taymer, savollar navigatsiyasi, avtosaqlash)            |
-| `/result/[attemptId]`         | student (faqat o'zinikini) | Ball, o'rin, (ruxsat bo'lsa) to'g'ri javoblar                         |
-| `/leaderboard`                | student, teacher           | Umumiy reyting: tablar "Mening guruhim" / "Umumiy"                    |
-| `/test/[id]/leaderboard`      | student, teacher           | Test reytingi, xuddi shu tablar                                       |
-| `/teacher`                    | teacher                    | Umumiy ko'rinish (testlar, o'quvchilar soni, oxirgi natijalar)        |
-| `/teacher/groups`             | teacher                    | Guruhlar CRUD                                                         |
-| `/teacher/students`           | teacher                    | O'quvchilar ro'yxati, qo'shish, Excel import, parol tiklash, bloklash |
-| `/teacher/tests`              | teacher                    | Testlar ro'yxati, yaratish                                            |
-| `/teacher/tests/[id]`         | teacher                    | Tahrirlash: savollar, sozlamalar, guruhlar, import                    |
-| `/teacher/tests/[id]/results` | teacher                    | Natijalar jadvali, savollar bo'yicha statistika                       |
+| Yo'l | Kim | Vazifasi |
+|---|---|---|
+| `/login` | hamma | Kirish |
+| `/dashboard` | student | Mavjud testlar, o'z natijalari |
+| `/test/[id]` | student | Test ishlash (taymer, savollar navigatsiyasi, avtosaqlash) |
+| `/result/[attemptId]` | student (faqat o'zinikini) | Ball, o'rin, (ruxsat bo'lsa) to'g'ri javoblar |
+| `/leaderboard` | student, teacher | Umumiy reyting: tablar "Mening guruhim" / "Umumiy" |
+| `/test/[id]/leaderboard` | student, teacher | Test reytingi, xuddi shu tablar |
+| `/teacher` | teacher | Umumiy ko'rinish (testlar, o'quvchilar soni, oxirgi natijalar) |
+| `/teacher/groups` | teacher | Guruhlar CRUD |
+| `/teacher/groups/[id]` | teacher | Guruh tafsilotlari: o'quvchilar, dars jadvali |
+| `/teacher/attendance` | teacher | Bugungi darslar (jadval bo'yicha), boshqa sanani tanlash, qo'shimcha dars qo'shish |
+| `/teacher/attendance/[groupId]/[date]` | teacher | Davomat belgilash |
+| `/teacher/groups/[id]/attendance` | teacher | Davomat hisoboti (o'quvchilar × sanalar jadvali), Excel'ga yuklab olish |
+| `/teacher/students` | teacher | O'quvchilar ro'yxati, qo'shish, Excel import/eksport, parol tiklash, bloklash |
+| `/teacher/students/[id]` | teacher | O'quvchi kartochkasi: shaxsiy va aloqa ma'lumotlari, guruhi, test natijalari, davomat foizi |
+| `/teacher/tests` | teacher | Testlar ro'yxati, yaratish |
+| `/teacher/tests/[id]` | teacher | Tahrirlash: savollar, sozlamalar, guruhlar, import |
+| `/teacher/tests/[id]/results` | teacher | Natijalar jadvali, savollar bo'yicha statistika |
 
-API: `GET /api/leaderboard?testId=&scope=group|all&groupId=` (`testId` bo'lmasa umumiy reyting). Qolgan o'zgartirishlar Server Actions orqali bo'ladi.
+API: `GET /api/leaderboard?testId=&scope=group|all&groupId=` (`testId` bo'lmasa umumiy reyting), `GET /api/attendance/export?groupId=&from=&to=` (.xlsx fayl, faqat teacher). Qolgan o'zgartirishlar Server Actions orqali bo'ladi.
 
 ---
 
@@ -208,7 +293,6 @@ API: `GET /api/leaderboard?testId=&scope=group|all&groupId=` (`testId` bo'lmasa 
 Har bosqichdan keyin to'xta va hisobot ber. `lint`, `typecheck`, `test` o'tishi shart.
 
 ### 1-bosqich: loyiha asosi
-
 - Next.js + TS + Tailwind + shadcn/ui + ESLint + Prettier + Vitest sozlash, `package.json` skriptlari
 - Prisma sxema (yuqoridagi), birinchi migratsiya, `lib/db.ts`
 - `.env.example`
@@ -217,7 +301,6 @@ Har bosqichdan keyin to'xta va hisobot ber. `lint`, `typecheck`, `test` o'tishi 
 **Tayyor:** `pnpm db:migrate && pnpm db:seed` ishlaydi, Prisma Studio'da ma'lumotlar ko'rinadi.
 
 ### 2-bosqich: autentifikatsiya
-
 - `lib/auth/password.ts` (hash/verify), `lib/auth/session.ts` (JWT yaratish/o'qish, cookie)
 - `lib/auth/guards.ts`: `getSession()`, `requireTeacher()`, `requireStudent()`
 - `proxy.ts`: login qilmaganlarni `/login`ga, studentni `/teacher/*` dan `/dashboard`ga yo'naltiradi
@@ -227,16 +310,31 @@ Har bosqichdan keyin to'xta va hisobot ber. `lint`, `typecheck`, `test` o'tishi 
 **Tayyor:** teacher va student kirib o'z sahifasiga tushadi, bir-birining sahifasiga kira olmaydi, bloklangan user kira olmaydi.
 
 ### 3-bosqich: o'qituvchi, guruhlar va o'quvchilar
-
 - Teacher layout (sidebar, telefonda hamburger menyu)
 - `/teacher/groups`: CRUD
-- `/teacher/students`: jadval (qidiruv, guruh filtri), qo'shish, tahrirlash, guruhni o'zgartirish, parolni tiklash, bloklash
-- Excel import: ustunlar `fullName | username | password | group`. Importdan oldin preview, xatolarni qator bo'yicha ko'rsatish, takror username'larni rad etish
+- `/teacher/students`: jadval (qidiruv ism, telefon va Telegram bo'yicha, guruh filtri), qo'shish, tahrirlash, guruhni o'zgartirish, parolni tiklash, bloklash
+- O'quvchi formasi: ism, username, parol, guruh, o'quvchi telefoni, Telegram (`@username` yoki telefon raqami), ota-ona: ismi, kimligi (ota / ona / boshqa), telefoni, izoh. Aloqa maydonlari ixtiyoriy
+- Telefon raqamlari `+998XXXXXXXXX` formatiga keltirib saqlanadi (`90 123 45 67`, `901234567`, `+998 90 ...` kabi kiritishlar qabul qilinadi). Telegram `@username` yoki telefon raqami bo'lishi mumkin, Zod bilan tekshiriladi
+- `/teacher/students/[id]`: o'quvchi kartochkasi. Telefonlar `tel:` havola (bosganda qo'ng'iroq), Telegram `https://t.me/...` havola
+- Excel eksport: guruh bo'yicha o'quvchilar ro'yxati barcha aloqa ma'lumotlari bilan (parol va hash'siz)
+- Excel import: ustunlar `fullName | username | password | group | phone | telegram | parentName | parentRelation | parentPhone`. Importdan oldin preview, xatolarni qator bo'yicha ko'rsatish, takror username'larni rad etish
 
 **Tayyor:** 30 ta o'quvchini Excel'dan bir yo'la qo'shsa bo'ladi, ular login qila oladi.
 
-### 4-bosqich: testlar va savollar
+### 4-bosqich: dars jadvali va davomat
+- Prisma: `GroupSchedule`, `Lesson`, `Attendance` modellari va `AttendanceStatus` enum (yuqoridagi sxema). Agar 1-bosqichda hali qo'shilmagan bo'lsa, yangi migratsiya
+- Vaqt zonasi yordamchilari: `lib/time.ts` (`Asia/Tashkent` bo'yicha bugungi sana, hafta kuni)
+- `/teacher/groups/[id]`: dars jadvalini kiritish: hafta kunlarini belgilash va har biriga boshlanish/tugash vaqti. Guruhlar ro'yxatida jadval qisqa ko'rinishda (`Du, Cho, Ju · 14:00–16:00`)
+- `/teacher/attendance`: bugun darsi bor guruhlar (kartochkalar, davomat belgilangan yoki belgilanmaganligi), sana tanlagich, qo'shimcha dars qo'shish
+- Davomat belgilash sahifasi (mobile-first): o'quvchilar ro'yxati, har birida katta tugmalar (Keldi / Kelmadi / Kechikdi), "Hammasi keldi" tugmasi, "Kelmadi" belgilangan o'quvchi yonida ota-onasining telefoniga `tel:` havola (darrov qo'ng'iroq qilish uchun), ixtiyoriy izoh va dars mavzusi, bitta "Saqlash"
+- `/teacher/groups/[id]/attendance`: oy tanlagich, o'quvchilar × sanalar jadvali, har o'quvchining davomat foizi, eng ko'p dars qoldirganlar tepada ajratilgan
+- Excel eksport: `GET /api/attendance/export` (yuqoridagi formatda)
+- Seed: guruhlarga jadval va o'tgan 2 haftaga namunaviy davomat
+- Vitest: davomat foizi hisobi (`LATE` = keldi, `ABSENT` = kelmadi), vaqt zonasi bo'yicha "bugun", Excel fayl tuzilmasi (ustunlar va yig'indilar)
 
+**Tayyor:** telefondan 20 soniya ichida bitta guruh davomatini belgilasa bo'ladi; oylik hisobotni Excel'da ochganda sanalar, belgilar, ranglar va foizlar to'g'ri; o'quvchi davomat sahifalari va eksportga kira olmaydi.
+
+### 5-bosqich: testlar va savollar
 - `/teacher/tests`: ro'yxat, yaratish
 - `/teacher/tests/[id]`: sozlamalar (vaqt, allowRetake, showAnswers, shuffleQuestions, isActive), guruhlarga biriktirish
 - Savol muharriri: qo'shish, tahrirlash, o'chirish, tartibini o'zgartirish, variantlar (kamida 2 ta, kamida 1 ta to'g'ri; SINGLE da aynan 1 ta)
@@ -245,8 +343,7 @@ Har bosqichdan keyin to'xta va hisobot ber. `lint`, `typecheck`, `test` o'tishi 
 
 **Tayyor:** mavjud savollar bazasini import qilib, test yaratib, guruhga faollashtirsa bo'ladi.
 
-### 5-bosqich: test ishlash
-
+### 6-bosqich: test ishlash
 - `/dashboard`: o'quvchi guruhidagi faol testlar, holati ("Boshlanmagan", "Davom etmoqda", "Tugatilgan: 8/10")
 - Boshlash tasdiq oynasi (vaqt, savollar soni)
 - `/test/[id]`: bitta savol ekranda, oldinga/orqaga, savollar raqamlari paneli (javob berilganlari belgilangan), taymer, avtosaqlash (saqlanish holati ko'rinadi), "Topshirish" tasdig'i
@@ -257,8 +354,7 @@ Har bosqichdan keyin to'xta va hisobot ber. `lint`, `typecheck`, `test` o'tishi 
 
 **Tayyor:** DevTools Network'da test davomida `isCorrect` ko'rinmaydi; sahifa yangilansa javoblar va taymer saqlanib qoladi; vaqt tugasa avtomatik topshiriladi.
 
-### 6-bosqich: reyting
-
+### 7-bosqich: reyting
 - `lib/leaderboard.ts`: test reytingi va umumiy reyting (`$queryRaw` + `RANK()`), `finalizeExpiredAttempts`
 - `GET /api/leaderboard`
 - UI: tablar "Mening guruhim" / "Umumiy", ustunlar: o'rin, ism, (umumiyda) guruh, ball, vaqt. Top 3 uchun medal, o'quvchining o'z qatori ajratilgan, top 50 dan tashqarida bo'lsa pastda "Siz: N-o'rin"
@@ -267,15 +363,13 @@ Har bosqichdan keyin to'xta va hisobot ber. `lint`, `typecheck`, `test` o'tishi 
 
 **Tayyor:** o'quvchi URL'ni o'zgartirib boshqa guruh reytingini olish orqali tizimni aldab bo'lmaydi; qayta ishlash reytingni o'zgartirmaydi.
 
-### 7-bosqich: o'qituvchi statistikasi
-
+### 8-bosqich: o'qituvchi statistikasi
 - `/teacher/tests/[id]/results`: o'quvchilar natijalari jadvali (guruh filtri, saralash), CSV'ga eksport
 - Savollar bo'yicha statistika: necha foiz to'g'ri javob bergan, eng qiyin 5 ta savol
 - Bitta o'quvchining attemptini batafsil ko'rish
 - O'qituvchi o'quvchiga qayta ishlash ruxsatini berishi (attemptni bekor qilish)
 
-### 8-bosqich: sayqal va deploy
-
+### 9-bosqich: sayqal va deploy
 - Loading/error/empty holatlari, toast xabarlar, 404 sahifa
 - Telefon ekranida barcha sahifalarni tekshirish
 - Vercel + Neon deploy, prod migratsiya va seed (faqat teacher akkaunti)
@@ -284,8 +378,8 @@ Har bosqichdan keyin to'xta va hisobot ber. `lint`, `typecheck`, `test` o'tishi 
 ---
 
 ## Keyingi versiyalar (hozir qilinmaydi)
-
 - Savollarga rasm va kod bloklari
 - Savollar banki (testlar orasida qayta ishlatish)
 - AI orqali savol generatsiyasi
+- O'quvchi o'z davomatini ko'rishi, davomat bo'yicha ota-onaga xabar (Telegram bot)
 - React Native mobil ilova

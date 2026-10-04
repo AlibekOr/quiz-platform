@@ -1,49 +1,86 @@
-@AGENTS.md
+# Test platformasi: loyiha qoidalari
 
-# Quiz platform
+O'quv markaz o'quvchilari uchun onlayn test platformasi. O'qituvchi test yaratadi, o'quvchilar akkauntini ochadi, guruhlar dars jadvali va davomatini yuritadi. O'quvchilar login/parol bilan kirib test ishlaydi va reytingni ko'radi.
 
-O'qituvchi/o'quvchi test platformasi. **Yagona manba: `PLAN.md`** — rollar, Prisma sxema, biznes qoidalar, sahifalar va 8 bosqich o'sha yerda. Kod yozishdan oldin tegishli bo'limni o'qi; reja bilan zid narsa qilma, kerak bo'lsa avval so'ra.
+Batafsil reja va bosqichlar `PLAN.md` faylida. Har doim joriy bosqichni o'sha yerdan o'qi.
 
-## Stek
+## Stack (o'zgartirma, avval so'ra)
 
-- Next.js 16 (App Router, `src/app`), React 19, TypeScript strict, Tailwind v4, pnpm
-- shadcn/ui, Prisma 7 + PostgreSQL, `jose` (JWT), `bcryptjs`, Vitest, Prettier; deploy: Vercel + Neon
-- Prisma 7: client `@/generated/prisma/client` dan import qilinadi (faqat `@/lib/db` orqali), `@prisma/adapter-pg` bilan; ulanish `prisma.config.ts` da. `migrate dev` client'ni generatsiya qilmaydi — keyin `pnpm db:generate`
-- Dev baza: lokal Homebrew `postgresql@17`, baza `quiz_platform`. Buyruqlar: `pnpm db:migrate | db:seed | db:studio`
-- Alias: `@/*` → `src/*`
-- Next 16: middleware o'rniga `proxy.ts`. API'ni xotiradan yozma — `node_modules/next/dist/docs/01-app/` dagi guide'ni o'qi
+- **Framework:** Next.js 16 (App Router), React 19
+- **Til:** TypeScript, `strict: true`. `any` ishlatma
+- **Paket menejeri:** pnpm. Build skriptlari (prisma, @prisma/engines, @prisma/client) uchun `pnpm approve-builds` yoki `package.json` dagi `pnpm.onlyBuiltDependencies` ishlatiladi
+- **Stil:** Tailwind CSS + shadcn/ui
+- **Baza:** PostgreSQL (prod: Neon), ORM: Prisma
+- **Auth:** o'zimiz yozamiz. `bcryptjs` (parol hash), `jose` (JWT), httpOnly cookie. NextAuth ISHLATILMAYDI
+- **Validatsiya:** Zod (har bir server action va API kirishida)
+- **Formalar:** react-hook-form + @hookform/resolvers/zod
+- **Excel import:** exceljs
+- **Testlar:** Vitest (baholash, reyting, auth logikasi uchun)
+- **Deploy:** Vercel + Neon
+
+## Papka tuzilmasi
+
+```
+src/
+  app/
+    (auth)/login/
+    (student)/dashboard/  test/[id]/  result/[attemptId]/  leaderboard/
+    (teacher)/teacher/tests/  teacher/students/  teacher/groups/  teacher/attendance/
+    api/leaderboard/route.ts
+    api/attendance/export/route.ts
+  components/ui/        # shadcn
+  components/           # umumiy komponentlar
+  lib/
+    db.ts               # Prisma client (singleton)
+    auth/               # session.ts, password.ts, guards.ts
+    grading.ts          # baholash logikasi
+    attendance.ts       # davomat hisobi va Excel eksport
+    time.ts             # Asia/Tashkent vaqt yordamchilari
+    leaderboard.ts      # reyting so'rovlari
+    validators/         # Zod sxemalar
+  proxy.ts
+prisma/
+  schema.prisma
+  seed.ts
+```
+
+## Majburiy qoidalar
+
+1. **To'g'ri javoblar hech qachon brauzerga yuborilmaydi** (test davomida). Test ishlash sahifasi uchun maxsus `select` ishlat: `Option.isCorrect` bo'lmasin. Tekshirish faqat serverda.
+2. **Rol tekshiruvi ikki joyda:** `proxy.ts` faqat yo'naltiradi, lekin har bir server action va route handler o'zi ham `requireTeacher()` / `requireStudent()` chaqiradi. Faqat proxy'ga ishonma.
+3. **Vaqt serverda hisoblanadi.** Attempt boshlanganda `deadlineAt` yoziladi. Deadline'dan keyin kelgan javob qabul qilinmaydi (5 soniya grace). Klient taymeri faqat ko'rsatish uchun.
+4. **Guruh sessiyadan olinadi,** URL yoki body'dan emas (o'quvchi uchun).
+5. Barcha kirish ma'lumotlari Zod bilan tekshiriladi.
+6. Parollar faqat bcrypt hash ko'rinishida saqlanadi (cost 10). Hech qachon logga yozilmaydi.
+7. Interfeys tili: **o'zbekcha (lotin)**. Kod, o'zgaruvchi nomlari va commitlar inglizcha.
+8. Mobile-first: o'quvchilar asosan telefondan kiradi.
+9. Vaqt zonasi har doim `Asia/Tashkent` (davomat, "bugun", sanalar). Sana va vaqt hisoblari `lib/time.ts` orqali.
+10. **O'quvchilarning shaxsiy ma'lumotlari** (`StudentProfile`: telefonlar, Telegram, ota-ona) faqat o'qituvchiga ko'rinadi. O'quvchi sahifalari, reyting va o'quvchi uchun API javoblarida bu ma'lumotlar hech qachon `select` qilinmaydi. Ular logga ham yozilmaydi.
+11. Sirlar faqat `.env` da: `DATABASE_URL`, `JWT_SECRET`, `SEED_TEACHER_USERNAME`, `SEED_TEACHER_PASSWORD`. `.env.example` yangilab bor.
 
 ## Ish tartibi
 
-- Bosqichma-bosqich (PLAN.md "Bosqichlar"). Har bosqich oxirida **to'xta va hisobot ber**; `pnpm lint`, `pnpm typecheck`, `pnpm test` o'tishi shart
-- O'zgartirishlar Server Actions orqali; yagona API — `GET /api/leaderboard`
-- Foydalanuvchiga ko'rinadigan matnlar o'zbek tilida (lotin)
+- `PLAN.md` dagi bosqichlarni **ketma-ket** bajar. Bir bosqich tugaganda to'xta, nima qilinganini va qanday tekshirishni qisqa yoz, keyin mendan tasdiq kut.
+- Har bosqich oxirida: `pnpm lint`, `pnpm typecheck`, `pnpm test` xatosiz o'tishi shart.
+- Har bosqich bitta yoki bir nechta mantiqiy commit bo'lsin (Conventional Commits: `feat:`, `fix:` ...).
+- Prisma sxemani o'zgartirsang, migratsiya yarat (`prisma migrate dev --name ...`).
+- Rejada noaniqlik bo'lsa, taxmin qilma, so'ra.
 
-## Xavfsizlik invariantlari (buzilmasin)
+## Buyruqlar
 
-- Test ishlash paytida klientga `isCorrect` hech qachon yuborilmaydi
-- O'quvchi uchun `groupId` faqat sessiyadan olinadi, URL/parametrdan emas
-- Har bir server action/route o'z guard'ini chaqiradi (`requireTeacher()` / `requireStudent()`); `proxy.ts` yagona himoya emas
-- `/result/[attemptId]` — faqat attempt egasi
-- Deadline + 5s dan keyin javob qabul qilinmaydi; `isFirst` tranzaksiya ichida
-- Login xatosi doim umumiy: "Login yoki parol noto'g'ri"
+```
+pnpm dev            # dev server
+pnpm lint
+pnpm typecheck      # tsc --noEmit
+pnpm test           # vitest
+pnpm db:migrate     # prisma migrate dev
+pnpm db:seed        # prisma db seed
+pnpm db:studio
+```
 
-## Skill va agentlar (qachon nima)
+## Next.js 16
 
-| Vazifa                                           | Ishlatiladi                                                                                                   |
-| ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------- |
-| Bosqichni boshlash/rejalash                      | `/ecc:plan`, `ecc:planner` agent                                                                              |
-| Yangi feature (TDD bilan)                        | `/ecc:feature-dev`, `ecc:tdd-workflow`, `ecc:tdd-guide`                                                       |
-| Next.js / React kod                              | `ecc:nextjs-turbopack`, `ecc:react-patterns`, `ecc:frontend-patterns`                                         |
-| Prisma sxema, migratsiya, `$queryRaw` + `RANK()` | `ecc:prisma-patterns`, `ecc:database-migrations`, `supabase-postgres-best-practices`, `ecc:database-reviewer` |
-| Auth, guardlar, rate limit                       | `ecc:security-review`, `ecc:security-reviewer` agent                                                          |
-| Vitest testlar                                   | `/ecc:react-test`, `ecc:react-testing`, `/ecc:test-coverage`                                                  |
-| Build/type xatolari                              | `/ecc:react-build`, `/ecc:build-fix`                                                                          |
-| Kod review (bosqich oxirida)                     | `/code-review`, `ecc:typescript-reviewer`, `ecc:react-reviewer`                                               |
-| UI (shadcn, mobil, a11y)                         | `ecc:frontend-a11y`, `ecc:design-system`                                                                      |
-| E2E (5–6-bosqich oqimlari)                       | `ecc:e2e-testing`, `ecc:e2e-runner`                                                                           |
-| Deploy (8-bosqich)                               | `ecc:deployment-patterns`                                                                                     |
-| Commit                                           | `/ecc:prp-commit`                                                                                             |
+@AGENTS.md
 
 ## graphify
 
