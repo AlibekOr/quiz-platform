@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { RefreshCwIcon } from "lucide-react";
-import { createStudent, updateStudent } from "@/app/teacher/students/actions";
+import { createStudent, updateStudent } from "@/app/(teacher)/teacher/students/actions";
 import { FormError, FormField } from "@/components/common/form-field";
 import {
   fieldError,

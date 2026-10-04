@@ -3,7 +3,7 @@ import {
   groupNameSchema,
   passwordSchema,
   usernameSchema,
-} from "./schema";
+} from "@/lib/validators/student";
 
 // Sof funksiyalar: klientda (preview) ham, serverda (yakuniy tekshiruv) ham ishlatiladi
 

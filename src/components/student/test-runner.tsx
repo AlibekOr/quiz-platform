@@ -20,7 +20,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { formatDuration } from "@/lib/format";
+import { formatDuration } from "@/lib/time";
 import { cn } from "@/lib/utils";
 import { useAutosave, type SaveStatus } from "./use-autosave";
 import { useNow } from "./use-now";

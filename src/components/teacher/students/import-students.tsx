@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import {
   importStudents,
   previewStudentImport,
-} from "@/app/teacher/students/actions";
+} from "@/app/(teacher)/teacher/students/actions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";

@@ -10,7 +10,7 @@ import {
 const SECRET = "test-secret-test-secret-test-secret-123";
 
 describe("jwt session", () => {
-  beforeEach(() => vi.stubEnv("AUTH_SECRET", SECRET));
+  beforeEach(() => vi.stubEnv("JWT_SECRET", SECRET));
   afterEach(() => {
     vi.unstubAllEnvs();
     vi.useRealTimers();
@@ -92,11 +92,11 @@ describe("jwt session", () => {
     expect(await decodeSession(token)).toBeNull();
   });
 
-  it("AUTH_SECRET qisqa bo'lsa xato beradi", async () => {
-    vi.stubEnv("AUTH_SECRET", "short");
+  it("JWT_SECRET qisqa bo'lsa xato beradi", async () => {
+    vi.stubEnv("JWT_SECRET", "short");
     await expect(
       encodeSession({ userId: "u1", role: "STUDENT", groupId: null }),
-    ).rejects.toThrow("AUTH_SECRET");
+    ).rejects.toThrow("JWT_SECRET");
   });
 
   it("rol bo'yicha bosh sahifa", () => {

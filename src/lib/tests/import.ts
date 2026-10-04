@@ -3,7 +3,7 @@ import {
   MAX_OPTIONS,
   questionInputSchema,
   type QuestionInput,
-} from "./schema";
+} from "@/lib/validators/test";
 
 // Sof funksiyalar: klientda preview, serverda yakuniy tekshiruv uchun
 

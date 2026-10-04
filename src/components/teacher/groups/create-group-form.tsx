@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef } from "react";
-import { createGroup } from "@/app/teacher/groups/actions";
+import { createGroup } from "@/app/(teacher)/teacher/groups/actions";
 import { formError, useFormAction } from "@/components/common/use-form-action";
 import { FormError } from "@/components/common/form-field";
 import { Button } from "@/components/ui/button";

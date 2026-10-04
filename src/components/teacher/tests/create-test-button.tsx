@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { PlusIcon } from "lucide-react";
-import { createTest } from "@/app/teacher/tests/actions";
+import { createTest } from "@/app/(teacher)/teacher/tests/actions";
 import { FormError, FormField } from "@/components/common/form-field";
 import {
   fieldError,

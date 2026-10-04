@@ -14,7 +14,7 @@ import {
   testSettingsSchema,
   type QuestionInput,
   type TestSettingsInput,
-} from "@/lib/tests/schema";
+} from "@/lib/validators/test";
 
 const idSchema = z.string().min(1);
 

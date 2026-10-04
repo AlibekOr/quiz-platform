@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { MoreHorizontalIcon } from "lucide-react";
-import { setStudentActive } from "@/app/teacher/students/actions";
+import { setStudentActive } from "@/app/(teacher)/teacher/students/actions";
 import { ConfirmAction } from "@/components/common/confirm-action";
 import { Button } from "@/components/ui/button";
 import {

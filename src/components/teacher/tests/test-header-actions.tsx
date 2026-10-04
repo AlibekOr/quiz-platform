@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { deleteTest, setTestActive } from "@/app/teacher/tests/actions";
+import { deleteTest, setTestActive } from "@/app/(teacher)/teacher/tests/actions";
 import { ConfirmAction } from "@/components/common/confirm-action";
 import { Button } from "@/components/ui/button";
 

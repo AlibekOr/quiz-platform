@@ -6,7 +6,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { finalizeExpiredAttempts } from "@/lib/attempts";
 import { requireStudent } from "@/lib/auth/guards";
 import { db } from "@/lib/db";
-import { formatDateTime, formatDuration } from "@/lib/format";
+import { formatDateTime, formatDuration } from "@/lib/time";
 
 export const metadata: Metadata = { title: "Testlarim" };
 

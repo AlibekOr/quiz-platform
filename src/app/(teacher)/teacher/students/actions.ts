@@ -17,7 +17,7 @@ import {
   fullNameSchema,
   passwordSchema,
   usernameSchema,
-} from "@/lib/students/schema";
+} from "@/lib/validators/student";
 
 const idSchema = z.string().min(1);
 

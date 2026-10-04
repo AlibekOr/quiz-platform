@@ -6,7 +6,7 @@ import type { ActionResult } from "@/lib/action-result";
 import { requireTeacher } from "@/lib/auth/guards";
 import { db } from "@/lib/db";
 import { isNotFound, isUniqueViolation } from "@/lib/prisma-errors";
-import { groupNameSchema } from "@/lib/students/schema";
+import { groupNameSchema } from "@/lib/validators/student";
 
 const idSchema = z.string().min(1);
 

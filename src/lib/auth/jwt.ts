@@ -14,9 +14,9 @@ export const SESSION_COOKIE = "session";
 export const SESSION_MAX_AGE_SEC = 7 * 24 * 60 * 60;
 
 function getKey(): Uint8Array {
-  const secret = process.env.AUTH_SECRET;
+  const secret = process.env.JWT_SECRET;
   if (!secret || secret.length < 32) {
-    throw new Error("AUTH_SECRET kamida 32 belgidan iborat bo'lishi kerak");
+    throw new Error("JWT_SECRET kamida 32 belgidan iborat bo'lishi kerak");
   }
   return new TextEncoder().encode(secret);
 }

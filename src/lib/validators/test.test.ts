@@ -3,7 +3,7 @@ import {
   issueMessages,
   questionInputSchema,
   testSettingsSchema,
-} from "./schema";
+} from "./test";
 
 const base = {
   text: "2 + 2 = ?",

@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
-import { updateTestSettings } from "@/app/teacher/tests/actions";
+import { updateTestSettings } from "@/app/(teacher)/teacher/tests/actions";
 import { FormError } from "@/components/common/form-field";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";

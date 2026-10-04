@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { PlusIcon, Trash2Icon } from "lucide-react";
 import { toast } from "sonner";
-import { createQuestion, updateQuestion } from "@/app/teacher/tests/actions";
+import { createQuestion, updateQuestion } from "@/app/(teacher)/teacher/tests/actions";
 import { FormError } from "@/components/common/form-field";
 import { Button } from "@/components/ui/button";
 import {
@@ -20,7 +20,7 @@ import {
   NativeSelectOption,
 } from "@/components/ui/native-select";
 import { Textarea } from "@/components/ui/textarea";
-import { MAX_OPTIONS } from "@/lib/tests/schema";
+import { MAX_OPTIONS } from "@/lib/validators/test";
 import type { EditorOption, EditorQuestion } from "./types";
 
 const EMPTY_OPTIONS: EditorOption[] = [

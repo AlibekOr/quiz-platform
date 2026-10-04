@@ -126,15 +126,15 @@ const CSS_QUESTIONS: SeedQuestion[] = [
 ];
 
 async function main() {
-  const teacherPassword = requireEnv("TEACHER_PASSWORD");
+  const teacherPassword = requireEnv("SEED_TEACHER_PASSWORD");
   const studentPassword = requireEnv("SEED_STUDENT_PASSWORD");
 
   const teacher = await db.user.upsert({
-    where: { username: requireEnv("TEACHER_USERNAME") },
+    where: { username: requireEnv("SEED_TEACHER_USERNAME") },
     update: {},
     create: {
-      username: requireEnv("TEACHER_USERNAME"),
-      fullName: process.env.TEACHER_FULLNAME || "O'qituvchi",
+      username: requireEnv("SEED_TEACHER_USERNAME"),
+      fullName: process.env.SEED_TEACHER_FULLNAME || "O'qituvchi",
       passwordHash: await hashPassword(teacherPassword),
       role: "TEACHER",
     },

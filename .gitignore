@@ -48,3 +48,4 @@ graphify-out/.graphify_*
 # prisma
 /src/generated/
 graphify-out/20*/
+graphify-out/.rebuild.lock

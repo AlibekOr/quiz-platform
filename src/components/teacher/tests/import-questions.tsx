@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { CheckIcon } from "lucide-react";
 import { readSheet } from "read-excel-file/browser";
 import { toast } from "sonner";
-import { importQuestions } from "@/app/teacher/tests/actions";
+import { importQuestions } from "@/app/(teacher)/teacher/tests/actions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
