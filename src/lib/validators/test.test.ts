@@ -1,9 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  issueMessages,
-  questionInputSchema,
-  testSettingsSchema,
-} from "./test";
+import { issueMessages, questionInputSchema, testSettingsSchema } from "./test";
 
 const base = {
   text: "2 + 2 = ?",

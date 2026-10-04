@@ -3,19 +3,16 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { CheckIcon } from "lucide-react";
-import { readSheet } from "read-excel-file/browser";
 import { toast } from "sonner";
-import { importQuestions } from "@/app/(teacher)/teacher/tests/actions";
+import {
+  importQuestions,
+  previewQuestionImport,
+} from "@/app/(teacher)/teacher/tests/actions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  EXCEL_COLUMNS,
-  parseJsonQuestions,
-  sheetToQuestions,
-  type ParsedQuestion,
-} from "@/lib/tests/import";
+import { EXCEL_COLUMNS, type ParsedQuestion } from "@/lib/tests/import";
 import { cn } from "@/lib/utils";
 
 const JSON_EXAMPLE = `[{ "text": "...", "type": "SINGLE", "points": 1,
@@ -23,40 +20,37 @@ const JSON_EXAMPLE = `[{ "text": "...", "type": "SINGLE", "points": 1,
 
 export function ImportQuestions({ testId }: { testId: string }) {
   const router = useRouter();
+  const [file, setFile] = useState<File | null>(null);
   const [questions, setQuestions] = useState<ParsedQuestion[] | null>(null);
   const [error, setError] = useState<string>();
   const [pending, startTransition] = useTransition();
 
   const errorCount = questions?.filter((q) => q.errors.length > 0).length ?? 0;
 
-  function onFile(file: File | undefined) {
+  function toFormData(f: File) {
+    const formData = new FormData();
+    formData.append("file", f);
+    return formData;
+  }
+
+  function onFile(selected: File | undefined) {
     setQuestions(null);
     setError(undefined);
-    if (!file) return;
+    setFile(selected ?? null);
+    if (!selected) return;
 
     startTransition(async () => {
-      const isJson = file.name.toLowerCase().endsWith(".json");
-      let result;
-      try {
-        result = isJson
-          ? parseJsonQuestions(await file.text())
-          : sheetToQuestions(await readSheet(file));
-      } catch {
-        setError("Faylni o'qib bo'lmadi. .json yoki .xlsx fayl tanlang");
-        return;
-      }
-      if ("error" in result) setError(result.error);
-      else setQuestions(result.questions);
+      const preview = await previewQuestionImport(toFormData(selected));
+      if (preview.ok) setQuestions(preview.questions);
+      else setError(preview.error);
     });
   }
 
   function onImport() {
-    if (!questions || errorCount > 0) return;
+    if (!file || errorCount > 0) return;
     startTransition(async () => {
-      const result = await importQuestions(
-        testId,
-        questions.map((q) => q.question),
-      );
+      // Server faylni qayta o'qiydi va tekshiradi
+      const result = await importQuestions(testId, toFormData(file));
       if (result.ok) {
         toast.success(result.message);
         router.push(`/teacher/tests/${testId}`);

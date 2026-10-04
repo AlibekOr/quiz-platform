@@ -11,8 +11,12 @@ describe("time", () => {
   });
 
   it("formatDateTime Toshkent vaqtida (UTC+5)", () => {
-    expect(formatDateTime(new Date("2026-10-04T21:30:00Z"))).toBe("05.10.2026, 02:30");
-    expect(formatDateTime(new Date("2026-10-04T09:05:00Z"))).toBe("04.10.2026, 14:05");
+    expect(formatDateTime(new Date("2026-10-04T21:30:00Z"))).toBe(
+      "05.10.2026, 02:30",
+    );
+    expect(formatDateTime(new Date("2026-10-04T09:05:00Z"))).toBe(
+      "04.10.2026, 14:05",
+    );
   });
 });
 

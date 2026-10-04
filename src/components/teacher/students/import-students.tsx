@@ -2,11 +2,11 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { readSheet } from "read-excel-file/browser";
 import { toast } from "sonner";
 import {
   importStudents,
   previewStudentImport,
+  type ImportPreviewRow,
 } from "@/app/(teacher)/teacher/students/actions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -20,56 +20,41 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  IMPORT_COLUMNS,
-  sheetToRows,
-  type ValidatedRow,
-} from "@/lib/students/import";
+import { IMPORT_COLUMNS } from "@/lib/students/import";
 
 export function ImportStudents() {
   const router = useRouter();
-  const [rows, setRows] = useState<ValidatedRow[] | null>(null);
+  const [file, setFile] = useState<File | null>(null);
+  const [rows, setRows] = useState<ImportPreviewRow[] | null>(null);
   const [error, setError] = useState<string>();
   const [pending, startTransition] = useTransition();
 
   const errorCount = rows?.filter((r) => r.errors.length > 0).length ?? 0;
 
-  function onFile(file: File | undefined) {
+  function toFormData(f: File) {
+    const formData = new FormData();
+    formData.append("file", f);
+    return formData;
+  }
+
+  function onFile(selected: File | undefined) {
     setRows(null);
     setError(undefined);
-    if (!file) return;
+    setFile(selected ?? null);
+    if (!selected) return;
 
     startTransition(async () => {
-      let sheet;
-      try {
-        sheet = await readSheet(file);
-      } catch {
-        setError("Faylni o'qib bo'lmadi. .xlsx formatidagi Excel fayl tanlang");
-        return;
-      }
-      const parsed = sheetToRows(sheet);
-      if ("error" in parsed) {
-        setError(parsed.error);
-        return;
-      }
-      const preview = await previewStudentImport(parsed.rows);
+      const preview = await previewStudentImport(toFormData(selected));
       if (preview.ok) setRows(preview.rows);
       else setError(preview.error);
     });
   }
 
   function onImport() {
-    if (!rows) return;
+    if (!file) return;
     startTransition(async () => {
-      const result = await importStudents(
-        rows.map(({ fullName, username, password, group, line }) => ({
-          fullName,
-          username,
-          password,
-          group,
-          line,
-        })),
-      );
+      // Server faylni qayta o'qiydi va tekshiradi
+      const result = await importStudents(toFormData(file));
       if (result.ok) {
         toast.success(`${result.created} ta o'quvchi qo'shildi`);
         router.push("/teacher/students");

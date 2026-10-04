@@ -23,6 +23,8 @@ const dateTimeFormatter = new Intl.DateTimeFormat("en-GB", {
 
 /** Toshkent vaqti bo'yicha "04.10.2026, 14:05" (uz-UZ locale "/" ajratgich beradi) */
 export function formatDateTime(date: Date): string {
-  const p = Object.fromEntries(dateTimeFormatter.formatToParts(date).map((x) => [x.type, x.value]));
+  const p = Object.fromEntries(
+    dateTimeFormatter.formatToParts(date).map((x) => [x.type, x.value]),
+  );
   return `${p.day}.${p.month}.${p.year}, ${p.hour}:${p.minute}`;
 }

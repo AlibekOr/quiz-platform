@@ -3,3 +3,5 @@ src/generated/
 graphify-out/
 prisma/migrations/
 .next/
+CLAUDE.md
+PLAN.md

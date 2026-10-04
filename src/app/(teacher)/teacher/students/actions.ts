@@ -7,8 +7,9 @@ import { hashPassword } from "@/lib/auth/password";
 import { requireTeacher } from "@/lib/auth/guards";
 import { db } from "@/lib/db";
 import { isNotFound, isUniqueViolation } from "@/lib/prisma-errors";
+import { getUploadedFile, readFirstSheet } from "@/lib/excel";
 import {
-  MAX_IMPORT_ROWS,
+  sheetToRows,
   validateImportRows,
   type ImportRow,
   type ValidatedRow,
@@ -203,19 +204,6 @@ export async function setStudentActive(
 
 // ---------- Excel import ----------
 
-const importRowsSchema = z
-  .array(
-    z.object({
-      fullName: z.string(),
-      username: z.string(),
-      password: z.string(),
-      group: z.string(),
-      line: z.number().int().positive(),
-    }),
-  )
-  .min(1)
-  .max(MAX_IMPORT_ROWS);
-
 async function validateAgainstDb(
   rows: (ImportRow & { line: number })[],
 ): Promise<ValidatedRow[]> {
@@ -236,36 +224,61 @@ async function validateAgainstDb(
   });
 }
 
+/** Faylni serverda o'qiydi va tekshiradi. Klient yuborgan "tayyor" qatorlarga ishonilmaydi */
+async function parseStudentFile(
+  formData: FormData,
+): Promise<{ rows: ValidatedRow[] } | { error: string }> {
+  const upload = getUploadedFile(formData, ["xlsx"]);
+  if ("error" in upload) return upload;
+  const sheet = await readFirstSheet(upload.file);
+  if ("error" in sheet) return sheet;
+  const parsed = sheetToRows(sheet);
+  if ("error" in parsed) return parsed;
+  return { rows: await validateAgainstDb(parsed.rows) };
+}
+
+/** Preview'da parol qaytarilmaydi */
+export type ImportPreviewRow = Omit<ValidatedRow, "password">;
+
+function withoutPasswords(rows: ValidatedRow[]): ImportPreviewRow[] {
+  return rows.map((r) => ({
+    line: r.line,
+    fullName: r.fullName,
+    username: r.username,
+    group: r.group,
+    errors: r.errors,
+  }));
+}
+
 export type ImportPreview =
-  { ok: true; rows: ValidatedRow[] } | { ok: false; error: string };
+  { ok: true; rows: ImportPreviewRow[] } | { ok: false; error: string };
 
 export async function previewStudentImport(
-  input: unknown,
+  formData: FormData,
 ): Promise<ImportPreview> {
   await requireTeacher();
-  const parsed = importRowsSchema.safeParse(input);
-  if (!parsed.success)
-    return { ok: false, error: "Fayl ma'lumotlari noto'g'ri" };
-  return { ok: true, rows: await validateAgainstDb(parsed.data) };
+  const result = await parseStudentFile(formData);
+  if ("error" in result) return { ok: false, error: result.error };
+  return { ok: true, rows: withoutPasswords(result.rows) };
 }
 
 export type ImportResult =
   | { ok: true; created: number }
-  | { ok: false; error: string; rows?: ValidatedRow[] };
+  | { ok: false; error: string; rows?: ImportPreviewRow[] };
 
-export async function importStudents(input: unknown): Promise<ImportResult> {
+export async function importStudents(
+  formData: FormData,
+): Promise<ImportResult> {
   await requireTeacher();
-  const parsed = importRowsSchema.safeParse(input);
-  if (!parsed.success)
-    return { ok: false, error: "Fayl ma'lumotlari noto'g'ri" };
-
-  // Preview'dan keyin baza o'zgargan bo'lishi mumkin — qayta tekshiramiz
-  const rows = await validateAgainstDb(parsed.data);
+  // Preview'dan keyin baza o'zgargan bo'lishi mumkin — fayl qayta o'qiladi va tekshiriladi
+  const result = await parseStudentFile(formData);
+  if ("error" in result) return { ok: false, error: result.error };
+  const { rows } = result;
   if (rows.some((r) => r.errors.length > 0)) {
     return {
       ok: false,
       error: "Ba'zi qatorlarda xato bor. Hech kim qo'shilmadi",
-      rows,
+      rows: withoutPasswords(rows),
     };
   }
 

@@ -7,7 +7,12 @@ import type { ActionResult } from "@/lib/action-result";
 import { requireTeacher } from "@/lib/auth/guards";
 import { db } from "@/lib/db";
 import { isNotFound } from "@/lib/prisma-errors";
-import { MAX_IMPORT_QUESTIONS } from "@/lib/tests/import";
+import { getUploadedFile, readFirstSheet } from "@/lib/excel";
+import {
+  parseJsonQuestions,
+  sheetToQuestions,
+  type ParsedQuestion,
+} from "@/lib/tests/import";
 import {
   issueMessages,
   questionInputSchema,
@@ -284,26 +289,57 @@ export async function moveQuestion(
   return { ok: true };
 }
 
+async function parseQuestionFile(
+  formData: FormData,
+): Promise<{ questions: ParsedQuestion[] } | { error: string }> {
+  const upload = getUploadedFile(formData, ["xlsx", "json"]);
+  if ("error" in upload) return upload;
+  if (upload.kind === "json")
+    return parseJsonQuestions(await upload.file.text());
+  const sheet = await readFirstSheet(upload.file);
+  if ("error" in sheet) return sheet;
+  return sheetToQuestions(sheet);
+}
+
+export type QuestionImportPreview =
+  { ok: true; questions: ParsedQuestion[] } | { ok: false; error: string };
+
+export async function previewQuestionImport(
+  formData: FormData,
+): Promise<QuestionImportPreview> {
+  await requireTeacher();
+  const result = await parseQuestionFile(formData);
+  return "error" in result
+    ? { ok: false, error: result.error }
+    : { ok: true, questions: result.questions };
+}
+
 export async function importQuestions(
   testId: string,
-  input: unknown,
+  formData: FormData,
 ): Promise<ActionResult> {
   await requireTeacher();
   const id = idSchema.parse(testId);
-  const parsed = z
-    .array(questionInputSchema)
-    .min(1)
-    .max(MAX_IMPORT_QUESTIONS)
-    .safeParse(input);
-  if (!parsed.success)
-    return { ok: false, error: "Savollarda xato bor. Faylni qayta tekshiring" };
+
+  // Fayl serverda qayta o'qiladi va tekshiriladi
+  const result = await parseQuestionFile(formData);
+  if ("error" in result) return { ok: false, error: result.error };
+  const questions = result.questions.flatMap((q) =>
+    q.question ? [q.question] : [],
+  );
+  if (questions.length !== result.questions.length) {
+    return {
+      ok: false,
+      error: "Savollarda xato bor. Faylni tuzatib, qayta yuklang",
+    };
+  }
 
   if ((await db.test.count({ where: { id } })) === 0)
     return { ok: false, error: "Test topilmadi" };
 
   const start = await nextOrder(id);
   await db.$transaction(
-    parsed.data.map(({ options, ...q }, i) =>
+    questions.map(({ options, ...q }, i) =>
       db.question.create({
         data: {
           ...q,
@@ -321,5 +357,5 @@ export async function importQuestions(
     ),
   );
   revalidateTest(id);
-  return { ok: true, message: `${parsed.data.length} ta savol qo'shildi` };
+  return { ok: true, message: `${questions.length} ta savol qo'shildi` };
 }

@@ -12,7 +12,10 @@ import {
   Trash2Icon,
 } from "lucide-react";
 import { toast } from "sonner";
-import { deleteQuestion, moveQuestion } from "@/app/(teacher)/teacher/tests/actions";
+import {
+  deleteQuestion,
+  moveQuestion,
+} from "@/app/(teacher)/teacher/tests/actions";
 import { ConfirmAction } from "@/components/common/confirm-action";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";

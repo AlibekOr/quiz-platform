@@ -2,7 +2,10 @@
 
 import { useState } from "react";
 import { MoreHorizontalIcon } from "lucide-react";
-import { deleteGroup, renameGroup } from "@/app/(teacher)/teacher/groups/actions";
+import {
+  deleteGroup,
+  renameGroup,
+} from "@/app/(teacher)/teacher/groups/actions";
 import { ConfirmAction } from "@/components/common/confirm-action";
 import { FormError } from "@/components/common/form-field";
 import { formError, useFormAction } from "@/components/common/use-form-action";
