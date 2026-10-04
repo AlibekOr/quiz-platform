@@ -7,6 +7,7 @@ import {
   LayoutDashboardIcon,
   UsersIcon,
   UsersRoundIcon,
+  CalendarCheckIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -17,6 +18,7 @@ const LINKS = [
     icon: LayoutDashboardIcon,
     exact: true,
   },
+  { href: "/teacher/attendance", label: "Davomat", icon: CalendarCheckIcon },
   { href: "/teacher/groups", label: "Guruhlar", icon: UsersRoundIcon },
   { href: "/teacher/students", label: "O'quvchilar", icon: UsersIcon },
   { href: "/teacher/tests", label: "Testlar", icon: ClipboardListIcon },

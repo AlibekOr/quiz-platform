@@ -12,6 +12,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { computeStats } from "@/lib/attendance";
 import { finalizeExpiredAttempts } from "@/lib/attempts";
 import { requireTeacher } from "@/lib/auth/guards";
 import { db } from "@/lib/db";
@@ -42,6 +43,7 @@ export default async function StudentCardPage({
         createdAt: true,
         group: { select: { name: true } },
         profile: { select: teacherProfileSelect },
+        attendances: { select: { status: true } },
         attempts: {
           orderBy: { startedAt: "desc" },
           select: {
@@ -74,6 +76,7 @@ export default async function StudentCardPage({
     groupName: student.group?.name ?? null,
     profile,
   };
+  const attendance = computeStats(student.attendances.map((a) => a.status));
   const finished = student.attempts.filter(
     (a) => a.status !== "IN_PROGRESS" && a.isFirst,
   );
@@ -156,6 +159,22 @@ export default async function StudentCardPage({
             </span>
           </div>
           <ContactLine label="Telefon" phone={profile?.parentPhone} />
+        </div>
+        <div className="flex flex-col gap-1 rounded-lg border p-4 text-sm md:col-span-2">
+          <h2 className="font-semibold">Davomat</h2>
+          {attendance.total === 0 ? (
+            <p className="text-muted-foreground">Hali davomat belgilanmagan.</p>
+          ) : (
+            <p>
+              <b className="text-lg tabular-nums">{attendance.percent}%</b>{" "}
+              <span className="text-muted-foreground">
+                · {attendance.total} ta darsdan {attendance.present} tasiga
+                kelgan
+                {attendance.late > 0 && ` (${attendance.late} marta kechikkan)`}
+                , {attendance.absent} ta qoldirgan
+              </span>
+            </p>
+          )}
         </div>
         {profile?.note && (
           <div className="flex flex-col gap-1 rounded-lg border p-4 text-sm md:col-span-2">

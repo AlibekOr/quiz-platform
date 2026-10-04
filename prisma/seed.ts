@@ -2,6 +2,7 @@ import "dotenv/config";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient, QuestionType } from "../src/generated/prisma/client";
 import { hashPassword } from "../src/lib/auth/password";
+import { addDays, toDbDate, todayInTashkent, weekdayOf } from "../src/lib/time";
 
 const db = new PrismaClient({
   adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL }),
@@ -14,6 +15,15 @@ function requireEnv(name: string): string {
 }
 
 const GROUPS = ["Frontend-1", "Frontend-2"];
+
+// Dars jadvali: Frontend-1 — Du/Cho/Ju 14:00–16:00, Frontend-2 — Se/Pa/Sha 10:00–12:00
+const SCHEDULES: Record<
+  string,
+  { weekdays: number[]; startTime: string; endTime: string }
+> = {
+  "Frontend-1": { weekdays: [1, 3, 5], startTime: "14:00", endTime: "16:00" },
+  "Frontend-2": { weekdays: [2, 4, 6], startTime: "10:00", endTime: "12:00" },
+};
 const STUDENTS_PER_GROUP = 5;
 
 type SeedQuestion = {
@@ -179,6 +189,62 @@ async function main() {
     }
   }
 
+  // Jadval va o'tgan 2 haftaga namunaviy davomat (o'qituvchi tahrirlagan yozuvlarga tegilmaydi)
+  const today = todayInTashkent();
+  for (const group of groups) {
+    const plan = SCHEDULES[group.name];
+    for (const weekday of plan.weekdays) {
+      await db.groupSchedule.upsert({
+        where: { groupId_weekday: { groupId: group.id, weekday } },
+        update: {},
+        create: {
+          groupId: group.id,
+          weekday,
+          startTime: plan.startTime,
+          endTime: plan.endTime,
+        },
+      });
+    }
+    const students = await db.user.findMany({
+      where: { groupId: group.id, role: "STUDENT" },
+      orderBy: { username: "asc" },
+      select: { id: true },
+    });
+    for (let back = 14; back >= 1; back--) {
+      const date = addDays(today, -back);
+      if (!plan.weekdays.includes(weekdayOf(date))) continue;
+      const lesson = await db.lesson.upsert({
+        where: { groupId_date: { groupId: group.id, date: toDbDate(date) } },
+        update: {},
+        create: {
+          groupId: group.id,
+          date: toDbDate(date),
+          topic: `Mavzu ${date}`,
+        },
+      });
+      for (const [si, student] of students.entries()) {
+        // Deterministik naqsh: ba'zilar kelmagan yoki kechikkan
+        const k = (si * 7 + back * 3) % 10;
+        const status = k === 0 ? "ABSENT" : k === 1 ? "LATE" : "PRESENT";
+        await db.attendance.upsert({
+          where: {
+            lessonId_studentId: { lessonId: lesson.id, studentId: student.id },
+          },
+          update: {},
+          create: {
+            lessonId: lesson.id,
+            studentId: student.id,
+            status,
+            note:
+              status === "ABSENT" && si === 0
+                ? "Kasal (ota-onasi qo'ng'iroq qildi)"
+                : null,
+          },
+        });
+      }
+    }
+  }
+
   const title = "CSS asoslari";
   // Qayta ishga tushirilganda dublikat bo'lmasligi uchun
   await db.test.deleteMany({ where: { title, createdById: teacher.id } });
@@ -208,7 +274,7 @@ async function main() {
   });
 
   console.log(
-    `Seed tayyor: 1 o'qituvchi, ${GROUPS.length} guruh, ${GROUPS.length * STUDENTS_PER_GROUP} o'quvchi, 1 test (${CSS_QUESTIONS.length} savol)`,
+    `Seed tayyor: 1 o'qituvchi, ${GROUPS.length} guruh, ${GROUPS.length * STUDENTS_PER_GROUP} o'quvchi, 1 test (${CSS_QUESTIONS.length} savol), dars jadvali va 2 haftalik davomat`,
   );
 }
 

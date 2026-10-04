@@ -18,6 +18,12 @@ enum QuestionType {
   MULTIPLE
 }
 
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LATE
+}
+
 enum ParentRelation {
   FATHER
   MOTHER
@@ -41,16 +47,19 @@ model User {
   group        Group?          @relation(fields: [groupId], references: [id])
   attempts     Attempt[]
   profile      StudentProfile?
+  attendances  Attendance[]
   createdTests Test[]          @relation("TestAuthor")
   createdAt    DateTime        @default(now())
 }
 
 model Group {
-  id        String   @id @default(cuid())
-  name      String   @unique
+  id        String          @id @default(cuid())
+  name      String          @unique
   students  User[]
   tests     Test[]
-  createdAt DateTime @default(now())
+  schedules GroupSchedule[]
+  lessons   Lesson[]
+  createdAt DateTime        @default(now())
 }
 
 model Test {
@@ -147,4 +156,42 @@ model StudentProfile {
   parentPhone    String?
   note           String?
   updatedAt      DateTime        @updatedAt
+}
+
+// Guruhning haftalik dars jadvali: har bir dars kuni uchun bitta qator
+model GroupSchedule {
+  id        String @id @default(cuid())
+  groupId   String
+  group     Group  @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  weekday   Int // 1 = Dushanba ... 7 = Yakshanba
+  startTime String // "14:00"
+  endTime   String // "16:00"
+
+  @@unique([groupId, weekday])
+}
+
+// Bitta o'tilgan dars (ma'lum sana, Asia/Tashkent)
+model Lesson {
+  id          String       @id @default(cuid())
+  groupId     String
+  group       Group        @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  date        DateTime     @db.Date
+  topic       String?
+  attendances Attendance[]
+  createdAt   DateTime     @default(now())
+
+  @@unique([groupId, date])
+}
+
+model Attendance {
+  id        String           @id @default(cuid())
+  lessonId  String
+  lesson    Lesson           @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  studentId String
+  student   User             @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  status    AttendanceStatus
+  note      String?
+  updatedAt DateTime         @updatedAt
+
+  @@unique([lessonId, studentId])
 }

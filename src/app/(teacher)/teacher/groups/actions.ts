@@ -5,6 +5,11 @@ import { z } from "zod";
 import { validationFailed, type ActionResult } from "@/lib/action-result";
 import { requireTeacher } from "@/lib/auth/guards";
 import { db } from "@/lib/db";
+import {
+  scheduleFormSchema,
+  scheduleRowSchema,
+  type ScheduleFormInput,
+} from "@/lib/validators/attendance";
 import { isNotFound, isUniqueViolation } from "@/lib/prisma-errors";
 import { groupFormSchema, type GroupFormInput } from "@/lib/validators/student";
 
@@ -82,4 +87,38 @@ export async function deleteGroup(groupId: string): Promise<ActionResult> {
   }
   revalidate();
   return { ok: true, message: "Guruh o'chirildi" };
+}
+
+export async function saveSchedule(
+  groupId: string,
+  input: ScheduleFormInput,
+): Promise<ActionResult> {
+  await requireTeacher();
+  const id = idSchema.parse(groupId);
+  const parsed = scheduleFormSchema.safeParse(input);
+  if (!parsed.success) return validationFailed(parsed.error);
+
+  const days = parsed.data.days
+    .filter((d) => d.enabled)
+    .map((d) =>
+      scheduleRowSchema.parse({
+        weekday: d.weekday,
+        startTime: d.startTime,
+        endTime: d.endTime,
+      }),
+    );
+
+  if ((await db.group.count({ where: { id } })) === 0)
+    return { ok: false, error: "Guruh topilmadi" };
+
+  await db.$transaction([
+    db.groupSchedule.deleteMany({ where: { groupId: id } }),
+    db.groupSchedule.createMany({
+      data: days.map((d) => ({ ...d, groupId: id })),
+    }),
+  ]);
+  revalidatePath(`/teacher/groups/${id}`);
+  revalidatePath("/teacher/groups");
+  revalidatePath("/teacher/attendance");
+  return { ok: true, message: "Dars jadvali saqlandi" };
 }

@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/table";
 import { requireTeacher } from "@/lib/auth/guards";
 import { db } from "@/lib/db";
+import { formatSchedule } from "@/lib/time";
 
 export const metadata: Metadata = { title: "Guruhlar" };
 
@@ -24,6 +25,7 @@ export default async function GroupsPage() {
       id: true,
       name: true,
       _count: { select: { students: true, tests: true } },
+      schedules: { select: { weekday: true, startTime: true, endTime: true } },
     },
   });
 
@@ -42,6 +44,7 @@ export default async function GroupsPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>Nomi</TableHead>
+                <TableHead>Dars jadvali</TableHead>
                 <TableHead className="text-right">O&apos;quvchilar</TableHead>
                 <TableHead className="text-right">Testlar</TableHead>
                 <TableHead className="w-12">
@@ -54,14 +57,22 @@ export default async function GroupsPage() {
                 <TableRow key={g.id}>
                   <TableCell className="font-medium">
                     <Link
-                      href={`/teacher/students?group=${g.id}`}
+                      href={`/teacher/groups/${g.id}`}
                       className="hover:underline"
                     >
                       {g.name}
                     </Link>
                   </TableCell>
+                  <TableCell className="text-muted-foreground text-sm">
+                    {formatSchedule(g.schedules) || "—"}
+                  </TableCell>
                   <TableCell className="text-right">
-                    {g._count.students}
+                    <Link
+                      href={`/teacher/students?group=${g.id}`}
+                      className="hover:underline"
+                    >
+                      {g._count.students}
+                    </Link>
                   </TableCell>
                   <TableCell className="text-right">{g._count.tests}</TableCell>
                   <TableCell>

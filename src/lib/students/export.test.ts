@@ -1,6 +1,7 @@
 import ExcelJS from "exceljs";
 import { describe, expect, it } from "vitest";
-import { buildStudentsWorkbook, EXPORT_HEADERS, fileSafe } from "./export";
+import { fileSafe } from "@/lib/format";
+import { buildStudentsWorkbook, EXPORT_HEADERS } from "./export";
 
 describe("buildStudentsWorkbook", () => {
   it("sarlavha va qatorlar, parolsiz", async () => {

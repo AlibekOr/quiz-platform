@@ -1,7 +1,8 @@
 import type { NextRequest } from "next/server";
 import { getCurrentUser } from "@/lib/auth/guards";
 import { db } from "@/lib/db";
-import { buildStudentsWorkbook, fileSafe } from "@/lib/students/export";
+import { fileSafe } from "@/lib/format";
+import { buildStudentsWorkbook } from "@/lib/students/export";
 import { teacherProfileSelect } from "@/lib/students/profile-select";
 
 const XLSX =

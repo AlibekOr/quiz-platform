@@ -126,9 +126,9 @@
     "semantic_hash": ""
   },
   "prisma/seed.ts": {
-    "mtime": 1791109307.4242294,
-    "seen": 1791109461.447097,
-    "ast_hash": "11aa584a3556cc16a3e7444255e8a0e0",
+    "mtime": 1791110033.3766258,
+    "seen": 1791110229.50563,
+    "ast_hash": "251ac02350ea7ea19b6d11b32fe3fc25",
     "semantic_hash": ""
   },
   "src/components/ui/button.tsx": {
@@ -241,7 +241,7 @@
   },
   "prisma/migrations/20261004091612_init/migration.sql": {
     "mtime": 1791105372.6373286,
-    "seen": 1791108929.1031969,
+    "seen": 1791109466.823563,
     "ast_hash": "",
     "semantic_hash": ""
   },
@@ -276,9 +276,9 @@
     "semantic_hash": ""
   },
   "src/components/teacher/nav-links.tsx": {
-    "mtime": 1791106485.960053,
-    "seen": 1791106686.7693288,
-    "ast_hash": "4714d9df91a3d98efff7efa61efefa48",
+    "mtime": 1791110033.608758,
+    "seen": 1791110229.5060291,
+    "ast_hash": "52e48342fd1812663d62aab504992430",
     "semantic_hash": ""
   },
   "src/components/teacher/students/add-student-button.tsx": {
@@ -409,7 +409,7 @@
   },
   "prisma/migrations/20261004092614_login_failures/migration.sql": {
     "mtime": 1791105974.039672,
-    "seen": 1791108929.103198,
+    "seen": 1791109466.823564,
     "ast_hash": "",
     "semantic_hash": ""
   },
@@ -534,9 +534,9 @@
     "semantic_hash": ""
   },
   "src/lib/format.ts": {
-    "mtime": 1791108295.8969522,
-    "seen": 1791108345.052802,
-    "ast_hash": "9e93b78148cda011e77093f52486f016",
+    "mtime": 1791109785.4904609,
+    "seen": 1791110229.506539,
+    "ast_hash": "8846680ab813746c4b0dfe79432995f6",
     "semantic_hash": ""
   },
   "src/lib/grading.test.ts": {
@@ -559,7 +559,7 @@
   },
   "prisma/migrations/20261004095001_attempt_question_order/migration.sql": {
     "mtime": 1791107401.1776109,
-    "seen": 1791108929.103198,
+    "seen": 1791109466.823565,
     "ast_hash": "",
     "semantic_hash": ""
   },
@@ -570,15 +570,15 @@
     "semantic_hash": ""
   },
   "src/app/(teacher)/teacher/groups/actions.ts": {
-    "mtime": 1791108619.6844969,
-    "seen": 1791108924.1471202,
-    "ast_hash": "574c1f67d307675bd25dc561218ee8eb",
+    "mtime": 1791110033.4664943,
+    "seen": 1791110229.505718,
+    "ast_hash": "9b57d98f493d64416a17b26d2f821d26",
     "semantic_hash": ""
   },
   "src/app/(teacher)/teacher/groups/page.tsx": {
-    "mtime": 1791106485.9103072,
-    "seen": 1791108345.052761,
-    "ast_hash": "f6be7c62a6c1743e409420dcb35fe75e",
+    "mtime": 1791110033.469945,
+    "seen": 1791110229.505719,
+    "ast_hash": "59f8a5fff04aafa6b0be76d156bcf339",
     "semantic_hash": ""
   },
   "src/app/(teacher)/teacher/layout.tsx": {
@@ -636,15 +636,15 @@
     "semantic_hash": ""
   },
   "src/lib/time.test.ts": {
-    "mtime": 1791108439.1651974,
-    "seen": 1791108466.9987268,
-    "ast_hash": "93d0a4bd0d593a337ac4498a6f2eb94e",
+    "mtime": 1791110033.7791367,
+    "seen": 1791110229.5066721,
+    "ast_hash": "2c1741ff671103a37d9f14ee14fb26ff",
     "semantic_hash": ""
   },
   "src/lib/time.ts": {
-    "mtime": 1791108439.167293,
-    "seen": 1791108466.9987268,
-    "ast_hash": "cb7b3da408e2c4216e87110a889d9dd2",
+    "mtime": 1791110033.784809,
+    "seen": 1791110229.5066729,
+    "ast_hash": "a82aee2779a19cebd75dbc08da404c79",
     "semantic_hash": ""
   },
   "src/lib/validators/student.ts": {
@@ -684,15 +684,15 @@
     "semantic_hash": ""
   },
   "src/app/(teacher)/teacher/students/[id]/page.tsx": {
-    "mtime": 1791109289.3144646,
-    "seen": 1791109461.44726,
-    "ast_hash": "1cde3925a392ac2155655d4872564de5",
+    "mtime": 1791110033.482985,
+    "seen": 1791110229.5057468,
+    "ast_hash": "a3a3d1481f7790b2dbc325b02627dac5",
     "semantic_hash": ""
   },
   "src/app/api/students/export/route.ts": {
-    "mtime": 1791109289.366437,
-    "seen": 1791109461.447341,
-    "ast_hash": "1ff489e3b99b3ebd3fe28c499faae011",
+    "mtime": 1791109785.4943545,
+    "seen": 1791110229.505854,
+    "ast_hash": "7f4ec78245f75fac2ddd61d320898b9d",
     "semantic_hash": ""
   },
   "src/components/teacher/students/contact-fields.tsx": {
@@ -702,15 +702,15 @@
     "semantic_hash": ""
   },
   "src/lib/students/export.test.ts": {
-    "mtime": 1791109289.5547383,
-    "seen": 1791109461.448041,
-    "ast_hash": "867c1185203aa5aa259a27d444fa47fd",
+    "mtime": 1791109785.4963248,
+    "seen": 1791110229.5065851,
+    "ast_hash": "7bed700c37e37c193574b2fa49e86d7c",
     "semantic_hash": ""
   },
   "src/lib/students/export.ts": {
-    "mtime": 1791109289.5578258,
-    "seen": 1791109461.448041,
-    "ast_hash": "3f53293ecf9fb8856d61edfee9d70f14",
+    "mtime": 1791109785.4903586,
+    "seen": 1791110229.5065851,
+    "ast_hash": "10cba9056c6db0364e9f597282a55872",
     "semantic_hash": ""
   },
   "src/lib/students/format.ts": {
@@ -735,6 +735,102 @@
     "mtime": 1791109289.5953245,
     "seen": 1791109461.4481301,
     "ast_hash": "380657ce0f16a0e9983066f73dabe897",
+    "semantic_hash": ""
+  },
+  "src/app/(teacher)/teacher/attendance/[groupId]/[date]/page.tsx": {
+    "mtime": 1791110033.4353418,
+    "seen": 1791110229.505715,
+    "ast_hash": "01307c1d3f3655e86192b1ce291caddc",
+    "semantic_hash": ""
+  },
+  "src/app/(teacher)/teacher/attendance/actions.ts": {
+    "mtime": 1791110033.4403975,
+    "seen": 1791110229.505716,
+    "ast_hash": "51be379465b4ed1d73f89e80ab1ab888",
+    "semantic_hash": ""
+  },
+  "src/app/(teacher)/teacher/attendance/page.tsx": {
+    "mtime": 1791110033.446689,
+    "seen": 1791110229.505716,
+    "ast_hash": "9e564d6b718a7e3fd7f972d67d4200f8",
+    "semantic_hash": ""
+  },
+  "src/app/(teacher)/teacher/groups/[id]/attendance/page.tsx": {
+    "mtime": 1791110033.4565535,
+    "seen": 1791110229.505717,
+    "ast_hash": "0a0afc4fdcd79bfe0b6410b5328cb4ea",
+    "semantic_hash": ""
+  },
+  "src/app/(teacher)/teacher/groups/[id]/page.tsx": {
+    "mtime": 1791110033.461622,
+    "seen": 1791110229.505717,
+    "ast_hash": "4ec1943e16d629ef41bb0bb742ffb803",
+    "semantic_hash": ""
+  },
+  "src/app/api/attendance/export/route.ts": {
+    "mtime": 1791110033.5298095,
+    "seen": 1791110229.505854,
+    "ast_hash": "829cecd2cc4bca87e8216eb5350a2fa6",
+    "semantic_hash": ""
+  },
+  "src/components/teacher/attendance/attendance-sheet.tsx": {
+    "mtime": 1791110108.0599105,
+    "seen": 1791110229.5059872,
+    "ast_hash": "d66280553ab3830eccbe4d2cafbbbb12",
+    "semantic_hash": ""
+  },
+  "src/components/teacher/attendance/date-picker.tsx": {
+    "mtime": 1791110033.5883005,
+    "seen": 1791110229.5059872,
+    "ast_hash": "c0e9e39606d8b9299f35a7ed188e0806",
+    "semantic_hash": ""
+  },
+  "src/components/teacher/attendance/extra-lesson.tsx": {
+    "mtime": 1791110033.5907745,
+    "seen": 1791110229.5059881,
+    "ast_hash": "c2ffba9abea8066e9ae4cb1c399d4c8d",
+    "semantic_hash": ""
+  },
+  "src/components/teacher/attendance/month-picker.tsx": {
+    "mtime": 1791110033.592574,
+    "seen": 1791110229.5059881,
+    "ast_hash": "422768363d8bb1682b708c5de1e3f13b",
+    "semantic_hash": ""
+  },
+  "src/components/teacher/groups/schedule-form.tsx": {
+    "mtime": 1791110033.6046689,
+    "seen": 1791110229.506016,
+    "ast_hash": "265fac12a9508750658987c507cd7981",
+    "semantic_hash": ""
+  },
+  "src/lib/attendance-data.ts": {
+    "mtime": 1791110033.7069685,
+    "seen": 1791110229.50642,
+    "ast_hash": "c6f0d2b15bc481785f2300636276d7a5",
+    "semantic_hash": ""
+  },
+  "src/lib/attendance.test.ts": {
+    "mtime": 1791110033.7114842,
+    "seen": 1791110229.506421,
+    "ast_hash": "ebb8adc635e3b3e9ed2fae26c85a8f5d",
+    "semantic_hash": ""
+  },
+  "src/lib/attendance.ts": {
+    "mtime": 1791110033.7178252,
+    "seen": 1791110229.506421,
+    "ast_hash": "55df160b5f2439774721f41fa66f3c1e",
+    "semantic_hash": ""
+  },
+  "src/lib/validators/attendance.test.ts": {
+    "mtime": 1791110033.7912953,
+    "seen": 1791110229.506685,
+    "ast_hash": "ce864ccb03113af003dd2d71f7e75d69",
+    "semantic_hash": ""
+  },
+  "src/lib/validators/attendance.ts": {
+    "mtime": 1791110033.7945492,
+    "seen": 1791110229.506685,
+    "ast_hash": "5dfb9628f9deff5661bef825d06c4b17",
     "semantic_hash": ""
   }
 }
