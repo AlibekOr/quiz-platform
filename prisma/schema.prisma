@@ -85,20 +85,22 @@ model Option {
 }
 
 model Attempt {
-  id          String        @id @default(cuid())
-  userId      String
-  user        User          @relation(fields: [userId], references: [id])
-  testId      String
-  test        Test          @relation(fields: [testId], references: [id], onDelete: Cascade)
-  status      AttemptStatus @default(IN_PROGRESS)
-  isFirst     Boolean
-  startedAt   DateTime      @default(now())
-  deadlineAt  DateTime
-  finishedAt  DateTime?
-  durationSec Int?
-  score       Int?
-  maxScore    Int?
-  answers     Answer[]
+  id            String        @id @default(cuid())
+  userId        String
+  user          User          @relation(fields: [userId], references: [id])
+  testId        String
+  test          Test          @relation(fields: [testId], references: [id], onDelete: Cascade)
+  status        AttemptStatus @default(IN_PROGRESS)
+  isFirst       Boolean
+  startedAt     DateTime      @default(now())
+  deadlineAt    DateTime
+  finishedAt    DateTime?
+  durationSec   Int?
+  score         Int?
+  maxScore      Int?
+  // Savollar tartibi (question id'lar) — boshlanganda bir marta belgilanadi, yangilansa o'zgarmaydi
+  questionOrder String[]      @default([])
+  answers       Answer[]
 
   @@index([testId, isFirst, status])
   @@index([userId, testId])
