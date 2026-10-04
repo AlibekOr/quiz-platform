@@ -18,9 +18,9 @@
     "semantic_hash": ""
   },
   "package.json": {
-    "mtime": 1791105423.523367,
-    "seen": 1791105454.4784698,
-    "ast_hash": "2f4f6e9d87abe8c89f89e960ea33c508",
+    "mtime": 1791106409.2773361,
+    "seen": 1791106686.769216,
+    "ast_hash": "fe7d60aab940a4839a6bbc03d0d4a2f2",
     "semantic_hash": ""
   },
   "postcss.config.mjs": {
@@ -30,9 +30,9 @@
     "semantic_hash": ""
   },
   "src/app/layout.tsx": {
-    "mtime": 1791106019.6079295,
-    "seen": 1791106133.287282,
-    "ast_hash": "167b5e40426f547427ce9076dc139066",
+    "mtime": 1791106364.7025714,
+    "seen": 1791106686.769265,
+    "ast_hash": "5ececa1463d5559f3f5d4eaa007ecb37",
     "semantic_hash": ""
   },
   "src/app/page.tsx": {
@@ -162,9 +162,9 @@
     "semantic_hash": ""
   },
   "src/app/teacher/page.tsx": {
-    "mtime": 1791106038.6371102,
-    "seen": 1791106133.287284,
-    "ast_hash": "71bfc8cef58a2b186371c7843d33abab",
+    "mtime": 1791106485.9151812,
+    "seen": 1791106686.769296,
+    "ast_hash": "9a5f642738fa8d3a6bb0bc5209b1699c",
     "semantic_hash": ""
   },
   "src/components/auth/login-form.tsx": {
@@ -255,6 +255,222 @@
     "mtime": 1791105406.5158694,
     "seen": 1791106133.287345,
     "ast_hash": "2789f82b6c9a340bc8e2c80ac18fd9f3",
+    "semantic_hash": ""
+  },
+  "prisma/migrations/20261004091612_init/migration.sql": {
+    "mtime": 1791105372.6373286,
+    "seen": 1791106173.2064,
+    "ast_hash": "",
+    "semantic_hash": ""
+  },
+  "src/app/teacher/groups/actions.ts": {
+    "mtime": 1791106485.902642,
+    "seen": 1791106686.769294,
+    "ast_hash": "186e3b27125f953e0106a2d884475b73",
+    "semantic_hash": ""
+  },
+  "src/app/teacher/groups/page.tsx": {
+    "mtime": 1791106485.9103072,
+    "seen": 1791106686.7692952,
+    "ast_hash": "f6be7c62a6c1743e409420dcb35fe75e",
+    "semantic_hash": ""
+  },
+  "src/app/teacher/layout.tsx": {
+    "mtime": 1791106485.9135017,
+    "seen": 1791106686.7692952,
+    "ast_hash": "42fd849f1c949af8533cb90fe2bea9cc",
+    "semantic_hash": ""
+  },
+  "src/app/teacher/students/actions.ts": {
+    "mtime": 1791106485.9275079,
+    "seen": 1791106686.769297,
+    "ast_hash": "e54337717351cce3a0607f78ee4e53c4",
+    "semantic_hash": ""
+  },
+  "src/app/teacher/students/import/page.tsx": {
+    "mtime": 1791106485.9300516,
+    "seen": 1791106686.769297,
+    "ast_hash": "c68d9c2561d31a5206fe4e519eaa74fa",
+    "semantic_hash": ""
+  },
+  "src/app/teacher/students/page.tsx": {
+    "mtime": 1791106485.9377332,
+    "seen": 1791106686.7692978,
+    "ast_hash": "d236d6995f092d3b0f16ec5efcd2a3ae",
+    "semantic_hash": ""
+  },
+  "src/components/common/confirm-action.tsx": {
+    "mtime": 1791106485.9455998,
+    "seen": 1791106686.769326,
+    "ast_hash": "a92ecbbfa4150a495299acdcb1cb52cc",
+    "semantic_hash": ""
+  },
+  "src/components/common/form-field.tsx": {
+    "mtime": 1791106485.9475615,
+    "seen": 1791106686.7693272,
+    "ast_hash": "9a2d54f588713a98bdb17c26a14c9d9a",
+    "semantic_hash": ""
+  },
+  "src/components/common/use-form-action.ts": {
+    "mtime": 1791106485.9498475,
+    "seen": 1791106686.7693272,
+    "ast_hash": "da3a3d55edec8fdc6dc91b14886806af",
+    "semantic_hash": ""
+  },
+  "src/components/teacher/groups/create-group-form.tsx": {
+    "mtime": 1791106485.952181,
+    "seen": 1791106686.769328,
+    "ast_hash": "fe90e58715ff2e8b0a78f678c65b9715",
+    "semantic_hash": ""
+  },
+  "src/components/teacher/groups/group-row-actions.tsx": {
+    "mtime": 1791106485.9555752,
+    "seen": 1791106686.769328,
+    "ast_hash": "10de4e0fc8515b7033aad28dafa8a007",
+    "semantic_hash": ""
+  },
+  "src/components/teacher/mobile-nav.tsx": {
+    "mtime": 1791106485.9574249,
+    "seen": 1791106686.7693288,
+    "ast_hash": "2177a6a2661d66ecad33a59fceb2fc3b",
+    "semantic_hash": ""
+  },
+  "src/components/teacher/nav-links.tsx": {
+    "mtime": 1791106485.960053,
+    "seen": 1791106686.7693288,
+    "ast_hash": "4714d9df91a3d98efff7efa61efefa48",
+    "semantic_hash": ""
+  },
+  "src/components/teacher/students/add-student-button.tsx": {
+    "mtime": 1791106460.7196162,
+    "seen": 1791106686.76933,
+    "ast_hash": "daf321aa37d2322c4be96c96536345ed",
+    "semantic_hash": ""
+  },
+  "src/components/teacher/students/import-students.tsx": {
+    "mtime": 1791106485.9694607,
+    "seen": 1791106686.76933,
+    "ast_hash": "36229edf58678a5cfd3fe149df57dcec",
+    "semantic_hash": ""
+  },
+  "src/components/teacher/students/reset-password-dialog.tsx": {
+    "mtime": 1791106485.9725978,
+    "seen": 1791106686.76933,
+    "ast_hash": "55a7b6dda84cb8ad7580fc93ef7e8f38",
+    "semantic_hash": ""
+  },
+  "src/components/teacher/students/student-dialog.tsx": {
+    "mtime": 1791106485.9768662,
+    "seen": 1791106686.769331,
+    "ast_hash": "aa60c66069f1323236d0b61820fb0686",
+    "semantic_hash": ""
+  },
+  "src/components/teacher/students/student-filters.tsx": {
+    "mtime": 1791106485.980275,
+    "seen": 1791106686.769331,
+    "ast_hash": "2671dc931c6b6a8e8e6e98d398ff6ba3",
+    "semantic_hash": ""
+  },
+  "src/components/teacher/students/student-row-actions.tsx": {
+    "mtime": 1791106485.9832284,
+    "seen": 1791106686.769332,
+    "ast_hash": "2267009409a32734b8a1c48496fbacaf",
+    "semantic_hash": ""
+  },
+  "src/components/teacher/students/types.ts": {
+    "mtime": 1791106460.7110775,
+    "seen": 1791106686.769332,
+    "ast_hash": "480f8a3577c39fdc397d6f25180bc707",
+    "semantic_hash": ""
+  },
+  "src/components/ui/alert-dialog.tsx": {
+    "mtime": 1791106485.9899616,
+    "seen": 1791106686.769333,
+    "ast_hash": "97a8b713916bb67814689f056fb47bd6",
+    "semantic_hash": ""
+  },
+  "src/components/ui/badge.tsx": {
+    "mtime": 1791106485.991901,
+    "seen": 1791106686.769333,
+    "ast_hash": "ddef54c569d8c12b53c291598568d167",
+    "semantic_hash": ""
+  },
+  "src/components/ui/dialog.tsx": {
+    "mtime": 1791106486.0013306,
+    "seen": 1791106686.769362,
+    "ast_hash": "bb385840e3ededdb638db3adcb596d62",
+    "semantic_hash": ""
+  },
+  "src/components/ui/dropdown-menu.tsx": {
+    "mtime": 1791106486.0068567,
+    "seen": 1791106686.769362,
+    "ast_hash": "bd47938d5f0ff414db28ba1a51f0d765",
+    "semantic_hash": ""
+  },
+  "src/components/ui/native-select.tsx": {
+    "mtime": 1791106486.0124137,
+    "seen": 1791106686.76939,
+    "ast_hash": "2c93e6888802bf2b99ad55926076c21f",
+    "semantic_hash": ""
+  },
+  "src/components/ui/separator.tsx": {
+    "mtime": 1791106486.013896,
+    "seen": 1791106686.76939,
+    "ast_hash": "a311d1b62308f51ed088a6d56d05768a",
+    "semantic_hash": ""
+  },
+  "src/components/ui/sheet.tsx": {
+    "mtime": 1791106486.0175765,
+    "seen": 1791106686.769391,
+    "ast_hash": "fccec0c9120b34d59863c41a7c35b5eb",
+    "semantic_hash": ""
+  },
+  "src/components/ui/sonner.tsx": {
+    "mtime": 1791106486.0195048,
+    "seen": 1791106686.769391,
+    "ast_hash": "557f646a2837b0ea2cfe4257b8a2d18d",
+    "semantic_hash": ""
+  },
+  "src/components/ui/table.tsx": {
+    "mtime": 1791106486.0253768,
+    "seen": 1791106686.769392,
+    "ast_hash": "27e38c84da7c761bcfee0bdbd30a409d",
+    "semantic_hash": ""
+  },
+  "src/lib/action-result.ts": {
+    "mtime": 1791106486.0274282,
+    "seen": 1791106686.769392,
+    "ast_hash": "2454a58ba075d9bf26972b5e1c7efc3b",
+    "semantic_hash": ""
+  },
+  "src/lib/prisma-errors.ts": {
+    "mtime": 1791106486.0477293,
+    "seen": 1791106686.769502,
+    "ast_hash": "536196df1f716b52eb920eb12d947ca8",
+    "semantic_hash": ""
+  },
+  "src/lib/students/generate-password.ts": {
+    "mtime": 1791106460.7091908,
+    "seen": 1791106686.7695029,
+    "ast_hash": "450091e21cc802133c8648d7e6b8ff49",
+    "semantic_hash": ""
+  },
+  "src/lib/students/import.test.ts": {
+    "mtime": 1791106486.0553575,
+    "seen": 1791106686.769504,
+    "ast_hash": "faf4ce7950e7870700836e91d0fe17df",
+    "semantic_hash": ""
+  },
+  "src/lib/students/import.ts": {
+    "mtime": 1791106494.1014032,
+    "seen": 1791106686.769504,
+    "ast_hash": "c06ce939c06f4c0c4742ca7f59a07014",
+    "semantic_hash": ""
+  },
+  "src/lib/students/schema.ts": {
+    "mtime": 1791106486.0621197,
+    "seen": 1791106686.769505,
+    "ast_hash": "c0cc397e023840c44f1e9da7c6956302",
     "semantic_hash": ""
   }
 }
