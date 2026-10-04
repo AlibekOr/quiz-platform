@@ -1,0 +1,110 @@
+{
+  ".claude/settings.json": {
+    "mtime": 1791104893.8590372,
+    "seen": 1791104898.5378802,
+    "ast_hash": "849770af1cbcbee2047f490b7e2a030f",
+    "semantic_hash": ""
+  },
+  "eslint.config.mjs": {
+    "mtime": 1791104494.275641,
+    "seen": 1791104898.5378828,
+    "ast_hash": "dfa1f5f6a7037bf39dc510f30b180002",
+    "semantic_hash": ""
+  },
+  "next.config.ts": {
+    "mtime": 1791104494.2757094,
+    "seen": 1791104898.537884,
+    "ast_hash": "9b77af189a21a7a64e4bd7a426f64176",
+    "semantic_hash": ""
+  },
+  "package.json": {
+    "mtime": 1791104494.3659556,
+    "seen": 1791104898.537885,
+    "ast_hash": "b69338c5e92ed8ff22422548b7381e75",
+    "semantic_hash": ""
+  },
+  "postcss.config.mjs": {
+    "mtime": 1791104494.2757556,
+    "seen": 1791104898.537885,
+    "ast_hash": "239f3ebf717465dc636818a1a619398d",
+    "semantic_hash": ""
+  },
+  "src/app/layout.tsx": {
+    "mtime": 1791104494.2758803,
+    "seen": 1791104898.537886,
+    "ast_hash": "70f839ece80281c576701dc08f055685",
+    "semantic_hash": ""
+  },
+  "src/app/page.tsx": {
+    "mtime": 1791104494.276718,
+    "seen": 1791104898.537886,
+    "ast_hash": "7960d56e7fc48ecd789e2fd32155fa90",
+    "semantic_hash": ""
+  },
+  "tsconfig.json": {
+    "mtime": 1791104494.2763927,
+    "seen": 1791104898.5378869,
+    "ast_hash": "ee17fd1c97c735e9f3564e3f5251f125",
+    "semantic_hash": ""
+  },
+  "AGENTS.md": {
+    "mtime": 1791104524.8777294,
+    "seen": 1791104898.5378869,
+    "ast_hash": "01e8142356e15c3404e0d84c48187cd0",
+    "semantic_hash": ""
+  },
+  "CLAUDE.md": {
+    "mtime": 1791104893.8588233,
+    "seen": 1791104898.537888,
+    "ast_hash": "03e3d38ba74cf8886d3d8fc322d9da8a",
+    "semantic_hash": ""
+  },
+  "PLAN.md": {
+    "mtime": 1791086406.0,
+    "seen": 1791104898.537889,
+    "ast_hash": "8bbfd2159b610b6352aab19d4e0bcd20",
+    "semantic_hash": ""
+  },
+  "README.md": {
+    "mtime": 1791104494.2755673,
+    "seen": 1791104898.537889,
+    "ast_hash": "f15aaa42d5d299d091b1171097ea56ad",
+    "semantic_hash": ""
+  },
+  "pnpm-workspace.yaml": {
+    "mtime": 1791104494.3222375,
+    "seen": 1791104898.53789,
+    "ast_hash": "a800062e52322b626879a0760092d845",
+    "semantic_hash": ""
+  },
+  "public/file.svg": {
+    "mtime": 1791104494.275838,
+    "seen": 1791104898.53789,
+    "ast_hash": "d09f95206c3fa0bb9bd9fefabfd0ea71",
+    "semantic_hash": ""
+  },
+  "public/globe.svg": {
+    "mtime": 1791104494.2759569,
+    "seen": 1791104898.5378911,
+    "ast_hash": "2aaafa6a49b6563925fe440891e32717",
+    "semantic_hash": ""
+  },
+  "public/next.svg": {
+    "mtime": 1791104494.2759442,
+    "seen": 1791104898.5378911,
+    "ast_hash": "8e061864f388b47f33a1c3780831193e",
+    "semantic_hash": ""
+  },
+  "public/vercel.svg": {
+    "mtime": 1791104494.275995,
+    "seen": 1791104898.537892,
+    "ast_hash": "c0af2f507b369b085b35ef4bbe3bcf1e",
+    "semantic_hash": ""
+  },
+  "public/window.svg": {
+    "mtime": 1791104494.275869,
+    "seen": 1791104898.537892,
+    "ast_hash": "a2760511c65806022ad20adf74370ff3",
+    "semantic_hash": ""
+  }
+}
