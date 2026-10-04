@@ -33,7 +33,7 @@ export function StudentFilters({ groups }: { groups: GroupOption[] }) {
     <div className="flex flex-col gap-2 sm:flex-row">
       <Input
         type="search"
-        placeholder="Ism yoki login bo'yicha qidirish"
+        placeholder="Ism, login, telefon yoki Telegram"
         aria-label="Qidirish"
         value={query}
         onChange={(e) => setQuery(e.target.value)}

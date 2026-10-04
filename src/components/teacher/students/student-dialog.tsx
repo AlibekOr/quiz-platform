@@ -31,6 +31,8 @@ import {
   studentUpdateSchema,
   type StudentUpdateInput,
 } from "@/lib/validators/student";
+import { EMPTY_PROFILE } from "@/lib/validators/contact";
+import { ContactFields } from "./contact-fields";
 import type { GroupOption, StudentRow } from "./types";
 
 export function StudentDialog({
@@ -48,7 +50,7 @@ export function StudentDialog({
   const onDone = () => onOpenChange(false);
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-xl">
         <DialogHeader>
           <DialogTitle>
             {student ? "O'quvchini tahrirlash" : "Yangi o'quvchi"}
@@ -84,6 +86,7 @@ function CreateStudentForm({
       username: "",
       groupId: "",
       password: generatePassword(),
+      ...EMPTY_PROFILE,
     },
   });
   const { errors } = form.formState;
@@ -127,6 +130,7 @@ function CreateStudentForm({
             </Button>
           </div>
         </FormField>
+        <ContactFields />
         <FormError message={errors.root?.server?.message} />
         <DialogFooter>
           <Button type="submit" disabled={pending}>
@@ -154,6 +158,12 @@ function EditStudentForm({
       fullName: student.fullName,
       username: student.username,
       groupId: student.groupId ?? "",
+      phone: student.profile?.phone ?? "",
+      telegram: student.profile?.telegram ?? "",
+      parentName: student.profile?.parentName ?? "",
+      parentRelation: student.profile?.parentRelation ?? "",
+      parentPhone: student.profile?.parentPhone ?? "",
+      note: student.profile?.note ?? "",
     },
   });
   const { errors } = form.formState;
@@ -174,6 +184,7 @@ function EditStudentForm({
     <FormProvider {...form}>
       <form onSubmit={onSubmit} className="flex flex-col gap-4" noValidate>
         <StudentFields groups={groups} />
+        <ContactFields />
         <FormError message={errors.root?.server?.message} />
         <DialogFooter>
           <Button type="submit" disabled={pending}>
@@ -187,7 +198,7 @@ function EditStudentForm({
 
 /** Yaratish va tahrirlash formalari uchun umumiy maydonlar (fullName, username, groupId) */
 function StudentFields({ groups }: { groups: GroupOption[] }) {
-  // Ikkala forma ham shu uch maydonga ega
+  // Ikkala forma ham shu maydonlarga ega
   const {
     register,
     formState: { errors },

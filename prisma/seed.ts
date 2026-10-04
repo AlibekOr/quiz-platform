@@ -152,7 +152,7 @@ async function main() {
 
     for (let i = 1; i <= STUDENTS_PER_GROUP; i++) {
       const username = `student${gi + 1}${i}`;
-      await db.user.upsert({
+      const student = await db.user.upsert({
         where: { username },
         update: {},
         create: {
@@ -160,6 +160,20 @@ async function main() {
           fullName: `O'quvchi ${gi + 1}-${i}`,
           passwordHash: studentHash,
           groupId: group.id,
+        },
+      });
+      // Namunaviy (soxta) aloqa ma'lumotlari — mavjud profilga tegilmaydi
+      const n = `${gi + 1}${i}`;
+      await db.studentProfile.upsert({
+        where: { userId: student.id },
+        update: {},
+        create: {
+          userId: student.id,
+          phone: `+9989000000${n}`,
+          telegram: `@oquvchi_${n}`,
+          parentName: `Ota-ona ${gi + 1}-${i}`,
+          parentRelation: i % 2 === 0 ? "MOTHER" : "FATHER",
+          parentPhone: `+9989100000${n}`,
         },
       });
     }

@@ -56,7 +56,7 @@ export async function createStudent(
   await requireTeacher();
   const parsed = studentCreateSchema.safeParse(input);
   if (!parsed.success) return validationFailed(parsed.error);
-  const { fullName, username, groupId, password } = parsed.data;
+  const { fullName, username, groupId, password, ...profile } = parsed.data;
 
   if (!(await groupExists(groupId)))
     return { ok: false, error: "Guruh topilmadi" };
@@ -76,6 +76,7 @@ export async function createStudent(
         groupId,
         role: "STUDENT",
         passwordHash: await hashPassword(password),
+        profile: { create: profile },
       },
     });
   } catch (e) {
@@ -100,7 +101,7 @@ export async function updateStudent(
   const id = idSchema.parse(studentId);
   const parsed = studentUpdateSchema.safeParse(input);
   if (!parsed.success) return validationFailed(parsed.error);
-  const { fullName, username, groupId } = parsed.data;
+  const { fullName, username, groupId, ...profile } = parsed.data;
 
   if (!(await groupExists(groupId)))
     return { ok: false, error: "Guruh topilmadi" };
@@ -116,7 +117,12 @@ export async function updateStudent(
     // role sharti: o'qituvchi akkauntlarini bu yerdan o'zgartirib bo'lmaydi
     await db.user.update({
       where: { id, role: "STUDENT" },
-      data: { fullName, username, groupId },
+      data: {
+        fullName,
+        username,
+        groupId,
+        profile: { upsert: { create: profile, update: profile } },
+      },
     });
   } catch (e) {
     if (isNotFound(e)) return { ok: false, error: "O'quvchi topilmadi" };
@@ -211,7 +217,17 @@ async function parseStudentFile(
 }
 
 /** Preview'da parol qaytarilmaydi */
-export type ImportPreviewRow = Omit<ValidatedRow, "password">;
+export type ImportPreviewRow = {
+  line: number;
+  fullName: string;
+  username: string;
+  group: string;
+  /** Normallashgan bo'lsa shu, aks holda fayldagi qiymat */
+  phone: string;
+  telegram: string;
+  parentName: string;
+  errors: string[];
+};
 
 function withoutPasswords(rows: ValidatedRow[]): ImportPreviewRow[] {
   return rows.map((r) => ({
@@ -219,6 +235,9 @@ function withoutPasswords(rows: ValidatedRow[]): ImportPreviewRow[] {
     fullName: r.fullName,
     username: r.username,
     group: r.group,
+    phone: r.profile.phone ?? r.phone,
+    telegram: r.profile.telegram ?? r.telegram,
+    parentName: r.parentName,
     errors: r.errors,
   }));
 }
@@ -267,13 +286,17 @@ export async function importStudents(
       passwordHash: await hashPassword(r.password),
       groupId: groupIdByName.get(r.group.toLowerCase())!,
       role: "STUDENT" as const,
+      profile: { create: r.profile },
     })),
   );
 
   try {
-    const { count } = await db.user.createMany({ data });
+    // createMany ichma-ich profil yarata olmaydi — bitta tranzaksiyada alohida create
+    await db.$transaction(
+      data.map((d) => db.user.create({ data: d, select: { id: true } })),
+    );
     revalidate();
-    return { ok: true, created: count };
+    return { ok: true, created: data.length };
   } catch (e) {
     if (isUniqueViolation(e)) {
       return {

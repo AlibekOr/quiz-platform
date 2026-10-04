@@ -20,7 +20,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { IMPORT_COLUMNS } from "@/lib/students/import";
+import { IMPORT_COLUMNS, REQUIRED_COLUMNS } from "@/lib/students/import";
 
 export function ImportStudents() {
   const router = useRouter();
@@ -70,14 +70,20 @@ export function ImportStudents() {
       <div className="flex flex-col gap-2 rounded-lg border p-4 text-sm">
         <p>
           Birinchi qatorda ustun nomlari bo&apos;lsin:{" "}
-          <code className="bg-muted rounded px-1 py-0.5">
+          <code className="bg-muted rounded px-1 py-0.5 break-words">
             {IMPORT_COLUMNS.join(" | ")}
           </code>
         </p>
         <p className="text-muted-foreground">
-          Guruh nomi mavjud guruh bilan bir xil bo&apos;lishi kerak. Login:
-          lotin harflari, raqam, &quot;.&quot;, &quot;_&quot;, &quot;-&quot;.
-          Parol kamida 6 belgi.
+          Majburiy: {REQUIRED_COLUMNS.join(", ")}. Guruh nomi mavjud guruh bilan
+          bir xil bo&apos;lishi kerak. Login: lotin harflari, raqam,
+          &quot;.&quot;, &quot;_&quot;, &quot;-&quot;. Parol kamida 6 belgi.
+        </p>
+        <p className="text-muted-foreground">
+          Aloqa ustunlari ixtiyoriy: telefonlar <code>90 123 45 67</code> yoki{" "}
+          <code>+998901234567</code>, telegram <code>@username</code> yoki
+          telefon, parentRelation <code>ota</code> / <code>ona</code> /{" "}
+          <code>boshqa</code>.
         </p>
       </div>
 
@@ -124,6 +130,7 @@ export function ImportStudents() {
                   <TableHead>F.I.Sh</TableHead>
                   <TableHead>Login</TableHead>
                   <TableHead>Guruh</TableHead>
+                  <TableHead className="hidden md:table-cell">Aloqa</TableHead>
                   <TableHead>Holat</TableHead>
                 </TableRow>
               </TableHeader>
@@ -143,6 +150,11 @@ export function ImportStudents() {
                       {r.username}
                     </TableCell>
                     <TableCell>{r.group}</TableCell>
+                    <TableCell className="hidden text-xs md:table-cell">
+                      {[r.phone, r.telegram, r.parentName]
+                        .filter(Boolean)
+                        .join(" · ") || "—"}
+                    </TableCell>
                     <TableCell className="whitespace-normal">
                       {r.errors.length === 0 ? (
                         <Badge variant="secondary">OK</Badge>

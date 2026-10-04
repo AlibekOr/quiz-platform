@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { FileSpreadsheetIcon } from "lucide-react";
+import { DownloadIcon, FileSpreadsheetIcon } from "lucide-react";
 import type { Prisma } from "@/generated/prisma/client";
 import { AddStudentButton } from "@/components/teacher/students/add-student-button";
 import { StudentFilters } from "@/components/teacher/students/student-filters";
@@ -18,6 +18,8 @@ import {
 } from "@/components/ui/table";
 import { requireTeacher } from "@/lib/auth/guards";
 import { db } from "@/lib/db";
+import { teacherProfileSelect } from "@/lib/students/profile-select";
+import { formatPhone } from "@/lib/students/format";
 
 export const metadata: Metadata = { title: "O'quvchilar" };
 
@@ -38,7 +40,20 @@ export default async function StudentsPage({
     where.OR = [
       { fullName: { contains: q, mode: "insensitive" } },
       { username: { contains: q, mode: "insensitive" } },
+      {
+        profile: {
+          telegram: { contains: q.replace(/^@/, ""), mode: "insensitive" },
+        },
+      },
     ];
+    // Telefonlar +998XXXXXXXXX ko'rinishida saqlanadi: "90 123" -> "90123"
+    const digits = q.replace(/\D/g, "");
+    if (digits.length >= 3) {
+      where.OR.push(
+        { profile: { phone: { contains: digits } } },
+        { profile: { parentPhone: { contains: digits } } },
+      );
+    }
   }
   if (group === "none") where.groupId = null;
   else if (group) where.groupId = group;
@@ -58,6 +73,7 @@ export default async function StudentsPage({
         isActive: true,
         groupId: true,
         group: { select: { name: true } },
+        profile: { select: teacherProfileSelect },
       },
     }),
   ]);
@@ -72,6 +88,14 @@ export default async function StudentsPage({
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-2xl font-semibold">O&apos;quvchilar</h1>
         <div className="flex flex-col gap-2 sm:flex-row">
+          {/* Eksport joriy guruh filtri bo'yicha (filtr bo'lmasa — hammasi) */}
+          <a
+            href={`/api/students/export${group && group !== "none" ? `?groupId=${encodeURIComponent(group)}` : ""}`}
+            className={buttonVariants({ variant: "outline" })}
+          >
+            <DownloadIcon />
+            Excel&apos;ga eksport
+          </a>
           <Link
             href="/teacher/students/import"
             className={buttonVariants({ variant: "outline" })}
@@ -109,6 +133,9 @@ export default async function StudentsPage({
                   <TableHead>F.I.Sh</TableHead>
                   <TableHead>Login</TableHead>
                   <TableHead>Guruh</TableHead>
+                  <TableHead className="hidden md:table-cell">
+                    Telefon
+                  </TableHead>
                   <TableHead>Holat</TableHead>
                   <TableHead className="w-12">
                     <span className="sr-only">Amallar</span>
@@ -121,11 +148,21 @@ export default async function StudentsPage({
                     key={s.id}
                     className={s.isActive ? undefined : "text-muted-foreground"}
                   >
-                    <TableCell className="font-medium">{s.fullName}</TableCell>
+                    <TableCell className="font-medium">
+                      <Link
+                        href={`/teacher/students/${s.id}`}
+                        className="hover:underline"
+                      >
+                        {s.fullName}
+                      </Link>
+                    </TableCell>
                     <TableCell className="font-mono text-xs">
                       {s.username}
                     </TableCell>
                     <TableCell>{s.groupName ?? "—"}</TableCell>
+                    <TableCell className="hidden whitespace-nowrap md:table-cell">
+                      {s.profile?.phone ? formatPhone(s.profile.phone) : "—"}
+                    </TableCell>
                     <TableCell>
                       {s.isActive ? (
                         <Badge variant="secondary">Faol</Badge>

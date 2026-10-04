@@ -1,31 +1,47 @@
 import {
+  normalizePhone,
+  normalizeTelegram,
+  parseParentRelation,
+  type StudentProfileData,
+} from "@/lib/validators/contact";
+import {
   fullNameSchema,
   groupNameSchema,
   passwordSchema,
   usernameSchema,
 } from "@/lib/validators/student";
 
-// Sof funksiyalar: klientda (preview) ham, serverda (yakuniy tekshiruv) ham ishlatiladi
+// Sof funksiyalar: server faylni o'qigach shu yerda tekshiriladi (testlar bilan)
 
-export const IMPORT_COLUMNS = [
+export const REQUIRED_COLUMNS = [
   "fullName",
   "username",
   "password",
   "group",
 ] as const;
+export const OPTIONAL_COLUMNS = [
+  "phone",
+  "telegram",
+  "parentName",
+  "parentRelation",
+  "parentPhone",
+] as const;
+export const IMPORT_COLUMNS = [
+  ...REQUIRED_COLUMNS,
+  ...OPTIONAL_COLUMNS,
+] as const;
 export const MAX_IMPORT_ROWS = 500;
 
-export type ImportRow = {
-  fullName: string;
-  username: string;
-  password: string;
-  group: string;
-};
+type Column = (typeof IMPORT_COLUMNS)[number];
+
+export type ImportRow = Record<Column, string>;
 
 export type ValidatedRow = ImportRow & {
   /** Excel'dagi qator raqami (sarlavha 1-qator) */
   line: number;
   errors: string[];
+  /** Normallashgan aloqa ma'lumotlari (xato bo'lmasa) */
+  profile: StudentProfileData;
 };
 
 function cellToString(cell: unknown): string {
@@ -37,6 +53,7 @@ function cellToString(cell: unknown): string {
 /**
  * Jadvalni (birinchi qator — sarlavha) qatorlarga aylantiradi.
  * Ustunlar tartibi muhim emas, sarlavhalar katta-kichik harfga sezgir emas.
+ * Aloqa ustunlari ixtiyoriy — eski formatdagi fayllar ham o'qiladi.
  */
 export function sheetToRows(
   sheet: readonly (readonly unknown[])[],
@@ -44,12 +61,12 @@ export function sheetToRows(
   if (sheet.length === 0) return { error: "Fayl bo'sh" };
 
   const header = sheet[0].map((c) => cellToString(c).toLowerCase());
-  const index: Record<string, number> = {};
+  const index = {} as Record<Column, number>;
   for (const column of IMPORT_COLUMNS) {
     const i = header.indexOf(column.toLowerCase());
-    if (i === -1) {
+    if (i === -1 && (REQUIRED_COLUMNS as readonly string[]).includes(column)) {
       return {
-        error: `"${column}" ustuni topilmadi. Kerakli ustunlar: ${IMPORT_COLUMNS.join(" | ")}`,
+        error: `"${column}" ustuni topilmadi. Majburiy ustunlar: ${REQUIRED_COLUMNS.join(" | ")}`,
       };
     }
     index[column] = i;
@@ -57,12 +74,12 @@ export function sheetToRows(
 
   const rows: (ImportRow & { line: number })[] = [];
   sheet.slice(1).forEach((cells, i) => {
-    const row = {
-      fullName: cellToString(cells[index.fullName]),
-      username: cellToString(cells[index.username]),
-      password: cellToString(cells[index.password]),
-      group: cellToString(cells[index.group]),
-    };
+    const row = Object.fromEntries(
+      IMPORT_COLUMNS.map((c) => [
+        c,
+        index[c] === -1 ? "" : cellToString(cells[index[c]]),
+      ]),
+    ) as ImportRow;
     if (Object.values(row).every((v) => v === "")) return;
     rows.push({ ...row, line: i + 2 });
   });
@@ -85,8 +102,39 @@ function firstError(result: {
     : (result.error?.issues[0]?.message ?? "Noto'g'ri qiymat");
 }
 
+/** Aloqa ustunlarini normallashtiradi va xatolarini yig'adi */
+function parseProfile(row: ImportRow, errors: string[]): StudentProfileData {
+  const phone = row.phone ? normalizePhone(row.phone) : null;
+  if (row.phone && !phone)
+    errors.push(`phone: "${row.phone}" — telefon raqami noto'g'ri`);
+
+  const telegram = row.telegram ? normalizeTelegram(row.telegram) : null;
+  if (row.telegram && !telegram)
+    errors.push(`telegram: "${row.telegram}" — @username yoki telefon bo'lsin`);
+
+  const parentPhone = row.parentPhone ? normalizePhone(row.parentPhone) : null;
+  if (row.parentPhone && !parentPhone)
+    errors.push(`parentPhone: "${row.parentPhone}" — telefon raqami noto'g'ri`);
+
+  const parentRelation = parseParentRelation(row.parentRelation);
+  if (row.parentRelation && !parentRelation)
+    errors.push("parentRelation: ota, ona yoki boshqa bo'lsin");
+
+  if (row.parentName.length > 100)
+    errors.push("parentName 100 belgidan oshmasin");
+
+  return {
+    phone,
+    telegram,
+    parentName: row.parentName || null,
+    parentRelation,
+    parentPhone,
+    note: null,
+  };
+}
+
 /**
- * Har bir qatorni tekshiradi: maydonlar, fayl ichidagi takror loginlar,
+ * Har bir qatorni tekshiradi: maydonlar, aloqa ma'lumotlari, fayl ichidagi takror loginlar,
  * bazada bor loginlar va mavjud bo'lmagan guruhlar.
  */
 export function validateImportRows(
@@ -122,6 +170,7 @@ export function validateImportRows(
     if (row.group && !groups.has(row.group.toLowerCase()))
       errors.push(`"${row.group}" guruhi topilmadi`);
 
-    return { ...row, errors };
+    const profile = parseProfile(row, errors);
+    return { ...row, errors, profile };
   });
 }

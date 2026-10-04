@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { studentProfileSchema } from "./contact";
 
 export const USERNAME_PATTERN = /^[a-zA-Z0-9._-]+$/;
 
@@ -32,10 +33,12 @@ export const groupNameSchema = z
 export const groupFormSchema = z.object({ name: groupNameSchema });
 export type GroupFormInput = z.input<typeof groupFormSchema>;
 
+// Aloqa maydonlari ixtiyoriy va formada tekis (flat) turadi
 const studentFields = {
   fullName: fullNameSchema,
   username: usernameSchema,
   groupId: z.string().min(1, "Guruhni tanlang"),
+  ...studentProfileSchema.shape,
 };
 
 export const studentCreateSchema = z.object({
