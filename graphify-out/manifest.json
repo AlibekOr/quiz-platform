@@ -30,15 +30,15 @@
     "semantic_hash": ""
   },
   "src/app/layout.tsx": {
-    "mtime": 1791105435.577073,
-    "seen": 1791105454.478495,
-    "ast_hash": "b007c2a8516a7251f5b410f111c34920",
+    "mtime": 1791106019.6079295,
+    "seen": 1791106133.287282,
+    "ast_hash": "167b5e40426f547427ce9076dc139066",
     "semantic_hash": ""
   },
   "src/app/page.tsx": {
-    "mtime": 1791105435.5820684,
-    "seen": 1791105454.478496,
-    "ast_hash": "1dd5a5611280ff3279dc2e180685c8e8",
+    "mtime": 1791106019.6050887,
+    "seen": 1791106133.287283,
+    "ast_hash": "263f4a045304adeb636f3527d30c64e5",
     "semantic_hash": ""
   },
   "tsconfig.json": {
@@ -126,9 +126,9 @@
     "semantic_hash": ""
   },
   "prisma/seed.ts": {
-    "mtime": 1791105435.5495317,
-    "seen": 1791105454.478494,
-    "ast_hash": "9baca3373e2affeaa5c874c49325c581",
+    "mtime": 1791106038.3514633,
+    "seen": 1791106133.28728,
+    "ast_hash": "23377a0b94f8f85abf343cd8301edf36",
     "semantic_hash": ""
   },
   "src/components/ui/button.tsx": {
@@ -149,9 +149,111 @@
     "ast_hash": "af7c2d37d6b451d832f5d6db92e9bcb4",
     "semantic_hash": ""
   },
-  "vitest.config.ts": {
+  "src/app/dashboard/page.tsx": {
+    "mtime": 1791106038.6135974,
+    "seen": 1791106133.2872808,
+    "ast_hash": "1409880f754423e979c0c85c767b11bb",
+    "semantic_hash": ""
+  },
+  "src/app/login/page.tsx": {
+    "mtime": 1791106038.6335406,
+    "seen": 1791106133.287282,
+    "ast_hash": "ee1f65ce48dacd203b420308ab02f426",
+    "semantic_hash": ""
+  },
+  "src/app/teacher/page.tsx": {
+    "mtime": 1791106038.6371102,
+    "seen": 1791106133.287284,
+    "ast_hash": "71bfc8cef58a2b186371c7843d33abab",
+    "semantic_hash": ""
+  },
+  "src/components/auth/login-form.tsx": {
+    "mtime": 1791106038.641929,
+    "seen": 1791106133.287284,
+    "ast_hash": "ef98b9313a04cf657816d1ccbec7b492",
+    "semantic_hash": ""
+  },
+  "src/components/auth/logout-button.tsx": {
+    "mtime": 1791106019.5994072,
+    "seen": 1791106133.287285,
+    "ast_hash": "ddd38edb7644d08c3d2bd466d4d96a97",
+    "semantic_hash": ""
+  },
+  "src/components/ui/card.tsx": {
+    "mtime": 1791106038.6539316,
+    "seen": 1791106133.287301,
+    "ast_hash": "39940ae695766d19c69a739c1d234516",
+    "semantic_hash": ""
+  },
+  "src/components/ui/input.tsx": {
+    "mtime": 1791106038.6560607,
+    "seen": 1791106133.287301,
+    "ast_hash": "d828c95074b3d1522ba141c88a797ed7",
+    "semantic_hash": ""
+  },
+  "src/components/ui/label.tsx": {
+    "mtime": 1791106038.6576467,
+    "seen": 1791106133.2873018,
+    "ast_hash": "8f2f772d333c4ac789dafc9d01c6387d",
+    "semantic_hash": ""
+  },
+  "src/lib/auth/actions.ts": {
+    "mtime": 1791106038.6617503,
+    "seen": 1791106133.287303,
+    "ast_hash": "12e6dda4b4775367c2b70d697b366d7c",
+    "semantic_hash": ""
+  },
+  "src/lib/auth/guards.ts": {
+    "mtime": 1791106046.6042147,
+    "seen": 1791106133.287303,
+    "ast_hash": "f972af2c174e8c11c38757c6f9b5f675",
+    "semantic_hash": ""
+  },
+  "src/lib/auth/jwt.test.ts": {
+    "mtime": 1791106038.6703594,
+    "seen": 1791106133.287304,
+    "ast_hash": "942b2a2e4dec435dce7af0e394e87709",
+    "semantic_hash": ""
+  },
+  "src/lib/auth/jwt.ts": {
+    "mtime": 1791106038.673814,
+    "seen": 1791106133.287304,
+    "ast_hash": "4e4076ddf3ddef3af9011d44db0c281b",
+    "semantic_hash": ""
+  },
+  "src/lib/auth/password.test.ts": {
+    "mtime": 1791106038.358246,
+    "seen": 1791106133.2873049,
+    "ast_hash": "b1c09bda1351aeaf25e38294f87d13b1",
+    "semantic_hash": ""
+  },
+  "src/lib/auth/password.ts": {
+    "mtime": 1791106038.677869,
+    "seen": 1791106133.2873049,
+    "ast_hash": "6c0e258fdbaecf6b4f6d26f99f0b131f",
+    "semantic_hash": ""
+  },
+  "src/lib/auth/rate-limit.ts": {
+    "mtime": 1791106038.6809366,
+    "seen": 1791106133.287306,
+    "ast_hash": "db1d5578f88f03d419321f9ea39dc99c",
+    "semantic_hash": ""
+  },
+  "src/lib/auth/session.ts": {
+    "mtime": 1791105993.1442814,
+    "seen": 1791106133.287306,
+    "ast_hash": "a07d94336780f069712cea917466c6bc",
+    "semantic_hash": ""
+  },
+  "src/proxy.ts": {
+    "mtime": 1791106038.6874292,
+    "seen": 1791106133.287333,
+    "ast_hash": "7dc609e5dd5b76c525bca9b1f17f987a",
+    "semantic_hash": ""
+  },
+  "vitest.config.mts": {
     "mtime": 1791105406.5158694,
-    "seen": 1791105454.478511,
+    "seen": 1791106133.287345,
     "ast_hash": "2789f82b6c9a340bc8e2c80ac18fd9f3",
     "semantic_hash": ""
   }

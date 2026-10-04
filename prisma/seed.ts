@@ -1,7 +1,7 @@
 import "dotenv/config";
-import bcrypt from "bcryptjs";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient, QuestionType } from "../src/generated/prisma/client";
+import { hashPassword } from "../src/lib/auth/password";
 
 const db = new PrismaClient({
   adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL }),
@@ -135,12 +135,12 @@ async function main() {
     create: {
       username: requireEnv("TEACHER_USERNAME"),
       fullName: process.env.TEACHER_FULLNAME || "O'qituvchi",
-      passwordHash: await bcrypt.hash(teacherPassword, 10),
+      passwordHash: await hashPassword(teacherPassword),
       role: "TEACHER",
     },
   });
 
-  const studentHash = await bcrypt.hash(studentPassword, 10);
+  const studentHash = await hashPassword(studentPassword);
   const groups = [];
   for (const [gi, name] of GROUPS.entries()) {
     const group = await db.group.upsert({

@@ -116,3 +116,12 @@ model Answer {
 
   @@unique([attemptId, questionId])
 }
+
+// Login cheklovi: username bo'yicha xato urinishlar (15 daqiqalik oyna)
+model LoginFailure {
+  id        String   @id @default(cuid())
+  username  String
+  createdAt DateTime @default(now())
+
+  @@index([username, createdAt])
+}
