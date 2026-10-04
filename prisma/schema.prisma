@@ -1,0 +1,118 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+// Ulanish satri prisma.config.ts dan olinadi (Prisma 7)
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  TEACHER
+  STUDENT
+}
+
+enum QuestionType {
+  SINGLE
+  MULTIPLE
+}
+
+enum AttemptStatus {
+  IN_PROGRESS
+  FINISHED
+  EXPIRED
+}
+
+model User {
+  id           String    @id @default(cuid())
+  username     String    @unique
+  fullName     String
+  passwordHash String
+  role         Role      @default(STUDENT)
+  isActive     Boolean   @default(true)
+  groupId      String?
+  group        Group?    @relation(fields: [groupId], references: [id])
+  attempts     Attempt[]
+  createdTests Test[]    @relation("TestAuthor")
+  createdAt    DateTime  @default(now())
+}
+
+model Group {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  students  User[]
+  tests     Test[]
+  createdAt DateTime @default(now())
+}
+
+model Test {
+  id               String     @id @default(cuid())
+  title            String
+  description      String?
+  durationMin      Int
+  isActive         Boolean    @default(false)
+  allowRetake      Boolean    @default(false)
+  showAnswers      Boolean    @default(false)
+  shuffleQuestions Boolean    @default(false)
+  createdById      String
+  createdBy        User       @relation("TestAuthor", fields: [createdById], references: [id])
+  groups           Group[]
+  questions        Question[]
+  attempts         Attempt[]
+  createdAt        DateTime   @default(now())
+}
+
+model Question {
+  id      String       @id @default(cuid())
+  testId  String
+  test    Test         @relation(fields: [testId], references: [id], onDelete: Cascade)
+  text    String
+  type    QuestionType @default(SINGLE)
+  points  Int          @default(1)
+  order   Int
+  options Option[]
+  answers Answer[]
+}
+
+model Option {
+  id         String   @id @default(cuid())
+  questionId String
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  text       String
+  isCorrect  Boolean  @default(false)
+  order      Int
+}
+
+model Attempt {
+  id          String        @id @default(cuid())
+  userId      String
+  user        User          @relation(fields: [userId], references: [id])
+  testId      String
+  test        Test          @relation(fields: [testId], references: [id], onDelete: Cascade)
+  status      AttemptStatus @default(IN_PROGRESS)
+  isFirst     Boolean
+  startedAt   DateTime      @default(now())
+  deadlineAt  DateTime
+  finishedAt  DateTime?
+  durationSec Int?
+  score       Int?
+  maxScore    Int?
+  answers     Answer[]
+
+  @@index([testId, isFirst, status])
+  @@index([userId, testId])
+}
+
+model Answer {
+  id                String   @id @default(cuid())
+  attemptId         String
+  attempt           Attempt  @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  questionId        String
+  question          Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  selectedOptionIds String[]
+  isCorrect         Boolean?
+  updatedAt         DateTime @updatedAt
+
+  @@unique([attemptId, questionId])
+}

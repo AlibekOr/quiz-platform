@@ -3,6 +3,7 @@
 ## Rollar va asosiy imkoniyatlar
 
 **O'qituvchi (TEACHER)**
+
 - Guruhlar yaratadi
 - O'quvchi akkauntlarini ochadi: bittalab yoki Excel'dan import qiladi. Parolni tiklaydi, akkauntni bloklaydi
 - Test yaratadi: savollar, variantlar, vaqt, sozlamalar. Testni guruhlarga biriktiradi va faollashtiradi
@@ -10,6 +11,7 @@
 - Natijalar va statistikani ko'radi. Reytingni istalgan guruh bo'yicha ko'radi
 
 **O'quvchi (STUDENT)**
+
 - Faqat o'qituvchi bergan username + parol bilan kiradi (o'zi ro'yxatdan o'ta olmaydi)
 - O'z guruhiga biriktirilgan faol testlarni ko'radi va ishlaydi
 - Natijasini ko'radi (to'g'ri javoblar faqat `showAnswers = true` bo'lsa)
@@ -144,11 +146,13 @@ model Answer {
 ## Biznes qoidalar
 
 **Baholash (`lib/grading.ts`)**
+
 - SINGLE: tanlangan variant to'g'ri bo'lsa, `points` beriladi.
 - MULTIPLE: tanlanganlar to'plami to'g'ri variantlar to'plamiga **aynan teng** bo'lsagina `points` beriladi, aks holda 0 (qisman ball yo'q).
 - `maxScore` = barcha savollar `points` yig'indisi.
 
 **Attempt hayot sikli**
+
 - Boshlash: test faol bo'lishi va o'quvchining guruhiga biriktirilgan bo'lishi kerak. `deadlineAt = now + durationMin`.
 - O'quvchida shu testda `IN_PROGRESS` attempt bo'lsa, yangisi ochilmaydi, o'sha davom ettiriladi (sahifa yangilansa ham).
 - `allowRetake = false` bo'lsa, `FINISHED/EXPIRED` attempt bor ekan, qayta boshlab bo'lmaydi.
@@ -159,6 +163,7 @@ model Answer {
 - Muddati o'tgan, lekin topshirilmagan attemptlar: `finalizeExpiredAttempts(testId)` funksiyasi saqlangan javoblar bo'yicha baholab, `status = EXPIRED` qiladi (`durationSec = durationMin*60`). Bu funksiya reyting va natijalar o'qilishidan oldin chaqiriladi.
 
 **Reyting (`lib/leaderboard.ts`)**
+
 - Faqat `isFirst = true` va `status IN (FINISHED, EXPIRED)` attemptlar hisoblanadi.
 - Tartib: `score DESC`, keyin `durationSec ASC`. O'rin `RANK()` bilan hisoblanadi (teng natijalar bir xil o'rin oladi).
 - **Test reytingi:** bitta test bo'yicha.
@@ -168,6 +173,7 @@ model Answer {
 - Bloklangan (`isActive = false`) o'quvchilar reytingda ko'rinmaydi.
 
 **Auth**
+
 - Login: username + parol. Xato bo'lsa umumiy xabar: "Login yoki parol noto'g'ri".
 - Session: JWT (`jose`, HS256), payload: `userId`, `role`, `groupId`. httpOnly, secure, sameSite=lax cookie, muddati 7 kun.
 - Login urinishlariga oddiy cheklov: bir username uchun 15 daqiqada 10 ta xato bo'lsa, vaqtincha bloklanadi.
@@ -178,20 +184,20 @@ model Answer {
 
 ## Sahifalar
 
-| Yo'l | Kim | Vazifasi |
-|---|---|---|
-| `/login` | hamma | Kirish |
-| `/dashboard` | student | Mavjud testlar, o'z natijalari |
-| `/test/[id]` | student | Test ishlash (taymer, savollar navigatsiyasi, avtosaqlash) |
-| `/result/[attemptId]` | student (faqat o'zinikini) | Ball, o'rin, (ruxsat bo'lsa) to'g'ri javoblar |
-| `/leaderboard` | student, teacher | Umumiy reyting: tablar "Mening guruhim" / "Umumiy" |
-| `/test/[id]/leaderboard` | student, teacher | Test reytingi, xuddi shu tablar |
-| `/teacher` | teacher | Umumiy ko'rinish (testlar, o'quvchilar soni, oxirgi natijalar) |
-| `/teacher/groups` | teacher | Guruhlar CRUD |
-| `/teacher/students` | teacher | O'quvchilar ro'yxati, qo'shish, Excel import, parol tiklash, bloklash |
-| `/teacher/tests` | teacher | Testlar ro'yxati, yaratish |
-| `/teacher/tests/[id]` | teacher | Tahrirlash: savollar, sozlamalar, guruhlar, import |
-| `/teacher/tests/[id]/results` | teacher | Natijalar jadvali, savollar bo'yicha statistika |
+| Yo'l                          | Kim                        | Vazifasi                                                              |
+| ----------------------------- | -------------------------- | --------------------------------------------------------------------- |
+| `/login`                      | hamma                      | Kirish                                                                |
+| `/dashboard`                  | student                    | Mavjud testlar, o'z natijalari                                        |
+| `/test/[id]`                  | student                    | Test ishlash (taymer, savollar navigatsiyasi, avtosaqlash)            |
+| `/result/[attemptId]`         | student (faqat o'zinikini) | Ball, o'rin, (ruxsat bo'lsa) to'g'ri javoblar                         |
+| `/leaderboard`                | student, teacher           | Umumiy reyting: tablar "Mening guruhim" / "Umumiy"                    |
+| `/test/[id]/leaderboard`      | student, teacher           | Test reytingi, xuddi shu tablar                                       |
+| `/teacher`                    | teacher                    | Umumiy ko'rinish (testlar, o'quvchilar soni, oxirgi natijalar)        |
+| `/teacher/groups`             | teacher                    | Guruhlar CRUD                                                         |
+| `/teacher/students`           | teacher                    | O'quvchilar ro'yxati, qo'shish, Excel import, parol tiklash, bloklash |
+| `/teacher/tests`              | teacher                    | Testlar ro'yxati, yaratish                                            |
+| `/teacher/tests/[id]`         | teacher                    | Tahrirlash: savollar, sozlamalar, guruhlar, import                    |
+| `/teacher/tests/[id]/results` | teacher                    | Natijalar jadvali, savollar bo'yicha statistika                       |
 
 API: `GET /api/leaderboard?testId=&scope=group|all&groupId=` (`testId` bo'lmasa umumiy reyting). Qolgan o'zgartirishlar Server Actions orqali bo'ladi.
 
@@ -202,6 +208,7 @@ API: `GET /api/leaderboard?testId=&scope=group|all&groupId=` (`testId` bo'lmasa 
 Har bosqichdan keyin to'xta va hisobot ber. `lint`, `typecheck`, `test` o'tishi shart.
 
 ### 1-bosqich: loyiha asosi
+
 - Next.js + TS + Tailwind + shadcn/ui + ESLint + Prettier + Vitest sozlash, `package.json` skriptlari
 - Prisma sxema (yuqoridagi), birinchi migratsiya, `lib/db.ts`
 - `.env.example`
@@ -210,6 +217,7 @@ Har bosqichdan keyin to'xta va hisobot ber. `lint`, `typecheck`, `test` o'tishi 
 **Tayyor:** `pnpm db:migrate && pnpm db:seed` ishlaydi, Prisma Studio'da ma'lumotlar ko'rinadi.
 
 ### 2-bosqich: autentifikatsiya
+
 - `lib/auth/password.ts` (hash/verify), `lib/auth/session.ts` (JWT yaratish/o'qish, cookie)
 - `lib/auth/guards.ts`: `getSession()`, `requireTeacher()`, `requireStudent()`
 - `proxy.ts`: login qilmaganlarni `/login`ga, studentni `/teacher/*` dan `/dashboard`ga yo'naltiradi
@@ -219,6 +227,7 @@ Har bosqichdan keyin to'xta va hisobot ber. `lint`, `typecheck`, `test` o'tishi 
 **Tayyor:** teacher va student kirib o'z sahifasiga tushadi, bir-birining sahifasiga kira olmaydi, bloklangan user kira olmaydi.
 
 ### 3-bosqich: o'qituvchi, guruhlar va o'quvchilar
+
 - Teacher layout (sidebar, telefonda hamburger menyu)
 - `/teacher/groups`: CRUD
 - `/teacher/students`: jadval (qidiruv, guruh filtri), qo'shish, tahrirlash, guruhni o'zgartirish, parolni tiklash, bloklash
@@ -227,6 +236,7 @@ Har bosqichdan keyin to'xta va hisobot ber. `lint`, `typecheck`, `test` o'tishi 
 **Tayyor:** 30 ta o'quvchini Excel'dan bir yo'la qo'shsa bo'ladi, ular login qila oladi.
 
 ### 4-bosqich: testlar va savollar
+
 - `/teacher/tests`: ro'yxat, yaratish
 - `/teacher/tests/[id]`: sozlamalar (vaqt, allowRetake, showAnswers, shuffleQuestions, isActive), guruhlarga biriktirish
 - Savol muharriri: qo'shish, tahrirlash, o'chirish, tartibini o'zgartirish, variantlar (kamida 2 ta, kamida 1 ta to'g'ri; SINGLE da aynan 1 ta)
@@ -236,6 +246,7 @@ Har bosqichdan keyin to'xta va hisobot ber. `lint`, `typecheck`, `test` o'tishi 
 **Tayyor:** mavjud savollar bazasini import qilib, test yaratib, guruhga faollashtirsa bo'ladi.
 
 ### 5-bosqich: test ishlash
+
 - `/dashboard`: o'quvchi guruhidagi faol testlar, holati ("Boshlanmagan", "Davom etmoqda", "Tugatilgan: 8/10")
 - Boshlash tasdiq oynasi (vaqt, savollar soni)
 - `/test/[id]`: bitta savol ekranda, oldinga/orqaga, savollar raqamlari paneli (javob berilganlari belgilangan), taymer, avtosaqlash (saqlanish holati ko'rinadi), "Topshirish" tasdig'i
@@ -247,6 +258,7 @@ Har bosqichdan keyin to'xta va hisobot ber. `lint`, `typecheck`, `test` o'tishi 
 **Tayyor:** DevTools Network'da test davomida `isCorrect` ko'rinmaydi; sahifa yangilansa javoblar va taymer saqlanib qoladi; vaqt tugasa avtomatik topshiriladi.
 
 ### 6-bosqich: reyting
+
 - `lib/leaderboard.ts`: test reytingi va umumiy reyting (`$queryRaw` + `RANK()`), `finalizeExpiredAttempts`
 - `GET /api/leaderboard`
 - UI: tablar "Mening guruhim" / "Umumiy", ustunlar: o'rin, ism, (umumiyda) guruh, ball, vaqt. Top 3 uchun medal, o'quvchining o'z qatori ajratilgan, top 50 dan tashqarida bo'lsa pastda "Siz: N-o'rin"
@@ -256,12 +268,14 @@ Har bosqichdan keyin to'xta va hisobot ber. `lint`, `typecheck`, `test` o'tishi 
 **Tayyor:** o'quvchi URL'ni o'zgartirib boshqa guruh reytingini olish orqali tizimni aldab bo'lmaydi; qayta ishlash reytingni o'zgartirmaydi.
 
 ### 7-bosqich: o'qituvchi statistikasi
+
 - `/teacher/tests/[id]/results`: o'quvchilar natijalari jadvali (guruh filtri, saralash), CSV'ga eksport
 - Savollar bo'yicha statistika: necha foiz to'g'ri javob bergan, eng qiyin 5 ta savol
 - Bitta o'quvchining attemptini batafsil ko'rish
 - O'qituvchi o'quvchiga qayta ishlash ruxsatini berishi (attemptni bekor qilish)
 
 ### 8-bosqich: sayqal va deploy
+
 - Loading/error/empty holatlari, toast xabarlar, 404 sahifa
 - Telefon ekranida barcha sahifalarni tekshirish
 - Vercel + Neon deploy, prod migratsiya va seed (faqat teacher akkaunti)
@@ -270,6 +284,7 @@ Har bosqichdan keyin to'xta va hisobot ber. `lint`, `typecheck`, `test` o'tishi 
 ---
 
 ## Keyingi versiyalar (hozir qilinmaydi)
+
 - Savollarga rasm va kod bloklari
 - Savollar banki (testlar orasida qayta ishlatish)
 - AI orqali savol generatsiyasi

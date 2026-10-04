@@ -1,0 +1,5 @@
+pnpm-lock.yaml
+src/generated/
+graphify-out/
+prisma/migrations/
+.next/
