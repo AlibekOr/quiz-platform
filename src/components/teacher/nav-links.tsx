@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import {
   CalendarCheckIcon,
   ClipboardListIcon,
+  KeyRoundIcon,
   LayoutDashboardIcon,
   TrophyIcon,
   UsersIcon,
@@ -24,6 +25,7 @@ const LINKS = [
   { href: "/teacher/students", label: "O'quvchilar", icon: UsersIcon },
   { href: "/teacher/tests", label: "Testlar", icon: ClipboardListIcon },
   { href: "/leaderboard", label: "Reyting", icon: TrophyIcon },
+  { href: "/teacher/account", label: "Akkaunt", icon: KeyRoundIcon },
 ] as const;
 
 export function NavLinks({ onNavigate }: { onNavigate?: () => void }) {

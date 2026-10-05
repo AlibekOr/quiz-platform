@@ -14,3 +14,33 @@ export const loginSchema = z.object({
 });
 
 export type LoginInput = z.input<typeof loginSchema>;
+
+/** O'qituvchi o'z parolini o'zgartiradi (/teacher/account) */
+export const changePasswordSchema = z
+  .object({
+    currentPassword: z
+      .string()
+      .min(1, "Joriy parolni kiriting")
+      .max(128, "Joriy parol noto'g'ri"),
+    newPassword: z
+      .string()
+      .min(8, "Yangi parol kamida 8 belgi")
+      .max(72, "Parol 72 belgidan oshmasin"),
+    confirmPassword: z.string(),
+  })
+  .superRefine((v, ctx) => {
+    if (v.confirmPassword !== v.newPassword)
+      ctx.addIssue({
+        code: "custom",
+        path: ["confirmPassword"],
+        message: "Parollar mos kelmadi",
+      });
+    if (v.currentPassword && v.newPassword === v.currentPassword)
+      ctx.addIssue({
+        code: "custom",
+        path: ["newPassword"],
+        message: "Yangi parol eskisidan farq qilsin",
+      });
+  });
+
+export type ChangePasswordInput = z.input<typeof changePasswordSchema>;
