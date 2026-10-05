@@ -115,3 +115,4 @@ prisma/           # schema, migratsiyalar, seed
 # quiz-platform
 # quiz-platform
 # quiz-platform
+# quiz-platform
