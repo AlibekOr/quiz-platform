@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
@@ -8,7 +9,7 @@ import {
   setTestActive,
 } from "@/app/(teacher)/teacher/tests/actions";
 import { ConfirmAction } from "@/components/common/confirm-action";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 
 export function TestHeaderActions({
   testId,
@@ -37,6 +38,12 @@ export function TestHeaderActions({
 
   return (
     <div className="flex flex-wrap gap-2">
+      <Link
+        href={`/test/${testId}/leaderboard`}
+        className={buttonVariants({ variant: "outline" })}
+      >
+        Reyting
+      </Link>
       <Button
         onClick={toggleActive}
         disabled={pending || (!isActive && questionCount === 0)}

@@ -55,7 +55,11 @@ export default async function ResultPage({
 
   const score = attempt.score ?? 0;
   const maxScore = attempt.maxScore ?? 0;
-  const rank = await getTestRank(attempt);
+  const rank = await getTestRank({
+    testId: attempt.testId,
+    userId: student.id,
+    isFirst: attempt.isFirst,
+  });
 
   const review = attempt.test.showAnswers
     ? await db.question.findMany({
@@ -117,6 +121,12 @@ export default async function ResultPage({
           className={buttonVariants({ variant: "outline" })}
         >
           Testlarimga qaytish
+        </Link>
+        <Link
+          href={`/test/${attempt.testId}/leaderboard`}
+          className={buttonVariants({ variant: "outline" })}
+        >
+          Test reytingi
         </Link>
       </div>
 

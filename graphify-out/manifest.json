@@ -241,8 +241,8 @@
   },
   "prisma/migrations/20261004091612_init/migration.sql": {
     "mtime": 1791105372.6373286,
-    "seen": 1791109466.823563,
-    "ast_hash": "",
+    "seen": 1791110234.6090329,
+    "ast_hash": "3a621a6b90a57b0b004d323acacc5d5b",
     "semantic_hash": ""
   },
   "src/components/common/confirm-action.tsx": {
@@ -409,8 +409,8 @@
   },
   "prisma/migrations/20261004092614_login_failures/migration.sql": {
     "mtime": 1791105974.039672,
-    "seen": 1791109466.823564,
-    "ast_hash": "",
+    "seen": 1791110234.609034,
+    "ast_hash": "6281cf8806973fbc41c18c06a1027096",
     "semantic_hash": ""
   },
   "src/components/teacher/tests/create-test-button.tsx": {
@@ -559,8 +559,8 @@
   },
   "prisma/migrations/20261004095001_attempt_question_order/migration.sql": {
     "mtime": 1791107401.1776109,
-    "seen": 1791109466.823565,
-    "ast_hash": "",
+    "seen": 1791110234.609035,
+    "ast_hash": "d466e56002fc0e56f80f6ef905f9d8ed",
     "semantic_hash": ""
   },
   "src/app/(auth)/login/page.tsx": {
@@ -831,6 +831,12 @@
     "mtime": 1791110033.7945492,
     "seen": 1791110229.506685,
     "ast_hash": "5dfb9628f9deff5661bef825d06c4b17",
+    "semantic_hash": ""
+  },
+  "prisma/migrations/20261004101706_student_profile/migration.sql": {
+    "mtime": 1791109026.1535478,
+    "seen": 1791110234.609035,
+    "ast_hash": "577f1c7c153156ce7cffc8b3c4676123",
     "semantic_hash": ""
   }
 }
