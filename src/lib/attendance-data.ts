@@ -104,9 +104,10 @@ export async function getAttendanceReport(
   from: DateStr,
   to: DateStr,
 ) {
+  const range = { gte: toDbDate(from), lte: toDbDate(to) };
   const [lessons, current] = await Promise.all([
     db.lesson.findMany({
-      where: { groupId, date: { gte: toDbDate(from), lte: toDbDate(to) } },
+      where: { groupId, date: range },
       select: {
         date: true,
         attendances: {
@@ -125,6 +126,22 @@ export async function getAttendanceReport(
     }),
   ]);
 
+  // Boshqa guruhdan o'tgan o'quvchilarning oldingi guruhdagi davomati ham ko'rinadi
+  const foreign = current.length
+    ? await db.attendance.findMany({
+        where: {
+          studentId: { in: current.map((s) => s.id) },
+          lesson: { groupId: { not: groupId }, date: range },
+        },
+        select: {
+          studentId: true,
+          status: true,
+          note: true,
+          lesson: { select: { date: true, group: { select: { name: true } } } },
+        },
+      })
+    : [];
+
   return buildAttendanceReport({
     currentStudents: current,
     lessons: lessons.map((l) => ({
@@ -135,6 +152,13 @@ export async function getAttendanceReport(
         status: a.status,
         note: a.note,
       })),
+    })),
+    foreignRecords: foreign.map((a) => ({
+      date: fromDbDate(a.lesson.date),
+      studentId: a.studentId,
+      groupName: a.lesson.group.name,
+      status: a.status,
+      note: a.note,
     })),
   });
 }

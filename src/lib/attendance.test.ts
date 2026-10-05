@@ -156,3 +156,106 @@ describe("buildAttendanceWorkbook", () => {
     });
   });
 });
+
+describe("oldingi guruh davomati", () => {
+  const moved: ReportInput = {
+    currentStudents: [
+      { id: "a", fullName: "Anvar" },
+      { id: "m", fullName: "Malika (A dan o'tgan)" },
+    ],
+    lessons: [
+      {
+        date: "2026-10-06",
+        records: [
+          {
+            studentId: "a",
+            studentName: "Anvar",
+            status: "PRESENT",
+            note: null,
+          },
+          {
+            studentId: "m",
+            studentName: "Malika (A dan o'tgan)",
+            status: "PRESENT",
+            note: null,
+          },
+        ],
+      },
+    ],
+    foreignRecords: [
+      {
+        date: "2026-10-01",
+        studentId: "m",
+        groupName: "Frontend-A",
+        status: "ABSENT",
+        note: "kasal",
+      },
+      {
+        date: "2026-10-03",
+        studentId: "m",
+        groupName: "Frontend-A",
+        status: "LATE",
+        note: null,
+      },
+      // Shu sanada o'z guruhida ham yozuvi bor — o'z guruhi ustun
+      {
+        date: "2026-10-06",
+        studentId: "m",
+        groupName: "Frontend-A",
+        status: "ABSENT",
+        note: null,
+      },
+    ],
+  };
+  const report = buildAttendanceReport(moved);
+
+  it("oldingi guruh sanalari ustun bo'lib qo'shiladi va belgilanadi", () => {
+    expect(report.dates).toEqual(["2026-10-01", "2026-10-03", "2026-10-06"]);
+    expect(report.foreignOnly).toEqual([true, true, false]);
+  });
+
+  it("kataklar fromGroup bilan, bir sanada o'z guruhi ustun; foizga kiradi", () => {
+    const malika = report.students.find((s) => s.id === "m")!;
+    expect(malika.cells).toEqual([
+      { status: "ABSENT", note: "kasal", fromGroup: "Frontend-A" },
+      { status: "LATE", note: null, fromGroup: "Frontend-A" },
+      { status: "PRESENT", note: null, fromGroup: null },
+    ]);
+    expect(malika.stats).toMatchObject({ present: 2, absent: 1, total: 3 });
+
+    const anvar = report.students.find((s) => s.id === "a")!;
+    expect(anvar.cells).toEqual([
+      null,
+      null,
+      { status: "PRESENT", note: null, fromGroup: null },
+    ]);
+  });
+
+  it("kelganlar soni faqat shu guruh yozuvlari bo'yicha", () => {
+    expect(report.presentPerLesson).toEqual([0, 0, 2]);
+  });
+
+  it("Excel: kulrang shrift, izohda guruh nomi, legenda, bo'sh yig'indi", async () => {
+    const buffer = await buildAttendanceWorkbook(report, {
+      groupName: "Frontend-B",
+      schedule: "",
+      period: "01.10.2026 – 31.10.2026",
+    });
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(buffer as unknown as ArrayBuffer);
+    const sheet = workbook.worksheets[0];
+
+    expect(String(sheet.getCell("A4").value)).toContain("oldingi guruh");
+    // Malika — 2-o'quvchi (alifbo bo'yicha), 01.10 — 2-ustun
+    const cell = sheet.getCell(HEADER_ROW + 2, 2);
+    expect(cell.value).toBe("−");
+    expect(cell.font).toMatchObject({ color: { argb: "FF9CA3AF" } });
+    expect(JSON.stringify(cell.note)).toContain("Oldingi guruh: Frontend-A");
+    expect(JSON.stringify(cell.note)).toContain("kasal");
+    expect(sheet.getCell(HEADER_ROW, 2).font).toMatchObject({ italic: true });
+
+    const totals = sheet.getRow(HEADER_ROW + 3);
+    expect(totals.getCell(2).value).toBeNull();
+    expect(totals.getCell(4).value).toBe(2);
+  });
+});

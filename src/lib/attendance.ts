@@ -47,17 +47,24 @@ export function computeStats(
   };
 }
 
-export type ReportCell = { status: AttendanceMark; note: string | null } | null;
+export type ReportCell = {
+  status: AttendanceMark;
+  note: string | null;
+  /** Oldingi guruhdagi dars bo'lsa, o'sha guruh nomi; shu guruh darsi bo'lsa null */
+  fromGroup: string | null;
+} | null;
 
 export type AttendanceReport = {
   dates: DateStr[];
+  /** dates tartibida: ustunda shu guruh darsi yo'q, faqat oldingi guruh darslari */
+  foreignOnly: boolean[];
   students: {
     id: string;
     fullName: string;
     cells: ReportCell[];
     stats: AttendanceStats;
   }[];
-  /** Har bir dars bo'yicha kelganlar soni (dates tartibida) */
+  /** Har bir dars bo'yicha kelganlar soni (dates tartibida; faqat shu guruh yozuvlari) */
   presentPerLesson: number[];
 };
 
@@ -73,18 +80,38 @@ export type ReportInput = {
   }[];
   /** Guruhning hozirgi o'quvchilari (davomati bo'lmasa ham jadvalda chiqadi) */
   currentStudents: { id: string; fullName: string }[];
+  /** Hozirgi o'quvchilarning shu davrda boshqa (oldingi) guruhlardagi yozuvlari */
+  foreignRecords?: {
+    date: DateStr;
+    studentId: string;
+    groupName: string;
+    status: AttendanceMark;
+    note: string | null;
+  }[];
 };
 
 /**
  * O'quvchilar × sanalar matritsasi. O'quvchilar: hozirgi guruh a'zolari + davrda yozuvi
  * bo'lganlar (boshqa guruhga o'tgan bo'lsa ham tarix saqlanadi), alifbo bo'yicha.
  * Yozuvi yo'q katak (masalan, guruhga keyin qo'shilgan) foizga kirmaydi.
+ * Boshqa guruhdan o'tgan o'quvchining oldingi guruhdagi yozuvlari ham chiqadi (fromGroup bilan)
+ * va uning foiziga kiradi, lekin "kelganlar soni" ga kirmaydi. Bir sanada ikkalasi bo'lsa,
+ * shu guruh yozuvi ustun.
  */
 export function buildAttendanceReport(input: ReportInput): AttendanceReport {
-  const lessons = [...input.lessons].sort((a, b) =>
-    a.date.localeCompare(b.date),
-  );
-  const dates = lessons.map((l) => l.date);
+  const own = new Map(input.lessons.map((l) => [l.date, l]));
+  const foreign = new Map<string, Map<string, ReportCell>>();
+  for (const r of input.foreignRecords ?? []) {
+    let byStudent = foreign.get(r.date);
+    if (!byStudent) foreign.set(r.date, (byStudent = new Map()));
+    byStudent.set(r.studentId, {
+      status: r.status,
+      note: r.note,
+      fromGroup: r.groupName,
+    });
+  }
+  const dates = [...new Set([...own.keys(), ...foreign.keys()])].sort();
+  const lessons = dates.map((date) => own.get(date) ?? { date, records: [] });
 
   const names = new Map(input.currentStudents.map((s) => [s.id, s.fullName]));
   for (const l of lessons)
@@ -98,9 +125,10 @@ export function buildAttendanceReport(input: ReportInput): AttendanceReport {
   const students = [...names.entries()]
     .sort(([, a], [, b]) => a.localeCompare(b, "uz"))
     .map(([id, fullName]) => {
-      const cells: ReportCell[] = byLesson.map((m) => {
+      const cells: ReportCell[] = byLesson.map((m, j) => {
         const r = m.get(id);
-        return r ? { status: r.status, note: r.note } : null;
+        if (r) return { status: r.status, note: r.note, fromGroup: null };
+        return foreign.get(dates[j])?.get(id) ?? null;
       });
       const stats = computeStats(cells.flatMap((c) => (c ? [c.status] : [])));
       return { id, fullName, cells, stats };
@@ -109,7 +137,8 @@ export function buildAttendanceReport(input: ReportInput): AttendanceReport {
   const presentPerLesson = lessons.map(
     (l) => l.records.filter((r) => isPresent(r.status)).length,
   );
-  return { dates, students, presentPerLesson };
+  const foreignOnly = dates.map((d) => !own.has(d));
+  return { dates, foreignOnly, students, presentPerLesson };
 }
 
 /** Eng ko'p dars qoldirganlar (kamida bitta kelmagan), ko'pdan kamga */
@@ -138,6 +167,9 @@ export function attendanceFileName(
 }
 
 export const HEADER_ROW = 5;
+/** Oldingi guruhdagi darslar kulrang shriftda */
+const FOREIGN_FONT = { color: { argb: "FF9CA3AF" }, italic: true };
+
 const FILL: Partial<Record<AttendanceMark, string>> = {
   ABSENT: "FFFFC7CE",
   LATE: "FFFFEB9C",
@@ -156,6 +188,11 @@ export async function buildAttendanceWorkbook(
   sheet.getCell("A1").font = { bold: true, size: 13 };
   sheet.getCell("A2").value = `Dars jadvali: ${meta.schedule || "—"}`;
   sheet.getCell("A3").value = `Davr: ${meta.period}`;
+  if (report.students.some((s) => s.cells.some((c) => c?.fromGroup))) {
+    sheet.getCell("A4").value =
+      "Kulrang kataklar — o'quvchining oldingi guruhidagi darslar (izohda guruh nomi)";
+    sheet.getCell("A4").font = FOREIGN_FONT;
+  }
 
   const n = report.dates.length;
   const header = sheet.getRow(HEADER_ROW);
@@ -168,6 +205,9 @@ export async function buildAttendanceWorkbook(
   ];
   header.font = { bold: true };
   header.alignment = { horizontal: "center" };
+  report.foreignOnly.forEach((only, j) => {
+    if (only) header.getCell(2 + j).font = { bold: true, ...FOREIGN_FONT };
+  });
   sheet.getColumn(1).width = 30;
   for (let c = 2; c <= n + 1; c++) sheet.getColumn(c).width = 6;
   for (let c = n + 2; c <= n + 4; c++) sheet.getColumn(c).width = 11;
@@ -187,7 +227,14 @@ export async function buildAttendanceWorkbook(
           pattern: "solid",
           fgColor: { argb: fill },
         };
-      if (cell.note) target.note = cell.note;
+      if (cell.fromGroup) target.font = FOREIGN_FONT;
+      const note = [
+        cell.fromGroup && `Oldingi guruh: ${cell.fromGroup}`,
+        cell.note,
+      ]
+        .filter(Boolean)
+        .join("\n");
+      if (note) target.note = note;
     });
     row.getCell(n + 2).value = s.stats.present;
     row.getCell(n + 3).value = s.stats.absent;
@@ -199,6 +246,7 @@ export async function buildAttendanceWorkbook(
   const totals = sheet.getRow(HEADER_ROW + 1 + report.students.length);
   totals.getCell(1).value = "Kelganlar soni";
   report.presentPerLesson.forEach((count, j) => {
+    if (report.foreignOnly[j]) return;
     totals.getCell(2 + j).value = count;
     totals.getCell(2 + j).alignment = { horizontal: "center" };
   });
