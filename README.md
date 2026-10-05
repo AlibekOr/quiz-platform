@@ -109,11 +109,3 @@ src/
   proxy.ts        # login/rol bo'yicha yo'naltirish (asosiy himoya server tomonda)
 prisma/           # schema, migratsiyalar, seed
 ```
-# quiz-platform
-# quiz-platform
-# quiz-platform
-# quiz-platform
-# quiz-platform
-# quiz-platform
-# quiz-platform
-# quiz-platform
