@@ -79,6 +79,15 @@ export async function deleteGroup(groupId: string): Promise<ActionResult> {
     };
   }
 
+  // Dars o'chsa davomat ham o'chadi (cascade), shu jumladan boshqa guruhga o'tganlarniki
+  const lessons = await db.lesson.count({ where: { groupId: id } });
+  if (lessons > 0) {
+    return {
+      ok: false,
+      error: `Guruhda ${lessons} ta dars tarixi bor. Davomat yo'qolmasligi uchun guruhni o'chirib bo'lmaydi`,
+    };
+  }
+
   try {
     await db.group.delete({ where: { id } });
   } catch (e) {

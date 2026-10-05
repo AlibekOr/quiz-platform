@@ -80,7 +80,7 @@ export function GroupRowActions({
         description={
           group.studentCount > 0
             ? `Guruhda ${group.studentCount} ta o'quvchi bor — avval ularni boshqa guruhga o'tkazing.`
-            : "Guruh testlardan ham uziladi. Bu amalni qaytarib bo'lmaydi."
+            : "Guruh testlardan ham uziladi. Dars (davomat) tarixi bor guruhni o'chirib bo'lmaydi. Bu amalni qaytarib bo'lmaydi."
         }
         confirmLabel="O'chirish"
         destructive
