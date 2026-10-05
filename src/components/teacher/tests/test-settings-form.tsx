@@ -20,7 +20,7 @@ const FLAGS = [
   {
     key: "allowRetake",
     label: "Qayta ishlashga ruxsat",
-    hint: "Reytingga faqat birinchi urinish kiradi",
+    hint: "Tayyorlov uchun yoqilgan: o'quvchi xohlagancha qayta ishlaydi. Reytingga faqat birinchi urinish kiradi",
   },
   {
     key: "showAnswers",

@@ -68,7 +68,7 @@ model Test {
   description      String?
   durationMin      Int
   isActive         Boolean    @default(false)
-  allowRetake      Boolean    @default(false)
+  allowRetake      Boolean    @default(true)
   showAnswers      Boolean    @default(false)
   shuffleQuestions Boolean    @default(false)
   createdById      String
