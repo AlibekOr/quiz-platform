@@ -1,5 +1,6 @@
 // Sof funksiyalar: o'qituvchi uchun test natijalari va savollar statistikasi (PLAN.md, 8-bosqich)
 import { percent } from "@/lib/format";
+import { markFromPercent, type Mark } from "@/lib/grading";
 import { formatDateTime, formatDuration } from "@/lib/time";
 
 export type ResultStudent = {
@@ -265,6 +266,13 @@ export function csvCell(value: string | number): string {
   return /[";\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 
+/** Baho yozuvi (jadval va CSV uchun) */
+export const MARK_LABEL: Record<Mark, string> = {
+  5: "5",
+  4: "4",
+  fail: "O'tmadi",
+};
+
 const STATUS_LABEL = {
   FINISHED: "Topshirilgan",
   EXPIRED: "Vaqt tugagan",
@@ -282,6 +290,7 @@ export function buildResultsCsv(rows: readonly StudentResultRow[]): string {
     "Birinchi urinish: ball",
     "Maks. ball",
     "Foiz",
+    "Baho",
     "Vaqt",
     "Holat",
     "Sana",
@@ -298,6 +307,7 @@ export function buildResultsCsv(rows: readonly StudentResultRow[]): string {
       f ? f.score : "",
       f ? f.maxScore : "",
       f ? `${f.percent}%` : "",
+      f ? MARK_LABEL[markFromPercent(f.percent)] : "",
       f ? formatDuration(f.durationSec) : "",
       f
         ? STATUS_LABEL[f.status]

@@ -204,8 +204,8 @@ describe("CSV", () => {
     const lines = csv.trimEnd().split("\r\n");
     expect(lines).toHaveLength(3);
     expect(lines[1]).toBe(
-      "1;Ali;G1;8;10;80%;2:05;Topshirilgan;04.10.2026, 14:05;8;80%;1",
+      "1;Ali;G1;8;10;80%;4;2:05;Topshirilgan;04.10.2026, 14:05;8;80%;1",
     );
-    expect(lines[2]).toBe("2;Bek;G1;;;;;Ishlamagan;;;;0");
+    expect(lines[2]).toBe("2;Bek;G1;;;;;;Ishlamagan;;;;0");
   });
 });

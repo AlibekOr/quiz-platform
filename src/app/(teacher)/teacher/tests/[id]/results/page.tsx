@@ -7,6 +7,7 @@ import {
   ArrowUpIcon,
   DownloadIcon,
 } from "lucide-react";
+import { MarkBadge } from "@/components/results/mark-badge";
 import { ResultsGroupFilter } from "@/components/teacher/results/group-filter";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
@@ -19,6 +20,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { requireTeacher } from "@/lib/auth/guards";
+import { markFromPercent, type Mark } from "@/lib/grading";
 import { db } from "@/lib/db";
 import {
   defaultDir,
@@ -72,6 +74,8 @@ export default async function TestResultsPage({
       : null;
   const top =
     firsts.length > 0 ? Math.max(...firsts.map((f) => f.percent)) : null;
+  const markCounts: Record<Mark, number> = { 5: 0, 4: 0, fail: 0 };
+  for (const f of firsts) markCounts[markFromPercent(f.percent)]++;
   const inProgress = rows.filter((r) => r.inProgressId).length;
   const hardest = hardestQuestions(results.questionStats);
 
@@ -113,6 +117,18 @@ export default async function TestResultsPage({
         <Stat label="Hozir ishlamoqda" value={String(inProgress)} />
       </dl>
 
+      {firsts.length > 0 && (
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
+          <span className="text-muted-foreground">Baholar:</span>
+          {([5, 4, "fail"] as const).map((m) => (
+            <span key={m} className="flex items-center gap-1.5">
+              <MarkBadge mark={m} />
+              <span className="tabular-nums">{markCounts[m]} ta</span>
+            </span>
+          ))}
+        </div>
+      )}
+
       <div className="flex flex-wrap items-center gap-2">
         <ResultsGroupFilter groups={groups} value={query.groupId} />
         <a
@@ -145,7 +161,8 @@ export default async function TestResultsPage({
                 <TableHead className="w-10">№</TableHead>
                 {sortHead("O'quvchi", "name")}
                 {sortHead("Birinchi urinish", "first", true)}
-                {sortHead("Vaqt", "time", true)}
+                <TableHead className="text-center">Baho</TableHead>
+                {sortHead("Vaqt", "time", true, "hidden sm:table-cell")}
                 {sortHead("Eng yaxshi", "best", true, "hidden sm:table-cell")}
                 {sortHead("Urinish", "attempts", true)}
               </TableRow>
@@ -179,7 +196,14 @@ export default async function TestResultsPage({
                       <Badge variant="outline">Ishlamagan</Badge>
                     )}
                   </TableCell>
-                  <TableCell className="text-right tabular-nums">
+                  <TableCell className="text-center">
+                    {r.first ? (
+                      <MarkBadge mark={markFromPercent(r.first.percent)} />
+                    ) : (
+                      <span className="text-muted-foreground">—</span>
+                    )}
+                  </TableCell>
+                  <TableCell className="hidden text-right tabular-nums sm:table-cell">
                     {r.first ? formatDuration(r.first.durationSec) : "—"}
                   </TableCell>
                   <TableCell className="hidden text-right sm:table-cell">
