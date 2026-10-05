@@ -91,7 +91,7 @@ model Test {
   description      String?
   durationMin      Int
   isActive         Boolean    @default(false)
-  allowRetake      Boolean    @default(false)
+  allowRetake      Boolean    @default(true)
   showAnswers      Boolean    @default(false)
   shuffleQuestions Boolean    @default(false)
   createdById      String
@@ -221,7 +221,7 @@ model Attendance {
 **Attempt hayot sikli**
 - Boshlash: test faol bo'lishi va o'quvchining guruhiga biriktirilgan bo'lishi kerak. `deadlineAt = now + durationMin`.
 - O'quvchida shu testda `IN_PROGRESS` attempt bo'lsa, yangisi ochilmaydi, o'sha davom ettiriladi (sahifa yangilansa ham).
-- `allowRetake = false` bo'lsa, `FINISHED/EXPIRED` attempt bor ekan, qayta boshlab bo'lmaydi.
+- `allowRetake` standart holatda `true`: testlar asosiy imtihonga tayyorlov uchun, o'quvchi xohlagancha qayta ishlaydi. O'qituvchi o'chirsa (`false`), `FINISHED/EXPIRED` attempt bor ekan, qayta boshlab bo'lmaydi.
 - `isFirst` = shu user+test uchun birinchi attempt. Tranzaksiya ichida tekshiriladi.
 - Javoblar har bir savolda **avtomatik saqlanadi** (upsert). Deadline + 5s dan keyin qabul qilinmaydi.
 - Topshirish: baholash, `score`, `maxScore`, `finishedAt`, `durationSec`, `status = FINISHED`.
@@ -367,7 +367,7 @@ Har bosqichdan keyin to'xta va hisobot ber. `lint`, `typecheck`, `test` o'tishi 
 - `/teacher/tests/[id]/results`: o'quvchilar natijalari jadvali (guruh filtri, saralash), CSV'ga eksport
 - Savollar bo'yicha statistika: necha foiz to'g'ri javob bergan, eng qiyin 5 ta savol
 - Bitta o'quvchining attemptini batafsil ko'rish
-- O'qituvchi o'quvchiga qayta ishlash ruxsatini berishi (attemptni bekor qilish)
+- O'qituvchi attemptni bekor qilishi: attempt va javoblari o'chiriladi. Agar u birinchi urinish bo'lsa, qolganlardan eng birinchisi `isFirst` bo'ladi (yo'q bo'lsa, keyingi yangi urinish birinchi hisoblanadi)
 
 ### 9-bosqich: sayqal va deploy
 - Loading/error/empty holatlari, toast xabarlar, 404 sahifa

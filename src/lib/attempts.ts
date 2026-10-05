@@ -100,3 +100,45 @@ export async function finalizeExpiredAttempts(
   }
   return finalized;
 }
+
+/**
+ * O'qituvchi urinishni bekor qiladi: urinish va javoblari o'chiriladi.
+ * Agar u birinchi urinish bo'lsa, qolganlardan eng oldingisi birinchi bo'ladi; qolmasa,
+ * o'quvchining keyingi yangi urinishi birinchi hisoblanadi (startAttempt).
+ * startAttempt bilan bir xil advisory lock: parallel boshlash bilan to'qnashmaydi.
+ * @returns o'chirilgan urinish egasi va testi; topilmasa null
+ */
+export async function cancelAttempt(
+  attemptId: string,
+): Promise<{ userId: string; testId: string } | null> {
+  const target = await db.attempt.findUnique({
+    where: { id: attemptId },
+    select: { userId: true, testId: true },
+  });
+  if (!target) return null;
+  const { userId, testId } = target;
+
+  return db.$transaction(async (tx) => {
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`attempt:${userId}:${testId}`}))`;
+
+    const deleted = await tx.attempt.deleteMany({ where: { id: attemptId } });
+    if (deleted.count === 0) return null;
+
+    const hasFirst = await tx.attempt.count({
+      where: { userId, testId, isFirst: true },
+    });
+    if (hasFirst === 0) {
+      const next = await tx.attempt.findFirst({
+        where: { userId, testId },
+        orderBy: { startedAt: "asc" },
+        select: { id: true },
+      });
+      if (next)
+        await tx.attempt.update({
+          where: { id: next.id },
+          data: { isFirst: true },
+        });
+    }
+    return { userId, testId };
+  });
+}

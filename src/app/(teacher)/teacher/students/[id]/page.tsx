@@ -223,9 +223,14 @@ export default async function StudentCardPage({
                       )}
                     </TableCell>
                     <TableCell className="text-right tabular-nums">
-                      {a.status === "IN_PROGRESS"
-                        ? "—"
-                        : `${a.score}/${a.maxScore}`}
+                      <Link
+                        href={`/teacher/tests/${a.test.id}/results/${a.id}`}
+                        className="hover:underline"
+                      >
+                        {a.status === "IN_PROGRESS"
+                          ? "—"
+                          : `${a.score}/${a.maxScore}`}
+                      </Link>
                     </TableCell>
                     <TableCell className="text-right tabular-nums">
                       {a.durationSec === null

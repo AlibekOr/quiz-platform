@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { validationFailed, type ActionResult } from "@/lib/action-result";
+import { cancelAttempt } from "@/lib/attempts";
 import { requireTeacher } from "@/lib/auth/guards";
 import { db } from "@/lib/db";
 import { isNotFound } from "@/lib/prisma-errors";
@@ -23,7 +24,7 @@ import {
   type TestSettingsInput,
 } from "@/lib/validators/test";
 
-const idSchema = z.string().min(1);
+const idSchema = z.string().min(1).max(64);
 
 function revalidateTest(testId: string) {
   revalidatePath("/teacher/tests");
@@ -119,6 +120,23 @@ export async function deleteTest(testId: string): Promise<ActionResult> {
   }
   revalidatePath("/teacher/tests");
   return { ok: true, message: "Test o'chirildi" };
+}
+
+// ---------- Natijalar ----------
+
+/** Urinishni bekor qilish (o'chirish): o'quvchi testni noldan qayta ishlaydi */
+export async function cancelStudentAttempt(
+  attemptId: string,
+): Promise<ActionResult> {
+  await requireTeacher();
+  const id = idSchema.parse(attemptId);
+
+  const result = await cancelAttempt(id);
+  if (!result) return { ok: false, error: "Urinish topilmadi" };
+
+  revalidatePath(`/teacher/tests/${result.testId}/results`);
+  revalidatePath(`/teacher/students/${result.userId}`);
+  return { ok: true, message: "Urinish bekor qilindi" };
 }
 
 // ---------- Savollar ----------

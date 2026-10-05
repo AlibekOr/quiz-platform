@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { CheckIcon, XIcon } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { AttemptReview } from "@/components/results/attempt-review";
 import { buttonVariants } from "@/components/ui/button";
 import { finalizeExpiredAttempts } from "@/lib/attempts";
 import { requireStudent } from "@/lib/auth/guards";
@@ -11,7 +10,6 @@ import { percent } from "@/lib/format";
 import { formatDuration } from "@/lib/time";
 import { isWithinDeadline } from "@/lib/grading";
 import { getTestRank } from "@/lib/leaderboard";
-import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Natija" };
 
@@ -135,68 +133,13 @@ export default async function ResultPage({
           <h2 className="text-lg font-semibold">
             Savollar bo&apos;yicha tahlil
           </h2>
-          <ol className="flex flex-col gap-3">
-            {review.map((q, i) => {
-              const answer = q.answers[0];
-              const selected = new Set(answer?.selectedOptionIds ?? []);
-              const correct = answer?.isCorrect === true;
-              return (
-                <li
-                  key={q.id}
-                  className="flex flex-col gap-3 rounded-lg border p-4"
-                >
-                  <div className="flex flex-wrap items-center gap-2 text-sm">
-                    <span className="font-medium">{i + 1}.</span>
-                    {correct ? (
-                      <Badge>To&apos;g&apos;ri · +{q.points}</Badge>
-                    ) : selected.size === 0 ? (
-                      <Badge variant="secondary">Javob berilmagan</Badge>
-                    ) : (
-                      <Badge variant="destructive">Noto&apos;g&apos;ri</Badge>
-                    )}
-                  </div>
-                  <p className="break-words whitespace-pre-wrap">{q.text}</p>
-                  <ul className="flex flex-col gap-1 text-sm">
-                    {q.options.map((o, oi) => (
-                      <li
-                        key={o.id}
-                        className={cn(
-                          "flex items-start gap-2 rounded-md border px-3 py-2",
-                          o.isCorrect && "border-primary/50 bg-primary/10",
-                          selected.has(o.id) &&
-                            !o.isCorrect &&
-                            "border-destructive/50 bg-destructive/10",
-                        )}
-                      >
-                        <span className="text-muted-foreground">
-                          {String.fromCharCode(65 + oi)})
-                        </span>
-                        <span className="min-w-0 flex-1 break-words">
-                          {o.text}
-                        </span>
-                        {selected.has(o.id) && (
-                          <span className="text-muted-foreground shrink-0">
-                            sizning javobingiz
-                          </span>
-                        )}
-                        {o.isCorrect ? (
-                          <CheckIcon
-                            className="size-4 shrink-0"
-                            aria-label="To'g'ri javob"
-                          />
-                        ) : selected.has(o.id) ? (
-                          <XIcon
-                            className="text-destructive size-4 shrink-0"
-                            aria-label="Noto'g'ri"
-                          />
-                        ) : null}
-                      </li>
-                    ))}
-                  </ul>
-                </li>
-              );
-            })}
-          </ol>
+          <AttemptReview
+            selectedLabel="sizning javobingiz"
+            questions={review.map((q) => ({
+              ...q,
+              answer: q.answers[0] ?? null,
+            }))}
+          />
         </section>
       )}
     </>

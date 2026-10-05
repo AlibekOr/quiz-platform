@@ -39,6 +39,12 @@ export function TestHeaderActions({
   return (
     <div className="flex flex-wrap gap-2">
       <Link
+        href={`/teacher/tests/${testId}/results`}
+        className={buttonVariants({ variant: "outline" })}
+      >
+        Natijalar
+      </Link>
+      <Link
         href={`/test/${testId}/leaderboard`}
         className={buttonVariants({ variant: "outline" })}
       >
