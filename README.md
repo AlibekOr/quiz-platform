@@ -110,3 +110,4 @@ src/
 prisma/           # schema, migratsiyalar, seed
 ```
 # quiz-platform
+# quiz-platform
