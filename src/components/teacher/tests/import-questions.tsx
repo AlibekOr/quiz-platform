@@ -63,11 +63,11 @@ export function ImportQuestions({ testId }: { testId: string }) {
   return (
     <div className="flex flex-col gap-6">
       <div className="grid gap-4 text-sm md:grid-cols-2">
-        <div className="flex flex-col gap-2 rounded-lg border p-4">
+        <div className="flex min-w-0 flex-col gap-2 rounded-lg border p-4">
           <p className="font-medium">Excel (.xlsx)</p>
           <p>
             Ustunlar:{" "}
-            <code className="bg-muted rounded px-1 py-0.5">
+            <code className="bg-muted rounded px-1 py-0.5 break-all">
               {EXCEL_COLUMNS.join(" | ")}
             </code>
           </p>
@@ -79,7 +79,7 @@ export function ImportQuestions({ testId }: { testId: string }) {
             bo&apos;lsa — 1.
           </p>
         </div>
-        <div className="flex flex-col gap-2 rounded-lg border p-4">
+        <div className="flex min-w-0 flex-col gap-2 rounded-lg border p-4">
           <p className="font-medium">JSON (.json)</p>
           <pre className="bg-muted overflow-x-auto rounded p-2 text-xs">
             {JSON_EXAMPLE}
