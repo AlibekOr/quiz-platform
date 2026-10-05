@@ -1,6 +1,13 @@
 import "dotenv/config";
 import { defineConfig, env } from "prisma/config";
 
+// Vercel'da migratsiya Neon pooler (PgBouncer) orqali emas, to'g'ridan-to'g'ri ulanish bilan bo'lsin
+if (process.env.VERCEL && !process.env.DIRECT_URL) {
+  throw new Error(
+    "DIRECT_URL berilmagan: Neon'ning pooler'siz ulanish satrini Vercel env'ga qo'shing",
+  );
+}
+
 export default defineConfig({
   schema: "prisma/schema.prisma",
   migrations: {
