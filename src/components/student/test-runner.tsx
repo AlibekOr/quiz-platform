@@ -8,6 +8,7 @@ import {
   CloudOffIcon,
   LoaderIcon,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { submitAttempt } from "@/app/(student)/test/actions";
 import {
@@ -63,7 +64,17 @@ export function TestRunner({
       ? null
       : Math.max(0, Math.ceil((deadlineAt - (now + clockOffset)) / 1000));
 
-  const autosave = useAutosave(attemptId, () => submit(true));
+  const router = useRouter();
+  const autosave = useAutosave(
+    attemptId,
+    () => submit(true),
+    () => {
+      if (submittedRef.current) return;
+      submittedRef.current = true;
+      toast.error("Bu urinish o'qituvchi tomonidan bekor qilindi");
+      router.replace("/dashboard");
+    },
+  );
 
   function submit(auto: boolean) {
     if (submittedRef.current) return;

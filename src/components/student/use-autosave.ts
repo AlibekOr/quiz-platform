@@ -11,13 +11,20 @@ const RETRY_MS = 3000;
  * Javoblarni ketma-ket (navbat bilan) saqlaydi. Har bir savol uchun faqat oxirgi qiymat yuboriladi;
  * xato bo'lsa saqlanmagan qiymat qoladi va 3 soniyadan keyin qayta urinadi.
  */
-export function useAutosave(attemptId: string, onExpired: () => void) {
+export function useAutosave(
+  attemptId: string,
+  onExpired: () => void,
+  /** Urinish o'qituvchi tomonidan bekor qilingan */
+  onMissing: () => void,
+) {
   const [status, setStatus] = useState<SaveStatus>("idle");
   const pending = useRef(new Map<string, string[]>());
   const queue = useRef<Promise<void>>(Promise.resolve());
   const onExpiredRef = useRef(onExpired);
+  const onMissingRef = useRef(onMissing);
   useEffect(() => {
     onExpiredRef.current = onExpired;
+    onMissingRef.current = onMissing;
   });
 
   const saveOne = useCallback(
@@ -30,6 +37,10 @@ export function useAutosave(attemptId: string, onExpired: () => void) {
           // Saqlash paytida yangi qiymat kelgan bo'lsa, uni o'chirmaymiz
           if (pending.current.get(questionId) === value)
             pending.current.delete(questionId);
+        } else if (result.missing) {
+          pending.current.clear();
+          onMissingRef.current();
+          return;
         } else if (result.expired) {
           pending.current.clear();
           onExpiredRef.current();

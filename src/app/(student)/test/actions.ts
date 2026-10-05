@@ -3,7 +3,11 @@
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import type { ActionResult } from "@/lib/action-result";
-import { finalizeAttempt, finalizeExpiredAttempts } from "@/lib/attempts";
+import {
+  finalizeAttempt,
+  finalizeExpiredAttempts,
+  lockAttempt,
+} from "@/lib/attempts";
 import { requireStudent } from "@/lib/auth/guards";
 import { db } from "@/lib/db";
 import { isWithinDeadline, shuffle } from "@/lib/grading";
@@ -64,7 +68,20 @@ export async function startAttempt(testId: string): Promise<ActionResult> {
 }
 
 export type SaveAnswerResult =
-  { ok: true } | { ok: false; error: string; expired?: boolean };
+  | { ok: true }
+  | {
+      ok: false;
+      error: string;
+      expired?: boolean;
+      /** Urinish yo'q (o'qituvchi bekor qilgan) */
+      missing?: boolean;
+    };
+
+const ATTEMPT_MISSING = {
+  ok: false,
+  error: "Urinish bekor qilingan",
+  missing: true,
+} as const;
 
 export async function saveAnswer(
   attemptId: string,
@@ -80,51 +97,56 @@ export async function saveAnswer(
     })
     .safeParse({ attemptId, questionId, optionIds });
   if (!parsed.success) return { ok: false, error: "Noto'g'ri so'rov" };
+  const data = parsed.data;
 
   const attempt = await db.attempt.findFirst({
-    where: { id: parsed.data.attemptId, userId: student.id },
-    select: {
-      status: true,
-      deadlineAt: true,
-      testId: true,
-      questionOrder: true,
-    },
+    where: { id: data.attemptId, userId: student.id },
+    select: { testId: true },
   });
-  if (!attempt) return { ok: false, error: "Urinish topilmadi" };
-  if (attempt.status !== "IN_PROGRESS")
-    return { ok: false, error: "Test yakunlangan", expired: true };
-  if (!isWithinDeadline(attempt.deadlineAt, new Date())) {
-    return { ok: false, error: "Vaqt tugadi", expired: true };
-  }
+  if (!attempt) return ATTEMPT_MISSING;
 
   const question = await db.question.findFirst({
-    where: { id: parsed.data.questionId, testId: attempt.testId },
+    where: { id: data.questionId, testId: attempt.testId },
     select: { type: true, options: { select: { id: true } } },
   });
   if (!question) return { ok: false, error: "Savol topilmadi" };
 
-  const selected = [...new Set(parsed.data.optionIds)];
+  const selected = [...new Set(data.optionIds)];
   const valid = new Set(question.options.map((o) => o.id));
   if (selected.some((o) => !valid.has(o)))
     return { ok: false, error: "Noto'g'ri variant" };
   if (question.type === "SINGLE" && selected.length > 1)
     return { ok: false, error: "Faqat bitta variant tanlanadi" };
 
-  await db.answer.upsert({
-    where: {
-      attemptId_questionId: {
-        attemptId: parsed.data.attemptId,
-        questionId: parsed.data.questionId,
+  return db.$transaction(async (tx): Promise<SaveAnswerResult> => {
+    // finalizeAttempt bilan navbat: holat qulf ostida qayta tekshiriladi
+    await lockAttempt(tx, data.attemptId);
+    const current = await tx.attempt.findUnique({
+      where: { id: data.attemptId },
+      select: { status: true, deadlineAt: true },
+    });
+    if (!current) return ATTEMPT_MISSING;
+    if (current.status !== "IN_PROGRESS")
+      return { ok: false, error: "Test yakunlangan", expired: true };
+    if (!isWithinDeadline(current.deadlineAt, new Date()))
+      return { ok: false, error: "Vaqt tugadi", expired: true };
+
+    await tx.answer.upsert({
+      where: {
+        attemptId_questionId: {
+          attemptId: data.attemptId,
+          questionId: data.questionId,
+        },
       },
-    },
-    create: {
-      attemptId: parsed.data.attemptId,
-      questionId: parsed.data.questionId,
-      selectedOptionIds: selected,
-    },
-    update: { selectedOptionIds: selected },
+      create: {
+        attemptId: data.attemptId,
+        questionId: data.questionId,
+        selectedOptionIds: selected,
+      },
+      update: { selectedOptionIds: selected },
+    });
+    return { ok: true };
   });
-  return { ok: true };
 }
 
 export async function submitAttempt(attemptId: string): Promise<ActionResult> {
@@ -135,7 +157,8 @@ export async function submitAttempt(attemptId: string): Promise<ActionResult> {
     where: { id, userId: student.id },
     select: { status: true, deadlineAt: true },
   });
-  if (!attempt) return { ok: false, error: "Urinish topilmadi" };
+  // O'qituvchi bekor qilgan bo'lsa — testlar ro'yxatiga
+  if (!attempt) redirect("/dashboard");
 
   if (attempt.status === "IN_PROGRESS") {
     const now = new Date();

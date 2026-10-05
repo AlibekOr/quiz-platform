@@ -9,6 +9,11 @@ import {
 
 type Tx = Prisma.TransactionClient;
 
+/** Tranzaksiya oxirigacha attempt qatorini qulflaydi (SELECT ... FOR UPDATE) */
+export async function lockAttempt(tx: Tx, attemptId: string): Promise<void> {
+  await tx.$queryRaw`SELECT 1 FROM "Attempt" WHERE "id" = ${attemptId} FOR UPDATE`;
+}
+
 /**
  * Attemptni baholab yopadi. Faqat IN_PROGRESS bo'lsa ishlaydi (shartli update) —
  * ikki marta topshirish yoki parallel finalize natijani ikki marta yozmaydi.
@@ -20,6 +25,8 @@ export async function finalizeAttempt(
   status: Exclude<AttemptStatus, "IN_PROGRESS">,
   now: Date,
 ): Promise<boolean> {
+  // saveAnswer bilan navbatga turadi: baholash paytida yangi javob yozilmaydi
+  await lockAttempt(tx, attemptId);
   const attempt = await tx.attempt.findUnique({
     where: { id: attemptId },
     select: {
