@@ -37,19 +37,21 @@ enum AttemptStatus {
 }
 
 model User {
-  id           String          @id @default(cuid())
-  username     String          @unique
-  fullName     String
-  passwordHash String
-  role         Role            @default(STUDENT)
-  isActive     Boolean         @default(true)
-  groupId      String?
-  group        Group?          @relation(fields: [groupId], references: [id])
-  attempts     Attempt[]
-  profile      StudentProfile?
-  attendances  Attendance[]
-  createdTests Test[]          @relation("TestAuthor")
-  createdAt    DateTime        @default(now())
+  id             String          @id @default(cuid())
+  username       String          @unique
+  fullName       String
+  passwordHash   String
+  role           Role            @default(STUDENT)
+  isActive       Boolean         @default(true)
+  // Parol tiklanganda oshiriladi: eski sessiyalar (JWT) yaroqsiz bo'ladi
+  sessionVersion Int             @default(0)
+  groupId        String?
+  group          Group?          @relation(fields: [groupId], references: [id])
+  attempts       Attempt[]
+  profile        StudentProfile?
+  attendances    Attendance[]
+  createdTests   Test[]          @relation("TestAuthor")
+  createdAt      DateTime        @default(now())
 }
 
 model Group {

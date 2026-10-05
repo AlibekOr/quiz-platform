@@ -151,7 +151,11 @@ export async function resetStudentPassword(
   try {
     await db.user.update({
       where: { id, role: "STUDENT" },
-      data: { passwordHash: await hashPassword(parsed.data.password) },
+      // sessionVersion oshadi: o'quvchining barcha qurilmalardagi sessiyalari tugaydi
+      data: {
+        passwordHash: await hashPassword(parsed.data.password),
+        sessionVersion: { increment: 1 },
+      },
     });
   } catch (e) {
     if (isNotFound(e)) return { ok: false, error: "O'quvchi topilmadi" };

@@ -21,11 +21,13 @@ describe("jwt session", () => {
       userId: "u1",
       role: "STUDENT",
       groupId: "g1",
+      sessionVersion: 3,
     });
     expect(await decodeSession(token)).toEqual({
       userId: "u1",
       role: "STUDENT",
       groupId: "g1",
+      sessionVersion: 3,
     });
   });
 
@@ -34,11 +36,13 @@ describe("jwt session", () => {
       userId: "t1",
       role: "TEACHER",
       groupId: null,
+      sessionVersion: 0,
     });
     expect(await decodeSession(token)).toEqual({
       userId: "t1",
       role: "TEACHER",
       groupId: null,
+      sessionVersion: 0,
     });
   });
 
@@ -50,6 +54,7 @@ describe("jwt session", () => {
       userId: "u1",
       role: "STUDENT",
       groupId: "g1",
+      sessionVersion: 0,
     });
     const [header, payload, signature] = token.split(".");
     const forged = Buffer.from(
@@ -85,6 +90,7 @@ describe("jwt session", () => {
       userId: "u1",
       role: "STUDENT",
       groupId: "g1",
+      sessionVersion: 0,
     });
     vi.advanceTimersByTime((SESSION_MAX_AGE_SEC - 60) * 1000);
     expect(await decodeSession(token)).not.toBeNull();
@@ -95,12 +101,32 @@ describe("jwt session", () => {
   it("JWT_SECRET qisqa bo'lsa xato beradi", async () => {
     vi.stubEnv("JWT_SECRET", "short");
     await expect(
-      encodeSession({ userId: "u1", role: "STUDENT", groupId: null }),
+      encodeSession({
+        userId: "u1",
+        role: "STUDENT",
+        groupId: null,
+        sessionVersion: 0,
+      }),
     ).rejects.toThrow("JWT_SECRET");
   });
 
   it("rol bo'yicha bosh sahifa", () => {
     expect(homePathFor("TEACHER")).toBe("/teacher");
     expect(homePathFor("STUDENT")).toBe("/dashboard");
+  });
+});
+
+describe("sessionVersion", () => {
+  beforeEach(() => vi.stubEnv("JWT_SECRET", SECRET));
+  afterEach(() => vi.unstubAllEnvs());
+
+  it("sv bo'lmagan eski token sessionVersion 0 bilan o'qiladi", async () => {
+    const { SignJWT } = await import("jose");
+    const legacy = await new SignJWT({ role: "STUDENT", groupId: null })
+      .setProtectedHeader({ alg: "HS256" })
+      .setSubject("u1")
+      .setExpirationTime("1h")
+      .sign(new TextEncoder().encode(SECRET));
+    expect(await decodeSession(legacy)).toMatchObject({ sessionVersion: 0 });
   });
 });

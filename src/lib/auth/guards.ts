@@ -31,9 +31,12 @@ export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
       role: true,
       groupId: true,
       isActive: true,
+      sessionVersion: true,
     },
   });
   if (!user || !user.isActive) return null;
+  // Parol tiklangandan keyin eski sessiyalar ishlamaydi
+  if (user.sessionVersion !== session.sessionVersion) return null;
 
   return {
     id: user.id,

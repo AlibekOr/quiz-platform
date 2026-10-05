@@ -8,6 +8,8 @@ export type SessionPayload = {
   userId: string;
   role: Role;
   groupId: string | null;
+  /** User.sessionVersion bilan solishtiriladi (guards.ts); parol tiklansa mos kelmay qoladi */
+  sessionVersion: number;
 };
 
 export const SESSION_COOKIE = "session";
@@ -22,7 +24,11 @@ function getKey(): Uint8Array {
 }
 
 export async function encodeSession(payload: SessionPayload): Promise<string> {
-  return new SignJWT({ role: payload.role, groupId: payload.groupId })
+  return new SignJWT({
+    role: payload.role,
+    groupId: payload.groupId,
+    sv: payload.sessionVersion,
+  })
     .setProtectedHeader({ alg: "HS256" })
     .setSubject(payload.userId)
     .setIssuedAt()
@@ -38,13 +44,15 @@ export async function decodeSession(
     const { payload } = await jwtVerify(token, getKey(), {
       algorithms: ["HS256"],
     });
-    const { sub, role, groupId } = payload;
+    const { sub, role, groupId, sv } = payload;
     if (typeof sub !== "string" || (role !== "TEACHER" && role !== "STUDENT"))
       return null;
     return {
       userId: sub,
       role,
       groupId: typeof groupId === "string" ? groupId : null,
+      // sessionVersion qo'shilishidan oldingi tokenlar: 0
+      sessionVersion: typeof sv === "number" ? sv : 0,
     };
   } catch {
     return null;

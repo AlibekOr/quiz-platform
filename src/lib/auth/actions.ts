@@ -36,6 +36,7 @@ export async function login(input: LoginInput): Promise<ActionResult> {
       role: true,
       groupId: true,
       isActive: true,
+      sessionVersion: true,
     },
   });
   const passwordOk = user
@@ -55,6 +56,7 @@ export async function login(input: LoginInput): Promise<ActionResult> {
     userId: user.id,
     role: user.role,
     groupId: user.groupId,
+    sessionVersion: user.sessionVersion,
   });
   redirect(homePathFor(user.role));
 }
