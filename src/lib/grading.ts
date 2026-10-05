@@ -51,6 +51,20 @@ export function gradeAttempt(
   return { score, maxScore, correctness };
 }
 
+/** O'tish chegarasi: shundan past bo'lsa testdan o'tmagan */
+export const PASS_PERCENT = 60;
+/** 5 baho chegarasi */
+export const EXCELLENT_PERCENT = 90;
+
+export type Mark = "fail" | 4 | 5;
+
+/** Foizdan baho: < 60 — o'tmadi, 60–89 — 4, 90–100 — 5 (foiz ekrandagi kabi butun son) */
+export function markFromPercent(percent: number): Mark {
+  if (percent >= EXCELLENT_PERCENT) return 5;
+  if (percent >= PASS_PERCENT) return 4;
+  return "fail";
+}
+
 /** Deadline + 5s gacha javob va topshirish qabul qilinadi */
 export function isWithinDeadline(deadlineAt: Date, now: Date): boolean {
   return now.getTime() <= deadlineAt.getTime() + DEADLINE_GRACE_MS;

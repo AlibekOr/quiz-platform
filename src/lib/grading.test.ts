@@ -4,6 +4,7 @@ import {
   gradeAttempt,
   isAnswerCorrect,
   isWithinDeadline,
+  markFromPercent,
   shuffle,
   type GradableQuestion,
 } from "./grading";
@@ -128,5 +129,18 @@ describe("shuffle", () => {
 
   it("random berilganda deterministik", () => {
     expect(shuffle([1, 2, 3, 4], () => 0)).toEqual([2, 3, 4, 1]);
+  });
+});
+
+describe("markFromPercent", () => {
+  it("< 60 — o'tmadi, 60–89 — 4, 90–100 — 5", () => {
+    expect([0, 59, 60, 89, 90, 100].map(markFromPercent)).toEqual([
+      "fail",
+      "fail",
+      4,
+      4,
+      5,
+      5,
+    ]);
   });
 });

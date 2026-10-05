@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
+import { CircleCheckIcon, CircleXIcon, TrophyIcon } from "lucide-react";
 import { AttemptReview } from "@/components/results/attempt-review";
 import { buttonVariants } from "@/components/ui/button";
 import { finalizeExpiredAttempts } from "@/lib/attempts";
@@ -8,8 +9,14 @@ import { requireStudent } from "@/lib/auth/guards";
 import { db } from "@/lib/db";
 import { percent } from "@/lib/format";
 import { formatDuration } from "@/lib/time";
-import { isWithinDeadline } from "@/lib/grading";
+import {
+  isWithinDeadline,
+  markFromPercent,
+  PASS_PERCENT,
+  type Mark,
+} from "@/lib/grading";
 import { getTestRank } from "@/lib/leaderboard";
+import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Natija" };
 
@@ -27,7 +34,14 @@ async function loadAttempt(attemptId: string, userId: string) {
       durationSec: true,
       deadlineAt: true,
       questionOrder: true,
-      test: { select: { title: true, showAnswers: true, durationMin: true } },
+      test: {
+        select: {
+          title: true,
+          showAnswers: true,
+          durationMin: true,
+          allowRetake: true,
+        },
+      },
     },
   });
 }
@@ -53,6 +67,7 @@ export default async function ResultPage({
 
   const score = attempt.score ?? 0;
   const maxScore = attempt.maxScore ?? 0;
+  const scorePercent = percent(score, maxScore);
   const rank = await getTestRank({
     testId: attempt.testId,
     userId: student.id,
@@ -100,9 +115,14 @@ export default async function ResultPage({
         </p>
       )}
 
+      <MarkBanner
+        mark={markFromPercent(scorePercent)}
+        canRetake={attempt.test.allowRetake}
+      />
+
       <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <Stat label="Ball" value={`${score}/${maxScore}`} />
-        <Stat label="Foiz" value={`${percent(score, maxScore)}%`} />
+        <Stat label="Foiz" value={`${scorePercent}%`} />
         <Stat label="Vaqt" value={formatDuration(attempt.durationSec ?? 0)} />
         <Stat
           label="O'rin"
@@ -160,6 +180,54 @@ function Stat({
       <dt className="text-muted-foreground text-sm">{label}</dt>
       <dd className="text-xl font-semibold tabular-nums">{value}</dd>
       {hint && <dd className="text-muted-foreground text-xs">{hint}</dd>}
+    </div>
+  );
+}
+
+const MARK_STYLES = {
+  fail: {
+    icon: CircleXIcon,
+    title: "Afsuski, siz testdan o'ta olmadingiz",
+    className: "border-destructive/50 bg-destructive/10 text-destructive",
+  },
+  4: {
+    icon: CircleCheckIcon,
+    title: "Tabriklaymiz! Siz 4 bahoga o'tdingiz",
+    className:
+      "border-amber-500/50 bg-amber-500/10 text-amber-700 dark:text-amber-400",
+  },
+  5: {
+    icon: TrophyIcon,
+    title: "Ajoyib! Siz 5 bahoga o'tdingiz",
+    className:
+      "border-emerald-500/50 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400",
+  },
+} as const;
+
+function MarkBanner({ mark, canRetake }: { mark: Mark; canRetake: boolean }) {
+  const { icon: Icon, title, className } = MARK_STYLES[mark];
+  return (
+    <div
+      role="status"
+      className={cn("flex items-start gap-3 rounded-lg border p-4", className)}
+    >
+      <Icon className="mt-0.5 size-6 shrink-0" aria-hidden />
+      <div className="flex flex-col gap-1">
+        <p className="text-lg font-semibold">{title}</p>
+        {mark === "fail" && (
+          <p className="text-sm">
+            O&apos;tish uchun kamida {PASS_PERCENT}% kerak.
+            {canRetake && (
+              <>
+                {" "}
+                <Link href="/dashboard" className="font-medium underline">
+                  Qayta ishlab ko&apos;ring
+                </Link>
+              </>
+            )}
+          </p>
+        )}
+      </div>
     </div>
   );
 }
