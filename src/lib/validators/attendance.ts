@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { isValidDateStr } from "@/lib/time";
 
 const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
 
@@ -89,3 +90,16 @@ export const attendanceFormSchema = z
   });
 
 export type AttendanceFormInput = z.input<typeof attendanceFormSchema>;
+
+const dateParam = z
+  .string()
+  .refine(isValidDateStr, "Sana YYYY-MM-DD ko'rinishida bo'lsin");
+
+/** GET /api/attendance/export query parametrlari */
+export const attendanceExportQuerySchema = z
+  .object({
+    groupId: z.string().trim().min(1).max(64),
+    from: dateParam,
+    to: dateParam,
+  })
+  .refine((q) => q.from <= q.to, "from to dan katta bo'lmasin");

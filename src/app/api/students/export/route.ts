@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { fileSafe } from "@/lib/format";
 import { buildStudentsWorkbook } from "@/lib/students/export";
 import { teacherProfileSelect } from "@/lib/students/profile-select";
+import { studentExportQuerySchema } from "@/lib/validators/student";
 
 const XLSX =
   "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
@@ -16,8 +17,12 @@ export async function GET(request: NextRequest) {
   if (user.role !== "TEACHER")
     return Response.json({ error: "Ruxsat yo'q" }, { status: 403 });
 
-  const groupId =
-    request.nextUrl.searchParams.get("groupId")?.slice(0, 64) || null;
+  const query = studentExportQuerySchema.safeParse({
+    groupId: request.nextUrl.searchParams.get("groupId"),
+  });
+  if (!query.success)
+    return Response.json({ error: "groupId noto'g'ri" }, { status: 400 });
+  const { groupId } = query.data;
   const group = groupId
     ? await db.group.findUnique({
         where: { id: groupId },

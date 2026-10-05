@@ -3,7 +3,8 @@ import { attendanceFileName, buildAttendanceWorkbook } from "@/lib/attendance";
 import { getAttendanceReport } from "@/lib/attendance-data";
 import { getCurrentUser } from "@/lib/auth/guards";
 import { db } from "@/lib/db";
-import { formatDate, formatSchedule, isValidDateStr } from "@/lib/time";
+import { formatDate, formatSchedule } from "@/lib/time";
+import { attendanceExportQuerySchema } from "@/lib/validators/attendance";
 
 const XLSX =
   "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
@@ -18,15 +19,18 @@ export async function GET(request: NextRequest) {
     return Response.json({ error: "Ruxsat yo'q" }, { status: 403 });
 
   const params = request.nextUrl.searchParams;
-  const groupId = params.get("groupId")?.slice(0, 64) ?? "";
-  const from = params.get("from") ?? "";
-  const to = params.get("to") ?? "";
-  if (!groupId || !isValidDateStr(from) || !isValidDateStr(to) || from > to) {
+  const query = attendanceExportQuerySchema.safeParse({
+    groupId: params.get("groupId"),
+    from: params.get("from"),
+    to: params.get("to"),
+  });
+  if (!query.success) {
     return Response.json(
       { error: "groupId, from va to (YYYY-MM-DD) kerak" },
       { status: 400 },
     );
   }
+  const { groupId, from, to } = query.data;
   if ((Date.parse(to) - Date.parse(from)) / 86_400_000 > MAX_DAYS) {
     return Response.json({ error: "Davr 1 yildan oshmasin" }, { status: 400 });
   }

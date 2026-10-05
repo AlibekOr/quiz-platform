@@ -18,7 +18,9 @@ const INVALID_CREDENTIALS = "Login yoki parol noto'g'ri";
 export async function login(input: LoginInput): Promise<ActionResult> {
   const parsed = loginSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: INVALID_CREDENTIALS };
-  const { username, password } = parsed.data;
+  const { password } = parsed.data;
+  // Loginlar registrsiz noyob (students/actions.ts usernameTaken), shuning uchun kirish ham registrsiz
+  const username = parsed.data.username.toLowerCase();
 
   if (await isLoginLocked(username)) {
     return {
@@ -28,8 +30,9 @@ export async function login(input: LoginInput): Promise<ActionResult> {
     };
   }
 
-  const user = await db.user.findUnique({
-    where: { username },
+  const user = await db.user.findFirst({
+    where: { username: { equals: username, mode: "insensitive" } },
+    orderBy: { createdAt: "asc" },
     select: {
       id: true,
       passwordHash: true,

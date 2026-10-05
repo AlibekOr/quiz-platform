@@ -52,3 +52,13 @@ export type StudentUpdateInput = z.input<typeof studentUpdateSchema>;
 
 export const resetPasswordSchema = z.object({ password: passwordSchema });
 export type ResetPasswordInput = z.input<typeof resetPasswordSchema>;
+
+/** GET /api/students/export: groupId berilmasa yoki bo'sh bo'lsa — barcha o'quvchilar */
+export const studentExportQuerySchema = z.object({
+  groupId: z
+    .string()
+    .trim()
+    .max(64)
+    .nullish()
+    .transform((v) => v || null),
+});
