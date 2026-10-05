@@ -135,9 +135,13 @@ const CSS_QUESTIONS: SeedQuestion[] = [
   },
 ];
 
+// Prod: `pnpm db:seed:prod` — faqat o'qituvchi akkaunti, namunaviy ma'lumotlarsiz
+const TEACHER_ONLY = process.argv.includes("--teacher-only");
+
 async function main() {
   const teacherPassword = requireEnv("SEED_TEACHER_PASSWORD");
-  const studentPassword = requireEnv("SEED_STUDENT_PASSWORD");
+  if (TEACHER_ONLY && teacherPassword.length < 8)
+    throw new Error("Prod uchun SEED_TEACHER_PASSWORD kamida 8 belgi bo'lsin");
 
   const teacher = await db.user.upsert({
     where: { username: requireEnv("SEED_TEACHER_USERNAME") },
@@ -150,7 +154,12 @@ async function main() {
     },
   });
 
-  const studentHash = await hashPassword(studentPassword);
+  if (TEACHER_ONLY) {
+    console.log(`Seed tayyor: o'qituvchi "${teacher.username}"`);
+    return;
+  }
+
+  const studentHash = await hashPassword(requireEnv("SEED_STUDENT_PASSWORD"));
   const groups = [];
   for (const [gi, name] of GROUPS.entries()) {
     const group = await db.group.upsert({

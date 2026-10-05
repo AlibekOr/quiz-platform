@@ -56,7 +56,7 @@ prisma/
 8. Mobile-first: o'quvchilar asosan telefondan kiradi.
 9. Vaqt zonasi har doim `Asia/Tashkent` (davomat, "bugun", sanalar). Sana va vaqt hisoblari `lib/time.ts` orqali.
 10. **O'quvchilarning shaxsiy ma'lumotlari** (`StudentProfile`: telefonlar, Telegram, ota-ona) faqat o'qituvchiga ko'rinadi. O'quvchi sahifalari, reyting va o'quvchi uchun API javoblarida bu ma'lumotlar hech qachon `select` qilinmaydi. Ular logga ham yozilmaydi.
-11. Sirlar faqat `.env` da: `DATABASE_URL`, `JWT_SECRET`, `SEED_TEACHER_USERNAME`, `SEED_TEACHER_PASSWORD`. `.env.example` yangilab bor.
+11. Sirlar faqat `.env` da: `DATABASE_URL`, `DIRECT_URL` (ixtiyoriy, migratsiya uchun), `JWT_SECRET`, `SEED_TEACHER_USERNAME`, `SEED_TEACHER_PASSWORD`. `.env.example` yangilab bor.
 
 ## Ish tartibi
 

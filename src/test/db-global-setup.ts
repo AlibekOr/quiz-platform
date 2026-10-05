@@ -10,7 +10,8 @@ export default function setup() {
   if (url === process.env.DATABASE_URL)
     throw new Error("TEST_DATABASE_URL asosiy baza bilan bir xil bo'lmasin");
   execSync("pnpm exec prisma migrate deploy", {
-    env: { ...process.env, DATABASE_URL: url },
+    // DIRECT_URL ham test bazasiga: aks holda prisma.config.ts migratsiyani boshqa bazaga yuboradi
+    env: { ...process.env, DATABASE_URL: url, DIRECT_URL: url },
     stdio: "pipe",
   });
 }
