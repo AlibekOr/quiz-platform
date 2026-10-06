@@ -11,7 +11,7 @@ export default async function TeacherLayout({
 
   return (
     <div className="flex min-h-full flex-1">
-      <aside className="hidden w-60 shrink-0 flex-col gap-6 border-r p-4 md:flex">
+      <aside className="sticky top-0 hidden h-svh w-60 shrink-0 flex-col gap-6 overflow-y-auto border-r p-4 md:flex">
         <span className="px-3 font-semibold">Test platformasi</span>
         <NavLinks />
       </aside>
