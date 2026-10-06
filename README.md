@@ -39,7 +39,7 @@ Sirlar faqat `.env` da saqlanadi (gitga tushmaydi). Prod'da (`NODE_ENV=productio
 
 ```bash
 pnpm dev             # dev server
-pnpm build           # prisma migrate deploy + next build
+pnpm build           # prisma generate + prisma migrate deploy + next build
 pnpm lint            # ESLint
 pnpm typecheck       # route tiplari + tsc --noEmit
 pnpm test            # Vitest: unit + db (TEST_DATABASE_URL kerak)
@@ -76,7 +76,7 @@ git push -u origin main
    - `DATABASE_URL`, `DIRECT_URL`: Neon satrlari
    - `JWT_SECRET`: yangi kalit (`openssl rand -base64 32`), dev kalitini ishlatmang
 3. **Settings → Functions → Region**: Neon bazasi bilan bir xil region (masalan, Frankfurt `fra1`).
-4. Deploy. O'rnatishda `postinstall` → `prisma generate`; build'da `build` skripti: avval `prisma migrate deploy` (`DIRECT_URL` orqali), keyin `next build`. Ya'ni migratsiyalar har deployda avtomatik qo'llanadi. Vercel'da `DIRECT_URL` berilmasa, build aniq xato bilan to'xtaydi.
+4. Deploy. `build` skripti: avval `prisma generate` (Vercel `node_modules` ni keshdan tiklaganda `postinstall` ishlamasligi mumkin), keyin `prisma migrate deploy` (`DIRECT_URL` orqali), keyin `next build`. Ya'ni migratsiyalar har deployda avtomatik qo'llanadi. Vercel'da `DIRECT_URL` berilmasa, build aniq xato bilan to'xtaydi.
 
 > Preview deploylar ham `build` ni ishlatadi. Agar Preview muhitiga prod bazasi berilgan bo'lsa, preview ham prod bazasini migratsiya qiladi. Preview uchun alohida Neon branch bering yoki Preview'da `DATABASE_URL`/`DIRECT_URL` ni bermang.
 
