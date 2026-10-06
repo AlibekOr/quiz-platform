@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { changePasswordSchema } from "./auth";
+import { changePasswordSchema, updateProfileSchema } from "./auth";
 
 const messages = (input: Parameters<typeof changePasswordSchema.parse>[0]) => {
   const r = changePasswordSchema.safeParse(input);
@@ -41,5 +41,19 @@ describe("changePasswordSchema", () => {
         confirmPassword: "bir-xil-parol",
       }),
     ).toEqual(["newPassword: Yangi parol eskisidan farq qilsin"]);
+  });
+});
+
+describe("updateProfileSchema", () => {
+  it("ismni tozalaydi va uzunligini tekshiradi", () => {
+    expect(updateProfileSchema.parse({ fullName: "  Ali Valiyev " })).toEqual({
+      fullName: "Ali Valiyev",
+    });
+    expect(updateProfileSchema.safeParse({ fullName: " A " }).success).toBe(
+      false,
+    );
+    expect(
+      updateProfileSchema.safeParse({ fullName: "a".repeat(101) }).success,
+    ).toBe(false);
   });
 });

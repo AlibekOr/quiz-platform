@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import { ChangePasswordForm } from "@/components/teacher/account/change-password-form";
+import { ProfileForm } from "@/components/teacher/account/profile-form";
 import { requireTeacher } from "@/lib/auth/guards";
 
-export const metadata: Metadata = { title: "Akkaunt" };
+export const metadata: Metadata = { title: "Profil" };
 
 export default async function AccountPage() {
   const teacher = await requireTeacher();
@@ -10,11 +11,21 @@ export default async function AccountPage() {
   return (
     <>
       <div>
-        <h1 className="text-2xl font-semibold">Akkaunt</h1>
+        <h1 className="text-2xl font-semibold">Profil</h1>
         <p className="text-muted-foreground text-sm">
-          {teacher.fullName} · login: {teacher.username}
+          login: {teacher.username}
         </p>
       </div>
+
+      <section className="flex flex-col gap-3 rounded-lg border p-4">
+        <div>
+          <h2 className="font-semibold">Shaxsiy ma&apos;lumotlar</h2>
+          <p className="text-muted-foreground text-sm">
+            Ism familiyangiz panel sarlavhasida ko&apos;rinadi.
+          </p>
+        </div>
+        <ProfileForm fullName={teacher.fullName} />
+      </section>
 
       <section className="flex flex-col gap-3 rounded-lg border p-4">
         <div>

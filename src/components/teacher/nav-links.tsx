@@ -5,9 +5,9 @@ import { usePathname } from "next/navigation";
 import {
   CalendarCheckIcon,
   ClipboardListIcon,
-  KeyRoundIcon,
   LayoutDashboardIcon,
   TrophyIcon,
+  UserIcon,
   UsersIcon,
   UsersRoundIcon,
 } from "lucide-react";
@@ -25,7 +25,7 @@ const LINKS = [
   { href: "/teacher/students", label: "O'quvchilar", icon: UsersIcon },
   { href: "/teacher/tests", label: "Testlar", icon: ClipboardListIcon },
   { href: "/leaderboard", label: "Reyting", icon: TrophyIcon },
-  { href: "/teacher/account", label: "Akkaunt", icon: KeyRoundIcon },
+  { href: "/teacher/account", label: "Profil", icon: UserIcon },
 ] as const;
 
 export function NavLinks({ onNavigate }: { onNavigate?: () => void }) {

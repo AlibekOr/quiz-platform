@@ -1,5 +1,6 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { validationFailed, type ActionResult } from "@/lib/action-result";
 import { requireTeacher } from "@/lib/auth/guards";
 import { hashPassword, verifyPassword } from "@/lib/auth/password";
@@ -12,8 +13,27 @@ import { createSession } from "@/lib/auth/session";
 import { db } from "@/lib/db";
 import {
   changePasswordSchema,
+  updateProfileSchema,
   type ChangePasswordInput,
+  type UpdateProfileInput,
 } from "@/lib/validators/auth";
+
+/** O'qituvchi o'z ism-familiyasini o'zgartiradi */
+export async function updateOwnProfile(
+  input: UpdateProfileInput,
+): Promise<ActionResult> {
+  const teacher = await requireTeacher();
+  const parsed = updateProfileSchema.safeParse(input);
+  if (!parsed.success) return validationFailed(parsed.error);
+
+  await db.user.update({
+    where: { id: teacher.id },
+    data: { fullName: parsed.data.fullName },
+  });
+  // Sarlavhadagi ism ham yangilansin
+  revalidatePath("/teacher", "layout");
+  return { ok: true, message: "Ism-familiya saqlandi" };
+}
 
 /**
  * O'qituvchi o'z parolini o'zgartiradi. Joriy parol tekshiriladi (xato urinishlar login

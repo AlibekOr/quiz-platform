@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { fullNameSchema } from "./student";
 
 // Bu yerda maxsus format qoidalari yo'q: noto'g'ri login ham umumiy xabar bilan rad etiladi
 export const loginSchema = z.object({
@@ -44,3 +45,8 @@ export const changePasswordSchema = z
   });
 
 export type ChangePasswordInput = z.input<typeof changePasswordSchema>;
+
+/** O'qituvchi o'z ism-familiyasini o'zgartiradi (/teacher/account) */
+export const updateProfileSchema = z.object({ fullName: fullNameSchema });
+
+export type UpdateProfileInput = z.input<typeof updateProfileSchema>;
