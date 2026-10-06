@@ -48,7 +48,7 @@ export async function saveAttendance(
   const lessonDate = toDbDate(date);
   const [members, existing] = await Promise.all([
     db.user.findMany({
-      where: { role: "STUDENT", groupId: gid },
+      where: { role: "STUDENT", archivedAt: null, groupId: gid },
       select: { id: true },
     }),
     db.attendance.findMany({

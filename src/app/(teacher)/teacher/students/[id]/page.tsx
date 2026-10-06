@@ -39,6 +39,7 @@ export default async function StudentCardPage({
         fullName: true,
         username: true,
         isActive: true,
+        archivedAt: true,
         groupId: true,
         createdAt: true,
         group: { select: { name: true } },
@@ -72,6 +73,7 @@ export default async function StudentCardPage({
     fullName: student.fullName,
     username: student.username,
     isActive: student.isActive,
+    archived: student.archivedAt !== null,
     groupId: student.groupId,
     groupName: student.group?.name ?? null,
     profile,
@@ -106,7 +108,9 @@ export default async function StudentCardPage({
               <h1 className="text-2xl font-semibold break-words">
                 {student.fullName}
               </h1>
-              {student.isActive ? (
+              {student.archivedAt ? (
+                <Badge variant="outline">Arxivda</Badge>
+              ) : student.isActive ? (
                 <Badge variant="secondary">Faol</Badge>
               ) : (
                 <Badge variant="destructive">Bloklangan</Badge>
@@ -117,7 +121,7 @@ export default async function StudentCardPage({
               {student.group?.name ?? "Guruhsiz"}
             </p>
           </div>
-          <StudentRowActions student={row} groups={groups} />
+          <StudentRowActions student={row} groups={groups} onCard />
         </div>
       </div>
 

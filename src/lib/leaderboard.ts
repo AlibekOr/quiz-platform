@@ -93,6 +93,7 @@ export async function getTestLeaderboard(
         AND a."isFirst" = true
         AND a."status" IN ('FINISHED', 'EXPIRED')
         AND u."isActive" = true
+        AND u."archivedAt" IS NULL
         AND u."role" = 'STUDENT'
         ${groupFilter(filter.groupId)}
     )
@@ -122,6 +123,7 @@ export async function getOverallLeaderboard(
       WHERE a."isFirst" = true
         AND a."status" IN ('FINISHED', 'EXPIRED')
         AND u."isActive" = true
+        AND u."archivedAt" IS NULL
         AND u."role" = 'STUDENT'
         ${groupFilter(filter.groupId)}
       GROUP BY a."userId"

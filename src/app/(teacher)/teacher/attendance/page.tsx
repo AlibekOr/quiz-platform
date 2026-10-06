@@ -47,7 +47,11 @@ export default async function AttendancePage({
         select: { topic: true, attendances: { select: { status: true } } },
       },
       _count: {
-        select: { students: { where: { role: "STUDENT", isActive: true } } },
+        select: {
+          students: {
+            where: { role: "STUDENT", isActive: true, archivedAt: null },
+          },
+        },
       },
     },
   });

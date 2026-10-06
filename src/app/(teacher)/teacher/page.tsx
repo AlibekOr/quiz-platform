@@ -37,7 +37,9 @@ export default async function TeacherPage() {
 
   const [studentCount, groupCount, activeTestCount, groups, recent, misses] =
     await Promise.all([
-      db.user.count({ where: { role: "STUDENT", isActive: true } }),
+      db.user.count({
+        where: { role: "STUDENT", isActive: true, archivedAt: null },
+      }),
       db.group.count(),
       db.test.count({ where: { isActive: true } }),
       db.group.findMany({
@@ -60,13 +62,18 @@ export default async function TeacherPage() {
           },
           _count: {
             select: {
-              students: { where: { role: "STUDENT", isActive: true } },
+              students: {
+                where: { role: "STUDENT", isActive: true, archivedAt: null },
+              },
             },
           },
         },
       }),
       db.attempt.findMany({
-        where: { status: { in: ["FINISHED", "EXPIRED"] } },
+        where: {
+          status: { in: ["FINISHED", "EXPIRED"] },
+          user: { archivedAt: null },
+        },
         orderBy: { finishedAt: "desc" },
         take: RECENT_RESULTS,
         select: {
@@ -85,7 +92,7 @@ export default async function TeacherPage() {
         where: {
           status: { in: ["ABSENT", "LATE"] },
           lesson: { date: { gte: toDbDate(absentFrom), lte: toDbDate(today) } },
-          student: { role: "STUDENT", isActive: true },
+          student: { role: "STUDENT", isActive: true, archivedAt: null },
         },
         select: {
           status: true,

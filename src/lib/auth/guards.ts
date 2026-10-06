@@ -31,10 +31,11 @@ export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
       role: true,
       groupId: true,
       isActive: true,
+      archivedAt: true,
       sessionVersion: true,
     },
   });
-  if (!user || !user.isActive) return null;
+  if (!user || !user.isActive || user.archivedAt) return null;
   // Parol tiklangandan keyin eski sessiyalar ishlamaydi
   if (user.sessionVersion !== session.sessionVersion) return null;
 

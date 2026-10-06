@@ -35,7 +35,11 @@ export default async function StudentsPage({
   const q = param(params.q).slice(0, 100);
   const group = param(params.group);
 
-  const where: Prisma.UserWhereInput = { role: "STUDENT" };
+  const archived = group === "archived";
+  const where: Prisma.UserWhereInput = {
+    role: "STUDENT",
+    archivedAt: archived ? { not: null } : null,
+  };
   if (q) {
     where.OR = [
       { fullName: { contains: q, mode: "insensitive" } },
@@ -56,7 +60,7 @@ export default async function StudentsPage({
     }
   }
   if (group === "none") where.groupId = null;
-  else if (group) where.groupId = group;
+  else if (group && !archived) where.groupId = group;
 
   const [groups, students] = await Promise.all([
     db.group.findMany({
@@ -71,6 +75,7 @@ export default async function StudentsPage({
         fullName: true,
         username: true,
         isActive: true,
+        archivedAt: true,
         groupId: true,
         group: { select: { name: true } },
         profile: { select: teacherProfileSelect },
@@ -78,8 +83,9 @@ export default async function StudentsPage({
     }),
   ]);
 
-  const rows: StudentRow[] = students.map(({ group, ...s }) => ({
+  const rows: StudentRow[] = students.map(({ group, archivedAt, ...s }) => ({
     ...s,
+    archived: archivedAt !== null,
     groupName: group?.name ?? null,
   }));
 
@@ -90,7 +96,7 @@ export default async function StudentsPage({
         <div className="flex flex-col gap-2 sm:flex-row">
           {/* Eksport joriy guruh filtri bo'yicha (filtr bo'lmasa — hammasi) */}
           <a
-            href={`/api/students/export${group && group !== "none" ? `?groupId=${encodeURIComponent(group)}` : ""}`}
+            href={`/api/students/export${group && group !== "none" && !archived ? `?groupId=${encodeURIComponent(group)}` : ""}`}
             className={buttonVariants({ variant: "outline" })}
           >
             <DownloadIcon />
@@ -121,7 +127,11 @@ export default async function StudentsPage({
 
       {rows.length === 0 ? (
         <p className="text-muted-foreground">
-          {q || group ? "Hech narsa topilmadi." : "Hali o'quvchi yo'q."}
+          {archived
+            ? "Arxiv bo'sh."
+            : q || group
+              ? "Hech narsa topilmadi."
+              : "Hali o'quvchi yo'q."}
         </p>
       ) : (
         <>
@@ -146,7 +156,11 @@ export default async function StudentsPage({
                 {rows.map((s) => (
                   <TableRow
                     key={s.id}
-                    className={s.isActive ? undefined : "text-muted-foreground"}
+                    className={
+                      s.isActive && !s.archived
+                        ? undefined
+                        : "text-muted-foreground"
+                    }
                   >
                     <TableCell className="font-medium">
                       <Link
@@ -164,7 +178,9 @@ export default async function StudentsPage({
                       {s.profile?.phone ? formatPhone(s.profile.phone) : "—"}
                     </TableCell>
                     <TableCell>
-                      {s.isActive ? (
+                      {s.archived ? (
+                        <Badge variant="outline">Arxivda</Badge>
+                      ) : s.isActive ? (
                         <Badge variant="secondary">Faol</Badge>
                       ) : (
                         <Badge variant="destructive">Bloklangan</Badge>

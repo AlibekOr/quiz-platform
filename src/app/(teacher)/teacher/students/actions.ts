@@ -29,7 +29,9 @@ const idSchema = z.string().min(1);
 
 function revalidate() {
   revalidatePath("/teacher/students");
+  revalidatePath("/teacher/students/[id]", "page");
   revalidatePath("/teacher/groups");
+  revalidatePath("/teacher/groups/[id]", "page");
 }
 
 async function usernameTaken(
@@ -183,6 +185,80 @@ export async function setStudentActive(
   }
   revalidate();
   return { ok: true, message: active ? "Blokdan chiqarildi" : "Bloklandi" };
+}
+
+/** Guruhdan chiqarish: test natijalari va davomat tarixi saqlanadi */
+export async function removeStudentFromGroup(
+  studentId: string,
+): Promise<ActionResult> {
+  await requireTeacher();
+  const id = idSchema.parse(studentId);
+
+  try {
+    await db.user.update({
+      where: { id, role: "STUDENT", archivedAt: null },
+      data: { groupId: null },
+    });
+  } catch (e) {
+    if (isNotFound(e)) return { ok: false, error: "O'quvchi topilmadi" };
+    throw e;
+  }
+  revalidate();
+  return { ok: true, message: "Guruhdan chiqarildi" };
+}
+
+/** Yumshoq o'chirish: guruhi saqlanadi (tiklanganda qaytadi), sessiyalari yopiladi */
+export async function setStudentArchived(
+  studentId: string,
+  archived: boolean,
+): Promise<ActionResult> {
+  await requireTeacher();
+  const id = idSchema.parse(studentId);
+  const archive = z.boolean().parse(archived);
+
+  try {
+    await db.user.update({
+      where: { id, role: "STUDENT" },
+      data: archive
+        ? { archivedAt: new Date(), sessionVersion: { increment: 1 } }
+        : { archivedAt: null },
+    });
+  } catch (e) {
+    if (isNotFound(e)) return { ok: false, error: "O'quvchi topilmadi" };
+    throw e;
+  }
+  revalidate();
+  return { ok: true, message: archive ? "Arxivlandi" : "Arxivdan tiklandi" };
+}
+
+/** Butunlay o'chirish: faqat arxivdagi o'quvchi. Urinishlar, davomat va profil ham o'chadi */
+export async function deleteStudent(studentId: string): Promise<ActionResult> {
+  await requireTeacher();
+  const id = idSchema.parse(studentId);
+
+  const student = await db.user.findFirst({
+    where: { id, role: "STUDENT" },
+    select: { archivedAt: true },
+  });
+  if (!student) return { ok: false, error: "O'quvchi topilmadi" };
+  if (!student.archivedAt) {
+    return { ok: false, error: "Avval o'quvchini arxivlang" };
+  }
+
+  // Attempt'da cascade yo'q — avval qo'lda o'chiriladi (javoblar cascade bilan ketadi)
+  try {
+    await db.$transaction([
+      db.attempt.deleteMany({ where: { userId: id } }),
+      db.user.delete({
+        where: { id, role: "STUDENT", archivedAt: { not: null } },
+      }),
+    ]);
+  } catch (e) {
+    if (isNotFound(e)) return { ok: false, error: "O'quvchi topilmadi" };
+    throw e;
+  }
+  revalidate();
+  return { ok: true, message: "O'quvchi butunlay o'chirildi" };
 }
 
 // ---------- Excel import ----------

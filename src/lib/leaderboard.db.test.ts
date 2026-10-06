@@ -189,6 +189,34 @@ describe("test reytingi", () => {
     ]);
   });
 
+  it("arxivlangan o'quvchi ko'rinmaydi, guruhsiz o'quvchi guruh reytingida chiqmaydi", async () => {
+    const g = await group("G1");
+    const t = await test("CSS");
+    const ali = await student("Ali", g);
+    await attempt(ali, t, { score: 10, durationSec: 100 });
+    await db.user.update({
+      where: { id: ali },
+      data: { archivedAt: new Date() },
+    });
+    await attempt(await student("Bek", g), t, { score: 5, durationSec: 100 });
+    await attempt(await student("Dil", null), t, {
+      score: 7,
+      durationSec: 100,
+    });
+
+    expect(names(await getTestLeaderboard(t, { groupId: null }))).toEqual([
+      "1:Dil",
+      "2:Bek",
+    ]);
+    expect(names(await getTestLeaderboard(t, { groupId: g }))).toEqual([
+      "1:Bek",
+    ]);
+    expect(names(await getOverallLeaderboard({ groupId: null }))).toEqual([
+      "1:Dil",
+      "2:Bek",
+    ]);
+  });
+
   it("top N dan tashqaridagi o'quvchi 'me' da qaytadi", async () => {
     const g = await group("G1");
     const t = await test("CSS");

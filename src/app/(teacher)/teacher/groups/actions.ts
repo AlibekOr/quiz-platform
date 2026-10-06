@@ -71,7 +71,9 @@ export async function deleteGroup(groupId: string): Promise<ActionResult> {
   await requireTeacher();
   const id = idSchema.parse(groupId);
 
-  const students = await db.user.count({ where: { groupId: id } });
+  const students = await db.user.count({
+    where: { groupId: id, archivedAt: null },
+  });
   if (students > 0) {
     return {
       ok: false,
@@ -89,7 +91,14 @@ export async function deleteGroup(groupId: string): Promise<ActionResult> {
   }
 
   try {
-    await db.group.delete({ where: { id } });
+    // Arxivdagilar guruhsiz qoladi: tiklanganda boshqa guruhga qo'shiladi
+    await db.$transaction([
+      db.user.updateMany({
+        where: { groupId: id, archivedAt: { not: null } },
+        data: { groupId: null },
+      }),
+      db.group.delete({ where: { id } }),
+    ]);
   } catch (e) {
     if (isNotFound(e)) return { ok: false, error: "Guruh topilmadi" };
     throw e;

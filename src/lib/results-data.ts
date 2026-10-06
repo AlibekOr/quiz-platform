@@ -65,7 +65,10 @@ export async function getTestResults(
 
   const [attempts, idle] = await Promise.all([
     db.attempt.findMany({
-      where: { testId, user: { role: "STUDENT", ...groupWhere } },
+      where: {
+        testId,
+        user: { role: "STUDENT", archivedAt: null, ...groupWhere },
+      },
       orderBy: { startedAt: "asc" },
       select: {
         id: true,
@@ -83,6 +86,7 @@ export async function getTestResults(
       where: {
         role: "STUDENT",
         isActive: true,
+        archivedAt: null,
         groupId: { in: assignedGroupIds },
         attempts: { none: { testId } },
       },

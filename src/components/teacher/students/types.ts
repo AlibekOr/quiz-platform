@@ -8,6 +8,7 @@ export type StudentRow = {
   fullName: string;
   username: string;
   isActive: boolean;
+  archived: boolean;
   groupId: string | null;
   groupName: string | null;
   profile: {

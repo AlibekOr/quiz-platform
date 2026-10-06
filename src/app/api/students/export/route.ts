@@ -33,7 +33,11 @@ export async function GET(request: NextRequest) {
     return Response.json({ error: "Guruh topilmadi" }, { status: 404 });
 
   const students = await db.user.findMany({
-    where: { role: "STUDENT", ...(groupId ? { groupId } : {}) },
+    where: {
+      role: "STUDENT",
+      archivedAt: null,
+      ...(groupId ? { groupId } : {}),
+    },
     orderBy: [{ group: { name: "asc" } }, { fullName: "asc" }],
     select: {
       fullName: true,

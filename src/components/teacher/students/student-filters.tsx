@@ -40,7 +40,7 @@ export function StudentFilters({ groups }: { groups: GroupOption[] }) {
         className="sm:max-w-xs"
       />
       <NativeSelect
-        aria-label="Guruh bo'yicha filtr"
+        aria-label="Guruh yoki arxiv bo'yicha filtr"
         value={searchParams.get("group") ?? ""}
         onChange={(e) => update("group", e.target.value)}
       >
@@ -51,6 +51,7 @@ export function StudentFilters({ groups }: { groups: GroupOption[] }) {
           </NativeSelectOption>
         ))}
         <NativeSelectOption value="none">Guruhsiz</NativeSelectOption>
+        <NativeSelectOption value="archived">Arxiv</NativeSelectOption>
       </NativeSelect>
     </div>
   );

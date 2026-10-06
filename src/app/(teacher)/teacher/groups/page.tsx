@@ -24,7 +24,12 @@ export default async function GroupsPage() {
     select: {
       id: true,
       name: true,
-      _count: { select: { students: true, tests: true } },
+      _count: {
+        select: {
+          students: { where: { archivedAt: null } },
+          tests: true,
+        },
+      },
       schedules: { select: { weekday: true, startTime: true, endTime: true } },
     },
   });

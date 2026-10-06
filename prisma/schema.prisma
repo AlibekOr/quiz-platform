@@ -45,6 +45,8 @@ model User {
   isActive       Boolean         @default(true)
   // Parol tiklanganda oshiriladi: eski sessiyalar (JWT) yaroqsiz bo'ladi
   sessionVersion Int             @default(0)
+  // Arxivlangan (yumshoq o'chirilgan) o'quvchi: kira olmaydi, ro'yxat va reytinglarda ko'rinmaydi
+  archivedAt     DateTime?
   groupId        String?
   group          Group?          @relation(fields: [groupId], references: [id])
   attempts       Attempt[]

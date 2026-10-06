@@ -38,6 +38,7 @@ export async function getLessonSheet(groupId: string, date: DateStr) {
         id: true,
         topic: true,
         attendances: {
+          where: { student: { archivedAt: null } },
           select: {
             studentId: true,
             status: true,
@@ -55,7 +56,7 @@ export async function getLessonSheet(groupId: string, date: DateStr) {
       },
     }),
     db.user.findMany({
-      where: { role: "STUDENT", isActive: true, groupId },
+      where: { role: "STUDENT", isActive: true, archivedAt: null, groupId },
       select: {
         id: true,
         fullName: true,
@@ -111,6 +112,7 @@ export async function getAttendanceReport(
       select: {
         date: true,
         attendances: {
+          where: { student: { archivedAt: null } },
           select: {
             studentId: true,
             status: true,
@@ -121,7 +123,7 @@ export async function getAttendanceReport(
       },
     }),
     db.user.findMany({
-      where: { role: "STUDENT", isActive: true, groupId },
+      where: { role: "STUDENT", isActive: true, archivedAt: null, groupId },
       select: { id: true, fullName: true },
     }),
   ]);

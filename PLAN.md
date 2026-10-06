@@ -5,7 +5,7 @@
 **O'qituvchi (TEACHER)**
 - Guruhlar yaratadi va har bir guruhning dars jadvalini kiritadi (qaysi kunlari, soat nechada)
 - Har bir dars uchun davomat belgilaydi (kim keldi, kim kelmadi) va uni Excel'ga yuklab oladi
-- O'quvchi akkauntlarini ochadi: bittalab yoki Excel'dan import qiladi. Parolni tiklaydi, akkauntni bloklaydi
+- O'quvchi akkauntlarini ochadi: bittalab yoki Excel'dan import qiladi. Parolni tiklaydi, akkauntni bloklaydi, guruhdan chiqaradi, arxivlaydi va (arxivdan) butunlay o'chiradi
 - O'quvchilarning shaxsiy ma'lumotlarini yuritadi: o'quvchi telefoni va Telegrami, ota yoki onasining ismi va telefoni
 - Test yaratadi: savollar, variantlar, vaqt, sozlamalar. Testni guruhlarga biriktiradi va faollashtiradi
 - Savollarni JSON/Excel'dan import qiladi
@@ -66,6 +66,7 @@ model User {
   passwordHash String
   role         Role      @default(STUDENT)
   isActive     Boolean   @default(true)
+  archivedAt   DateTime? // arxivlangan (yumshoq o'chirilgan) o'quvchi
   groupId      String?
   group        Group?    @relation(fields: [groupId], references: [id])
   attempts     Attempt[]
@@ -235,7 +236,7 @@ model Attendance {
 - **Umumiy reyting:** har o'quvchi uchun barcha testlardagi birinchi urinish ballari yig'indisi, teng bo'lsa umumiy vaqt kamrog'i yuqorida.
 - `scope`: `group` | `all`. O'quvchi uchun `group` bo'lganda guruh **sessiyadan** olinadi. O'qituvchi `groupId` parametrini berishi mumkin.
 - Top 50 qaytariladi + joriy o'quvchining o'z qatori (top 50 da bo'lmasa ham) alohida `me` maydonida.
-- Bloklangan (`isActive = false`) o'quvchilar reytingda ko'rinmaydi.
+- Bloklangan (`isActive = false`) va arxivlangan (`archivedAt` bor) o'quvchilar reytingda ko'rinmaydi. Guruhsiz o'quvchi faqat "Umumiy" reytingda chiqadi.
 
 **Davomat**
 - Vaqt zonasi: `Asia/Tashkent`. "Bugun" va dars sanasi shu zonada hisoblanadi (server UTC'da ishlasa ham).
@@ -257,8 +258,15 @@ model Attendance {
 - Login: username + parol. Xato bo'lsa umumiy xabar: "Login yoki parol noto'g'ri".
 - Session: JWT (`jose`, HS256), payload: `userId`, `role`, `groupId`. httpOnly, secure, sameSite=lax cookie, muddati 7 kun.
 - Login urinishlariga oddiy cheklov: bir username uchun 15 daqiqada 10 ta xato bo'lsa, vaqtincha bloklanadi.
-- `isActive = false` bo'lsa, kira olmaydi.
+- `isActive = false` yoki `archivedAt` bor bo'lsa, kira olmaydi (ochiq sessiya ham ishlamay qoladi).
 - Ro'yxatdan o'tish sahifasi YO'Q. Akkauntlarni faqat o'qituvchi yaratadi.
+
+**O'quvchini guruhdan chiqarish, arxivlash va o'chirish**
+- **Guruhdan chiqarish:** `groupId = null`. Test natijalari va davomat tarixi saqlanadi. Guruhsiz o'quvchi testlarni ko'rmaydi, guruh reytingida chiqmaydi, keyin "Tahrirlash" orqali boshqa guruhga qo'shiladi.
+- **Arxivlash (yumshoq o'chirish):** `archivedAt = now()`, `sessionVersion` oshadi. Arxivdagi o'quvchi kira olmaydi; o'quvchilar ro'yxati, guruh sahifasi, reyting, davomat sahifalari va hisobotlari, test natijalari, bosh sahifa hisoblari va Excel eksportda ko'rinmaydi. Natijalari bazada qoladi. Guruhi saqlanadi, tiklanganda o'sha guruhga qaytadi (guruh o'chirilgan bo'lsa, guruhsiz qoladi).
+- **Tiklash:** `archivedAt = null`. Faqat "Arxiv" filtrida.
+- **Butunlay o'chirish:** faqat arxivdagi o'quvchi, tasdiq oynasi bilan. O'quvchi, uning urinishlari va javoblari, davomati va profili o'chadi. Qaytarib bo'lmaydi.
+- Guruhni o'chirishda arxivdagi o'quvchilar to'sqinlik qilmaydi (ular guruhsiz qoladi).
 
 ---
 
@@ -274,11 +282,11 @@ model Attendance {
 | `/test/[id]/leaderboard` | student, teacher | Test reytingi, xuddi shu tablar |
 | `/teacher` | teacher | Umumiy ko'rinish (testlar, o'quvchilar soni, oxirgi natijalar) |
 | `/teacher/groups` | teacher | Guruhlar CRUD |
-| `/teacher/groups/[id]` | teacher | Guruh tafsilotlari: o'quvchilar, dars jadvali |
+| `/teacher/groups/[id]` | teacher | Guruh tafsilotlari: o'quvchilar (guruhdan chiqarish), dars jadvali |
 | `/teacher/attendance` | teacher | Bugungi darslar (jadval bo'yicha), boshqa sanani tanlash, qo'shimcha dars qo'shish |
 | `/teacher/attendance/[groupId]/[date]` | teacher | Davomat belgilash |
 | `/teacher/groups/[id]/attendance` | teacher | Davomat hisoboti (o'quvchilar × sanalar jadvali), Excel'ga yuklab olish |
-| `/teacher/students` | teacher | O'quvchilar ro'yxati, qo'shish, Excel import/eksport, parol tiklash, bloklash |
+| `/teacher/students` | teacher | O'quvchilar ro'yxati, qo'shish, Excel import/eksport, parol tiklash, bloklash, guruhdan chiqarish, arxivlash. Filtrlar: guruh, "Guruhsiz", "Arxiv" (tiklash, butunlay o'chirish) |
 | `/teacher/students/[id]` | teacher | O'quvchi kartochkasi: shaxsiy va aloqa ma'lumotlari, guruhi, test natijalari, davomat foizi |
 | `/teacher/tests` | teacher | Testlar ro'yxati, yaratish |
 | `/teacher/tests/[id]` | teacher | Tahrirlash: savollar, sozlamalar, guruhlar, import |
@@ -374,6 +382,16 @@ Har bosqichdan keyin to'xta va hisobot ber. `lint`, `typecheck`, `test` o'tishi 
 - Telefon ekranida barcha sahifalarni tekshirish
 - Vercel + Neon deploy, prod migratsiya va seed (faqat teacher akkaunti)
 - README: o'rnatish, env, deploy yo'riqnomasi
+
+### 10-bosqich: o'quvchilarni boshqarish
+- Prisma: `User.archivedAt DateTime?` (migratsiya `user_archived_at`)
+- Guruhdan chiqarish: `/teacher/students` (amallar menyusi) va `/teacher/groups/[id]` da tugma, tasdiq oynasi bilan. `groupId = null`, natijalar va davomat saqlanadi
+- O'quvchilar ro'yxatida "Guruhsiz" va "Arxiv" filtrlari
+- Arxivlash: login va sessiya tekshiruvi, reyting (`$queryRaw`), davomat, test natijalari, bosh sahifa, Excel eksport arxivdagilarni chiqarmaydi. "Arxiv" filtridan "Tiklash"
+- Butunlay o'chirish: faqat arxivdagi o'quvchi, tasdiq oynasi bilan (server ham tekshiradi)
+- Vitest: reytingda arxivdagi o'quvchi ko'rinmaydi, guruhsiz o'quvchi guruh reytingida chiqmaydi
+
+**Tayyor:** guruhdan chiqarilgan o'quvchi testlarni ko'rmaydi, lekin natijalari kartochkasida qoladi; arxivdagi o'quvchi kira olmaydi va hech qayerda ko'rinmaydi, tiklansa hammasi qaytadi; faqat arxivdagini butunlay o'chirsa bo'ladi.
 
 ---
 

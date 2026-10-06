@@ -39,6 +39,7 @@ export async function login(input: LoginInput): Promise<ActionResult> {
       role: true,
       groupId: true,
       isActive: true,
+      archivedAt: true,
       sessionVersion: true,
     },
   });
@@ -50,7 +51,7 @@ export async function login(input: LoginInput): Promise<ActionResult> {
     await recordLoginFailure(username);
     return { ok: false, error: INVALID_CREDENTIALS };
   }
-  if (!user.isActive) {
+  if (!user.isActive || user.archivedAt) {
     return { ok: false, error: INVALID_CREDENTIALS };
   }
 

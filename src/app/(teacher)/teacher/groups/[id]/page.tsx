@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeftIcon, CalendarDaysIcon } from "lucide-react";
+import { RemoveFromGroupButton } from "@/components/teacher/groups/remove-from-group-button";
 import { ScheduleForm } from "@/components/teacher/groups/schedule-form";
 import { buttonVariants } from "@/components/ui/button";
 import { requireTeacher } from "@/lib/auth/guards";
@@ -26,7 +27,7 @@ export default async function GroupPage({
         select: { weekday: true, startTime: true, endTime: true },
       },
       students: {
-        where: { role: "STUDENT" },
+        where: { role: "STUDENT", archivedAt: null },
         orderBy: { fullName: "asc" },
         select: { id: true, fullName: true, username: true, isActive: true },
       },
@@ -88,10 +89,15 @@ export default async function GroupPage({
                   >
                     {s.fullName}
                   </Link>
-                  <span className="text-muted-foreground font-mono text-xs">
-                    {s.username}
-                    {!s.isActive && " · bloklangan"}
-                  </span>
+                  <div className="flex items-center gap-1">
+                    <span className="text-muted-foreground font-mono text-xs">
+                      {s.username}
+                      {!s.isActive && " · bloklangan"}
+                    </span>
+                    <RemoveFromGroupButton
+                      student={{ ...s, groupName: group.name }}
+                    />
+                  </div>
                 </li>
               ))}
             </ul>
