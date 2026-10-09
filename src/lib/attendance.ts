@@ -1,5 +1,11 @@
 import ExcelJS from "exceljs";
 import { fileSafe } from "@/lib/format";
+import {
+  departureLabel,
+  isMemberOn,
+  type Departure,
+  type MembershipPeriod,
+} from "@/lib/memberships";
 import { formatDayMonth, monthRange, type DateStr } from "@/lib/time";
 
 // Davomat hisobi va Excel eksport (PLAN.md, "Davomat"). Sof funksiyalar — testlar bilan
@@ -47,24 +53,23 @@ export function computeStats(
   };
 }
 
-export type ReportCell = {
-  status: AttendanceMark;
-  note: string | null;
-  /** Oldingi guruhdagi dars bo'lsa, o'sha guruh nomi; shu guruh darsi bo'lsa null */
-  fromGroup: string | null;
-} | null;
+export type ReportCell = { status: AttendanceMark; note: string | null } | null;
+
+export type ReportStudent = {
+  id: string;
+  fullName: string;
+  /** Guruhdan ketgan bo'lsa (o'tkazilgan yoki chiqarilgan) — hisobotda belgi bilan qoladi */
+  departure: Departure | null;
+  cells: ReportCell[];
+  /** dates tartibida: o'sha kuni guruh a'zosi bo'lganmi (a'zolik davri tashqarisi kulrang) */
+  member: boolean[];
+  stats: AttendanceStats;
+};
 
 export type AttendanceReport = {
   dates: DateStr[];
-  /** dates tartibida: ustunda shu guruh darsi yo'q, faqat oldingi guruh darslari */
-  foreignOnly: boolean[];
-  students: {
-    id: string;
-    fullName: string;
-    cells: ReportCell[];
-    stats: AttendanceStats;
-  }[];
-  /** Har bir dars bo'yicha kelganlar soni (dates tartibida; faqat shu guruh yozuvlari) */
+  students: ReportStudent[];
+  /** Har bir dars bo'yicha kelganlar soni (dates tartibida) */
   presentPerLesson: number[];
 };
 
@@ -78,67 +83,73 @@ export type ReportInput = {
       note: string | null;
     }[];
   }[];
-  /** Guruhning hozirgi o'quvchilari (davomati bo'lmasa ham jadvalda chiqadi) */
-  currentStudents: { id: string; fullName: string }[];
-  /** Hozirgi o'quvchilarning shu davrda boshqa (oldingi) guruhlardagi yozuvlari */
-  foreignRecords?: {
-    date: DateStr;
-    studentId: string;
-    groupName: string;
-    status: AttendanceMark;
-    note: string | null;
+  /** Davr ichida kamida bir kun guruh a'zosi bo'lganlar (davomati bo'lmasa ham jadvalda chiqadi) */
+  members: {
+    id: string;
+    fullName: string;
+    periods: MembershipPeriod[];
+    departure: Departure | null;
   }[];
 };
 
 /**
- * O'quvchilar × sanalar matritsasi. O'quvchilar: hozirgi guruh a'zolari + davrda yozuvi
- * bo'lganlar (boshqa guruhga o'tgan bo'lsa ham tarix saqlanadi), alifbo bo'yicha.
- * Yozuvi yo'q katak (masalan, guruhga keyin qo'shilgan) foizga kirmaydi.
- * Boshqa guruhdan o'tgan o'quvchining oldingi guruhdagi yozuvlari ham chiqadi (fromGroup bilan)
- * va uning foiziga kiradi, lekin "kelganlar soni" ga kirmaydi. Bir sanada ikkalasi bo'lsa,
- * shu guruh yozuvi ustun.
+ * O'quvchilar × sanalar matritsasi. O'quvchilar: davrda guruh a'zosi bo'lganlar + shu guruh
+ * darslarida yozuvi borlar. Avval hozirgi a'zolar, keyin guruhdan ketganlar, alifbo bo'yicha.
+ * Yozuvi yo'q katak foizga kirmaydi; a'zolik davri tashqarisidagi katak `member = false`.
+ * Saqlangan yozuv har doim ko'rsatiladi (a'zolik tarixi kiritilishidan oldingi darslar ham).
  */
 export function buildAttendanceReport(input: ReportInput): AttendanceReport {
-  const own = new Map(input.lessons.map((l) => [l.date, l]));
-  const foreign = new Map<string, Map<string, ReportCell>>();
-  for (const r of input.foreignRecords ?? []) {
-    let byStudent = foreign.get(r.date);
-    if (!byStudent) foreign.set(r.date, (byStudent = new Map()));
-    byStudent.set(r.studentId, {
-      status: r.status,
-      note: r.note,
-      fromGroup: r.groupName,
-    });
-  }
-  const dates = [...new Set([...own.keys(), ...foreign.keys()])].sort();
-  const lessons = dates.map((date) => own.get(date) ?? { date, records: [] });
+  const lessons = [...input.lessons].sort((a, b) =>
+    a.date.localeCompare(b.date),
+  );
+  const dates = lessons.map((l) => l.date);
 
-  const names = new Map(input.currentStudents.map((s) => [s.id, s.fullName]));
+  const people = new Map(
+    input.members.map((m) => [
+      m.id,
+      { fullName: m.fullName, periods: m.periods, departure: m.departure },
+    ]),
+  );
   for (const l of lessons)
     for (const r of l.records)
-      if (!names.has(r.studentId)) names.set(r.studentId, r.studentName);
+      if (!people.has(r.studentId))
+        people.set(r.studentId, {
+          fullName: r.studentName,
+          periods: [],
+          departure: null,
+        });
 
   const byLesson = lessons.map(
     (l) => new Map(l.records.map((r) => [r.studentId, r])),
   );
 
-  const students = [...names.entries()]
-    .sort(([, a], [, b]) => a.localeCompare(b, "uz"))
-    .map(([id, fullName]) => {
-      const cells: ReportCell[] = byLesson.map((m, j) => {
+  const students = [...people.entries()]
+    .sort(
+      ([, a], [, b]) =>
+        Number(a.departure !== null) - Number(b.departure !== null) ||
+        a.fullName.localeCompare(b.fullName, "uz"),
+    )
+    .map(([id, p]): ReportStudent => {
+      const cells: ReportCell[] = byLesson.map((m) => {
         const r = m.get(id);
-        if (r) return { status: r.status, note: r.note, fromGroup: null };
-        return foreign.get(dates[j])?.get(id) ?? null;
+        return r ? { status: r.status, note: r.note } : null;
       });
+      const member = dates.map((d) => isMemberOn(p.periods, d));
       const stats = computeStats(cells.flatMap((c) => (c ? [c.status] : [])));
-      return { id, fullName, cells, stats };
+      return {
+        id,
+        fullName: p.fullName,
+        departure: p.departure,
+        cells,
+        member,
+        stats,
+      };
     });
 
   const presentPerLesson = lessons.map(
     (l) => l.records.filter((r) => isPresent(r.status)).length,
   );
-  const foreignOnly = dates.map((d) => !own.has(d));
-  return { dates, foreignOnly, students, presentPerLesson };
+  return { dates, students, presentPerLesson };
 }
 
 /** Eng ko'p dars qoldirganlar (kamida bitta kelmagan), ko'pdan kamga */
@@ -167,8 +178,9 @@ export function attendanceFileName(
 }
 
 export const HEADER_ROW = 5;
-/** Oldingi guruhdagi darslar kulrang shriftda */
-const FOREIGN_FONT = { color: { argb: "FF9CA3AF" }, italic: true };
+/** A'zolik davri tashqarisidagi kataklar va guruhdan ketganlar */
+const OUTSIDE_FILL = "FFF3F4F6";
+const MUTED_FONT = { color: { argb: "FF6B7280" }, italic: true };
 
 const FILL: Partial<Record<AttendanceMark, string>> = {
   ABSENT: "FFFFC7CE",
@@ -188,10 +200,10 @@ export async function buildAttendanceWorkbook(
   sheet.getCell("A1").font = { bold: true, size: 13 };
   sheet.getCell("A2").value = `Dars jadvali: ${meta.schedule || "—"}`;
   sheet.getCell("A3").value = `Davr: ${meta.period}`;
-  if (report.students.some((s) => s.cells.some((c) => c?.fromGroup))) {
+  if (report.students.some((s) => s.member.some((m) => !m))) {
     sheet.getCell("A4").value =
-      "Kulrang kataklar — o'quvchining oldingi guruhidagi darslar (izohda guruh nomi)";
-    sheet.getCell("A4").font = FOREIGN_FONT;
+      "Kulrang kataklar — o'quvchi o'sha kuni bu guruhda bo'lmagan";
+    sheet.getCell("A4").font = MUTED_FONT;
   }
 
   const n = report.dates.length;
@@ -205,19 +217,27 @@ export async function buildAttendanceWorkbook(
   ];
   header.font = { bold: true };
   header.alignment = { horizontal: "center" };
-  report.foreignOnly.forEach((only, j) => {
-    if (only) header.getCell(2 + j).font = { bold: true, ...FOREIGN_FONT };
-  });
-  sheet.getColumn(1).width = 30;
+  const anyDeparture = report.students.some((s) => s.departure);
+  sheet.getColumn(1).width = anyDeparture ? 48 : 30;
   for (let c = 2; c <= n + 1; c++) sheet.getColumn(c).width = 6;
   for (let c = n + 2; c <= n + 4; c++) sheet.getColumn(c).width = 11;
 
   report.students.forEach((s, i) => {
     const row = sheet.getRow(HEADER_ROW + 1 + i);
-    row.getCell(1).value = s.fullName;
+    const name = row.getCell(1);
+    name.value = s.departure
+      ? `${s.fullName} (${departureLabel(s.departure)})`
+      : s.fullName;
+    if (s.departure) name.font = MUTED_FONT;
     s.cells.forEach((cell, j) => {
-      if (!cell) return;
       const target = row.getCell(2 + j);
+      if (!s.member[j])
+        target.fill = {
+          type: "pattern",
+          pattern: "solid",
+          fgColor: { argb: OUTSIDE_FILL },
+        };
+      if (!cell) return;
       target.value = MARK_SYMBOL[cell.status];
       target.alignment = { horizontal: "center" };
       const fill = FILL[cell.status];
@@ -227,14 +247,7 @@ export async function buildAttendanceWorkbook(
           pattern: "solid",
           fgColor: { argb: fill },
         };
-      if (cell.fromGroup) target.font = FOREIGN_FONT;
-      const note = [
-        cell.fromGroup && `Oldingi guruh: ${cell.fromGroup}`,
-        cell.note,
-      ]
-        .filter(Boolean)
-        .join("\n");
-      if (note) target.note = note;
+      if (cell.note) target.note = cell.note;
     });
     row.getCell(n + 2).value = s.stats.present;
     row.getCell(n + 3).value = s.stats.absent;
@@ -246,7 +259,6 @@ export async function buildAttendanceWorkbook(
   const totals = sheet.getRow(HEADER_ROW + 1 + report.students.length);
   totals.getCell(1).value = "Kelganlar soni";
   report.presentPerLesson.forEach((count, j) => {
-    if (report.foreignOnly[j]) return;
     totals.getCell(2 + j).value = count;
     totals.getCell(2 + j).alignment = { horizontal: "center" };
   });

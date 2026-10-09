@@ -37,33 +37,35 @@ enum AttemptStatus {
 }
 
 model User {
-  id             String          @id @default(cuid())
-  username       String          @unique
+  id             String            @id @default(cuid())
+  username       String            @unique
   fullName       String
   passwordHash   String
-  role           Role            @default(STUDENT)
-  isActive       Boolean         @default(true)
+  role           Role              @default(STUDENT)
+  isActive       Boolean           @default(true)
   // Parol tiklanganda oshiriladi: eski sessiyalar (JWT) yaroqsiz bo'ladi
-  sessionVersion Int             @default(0)
+  sessionVersion Int               @default(0)
   // Arxivlangan (yumshoq o'chirilgan) o'quvchi: kira olmaydi, ro'yxat va reytinglarda ko'rinmaydi
   archivedAt     DateTime?
   groupId        String?
-  group          Group?          @relation(fields: [groupId], references: [id])
+  group          Group?            @relation(fields: [groupId], references: [id])
   attempts       Attempt[]
   profile        StudentProfile?
   attendances    Attendance[]
-  createdTests   Test[]          @relation("TestAuthor")
-  createdAt      DateTime        @default(now())
+  memberships    GroupMembership[]
+  createdTests   Test[]            @relation("TestAuthor")
+  createdAt      DateTime          @default(now())
 }
 
 model Group {
-  id        String          @id @default(cuid())
-  name      String          @unique
-  students  User[]
-  tests     Test[]
-  schedules GroupSchedule[]
-  lessons   Lesson[]
-  createdAt DateTime        @default(now())
+  id          String            @id @default(cuid())
+  name        String            @unique
+  students    User[]
+  tests       Test[]
+  schedules   GroupSchedule[]
+  lessons     Lesson[]
+  memberships GroupMembership[]
+  createdAt   DateTime          @default(now())
 }
 
 model Test {
@@ -198,4 +200,22 @@ model Attendance {
   updatedAt DateTime         @updatedAt
 
   @@unique([lessonId, studentId])
+}
+
+// O'quvchining guruhlar tarixi. leftAt = null — hozirgi guruh (User.groupId bilan doim mos,
+// bitta tranzaksiyada yangilanadi — lib/memberships.ts). Sanalar Toshkent bo'yicha kunga solishtiriladi:
+// a'zolik [joinedAt kuni, leftAt kuni) oralig'idagi darslarni qamraydi
+model GroupMembership {
+  id        String    @id @default(cuid())
+  studentId String
+  student   User      @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  groupId   String
+  group     Group     @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  joinedAt  DateTime
+  leftAt    DateTime?
+  note      String?
+  createdAt DateTime  @default(now())
+
+  @@index([studentId, joinedAt])
+  @@index([groupId, joinedAt])
 }

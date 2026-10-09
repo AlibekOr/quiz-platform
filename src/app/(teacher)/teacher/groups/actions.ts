@@ -91,7 +91,8 @@ export async function deleteGroup(groupId: string): Promise<ActionResult> {
   }
 
   try {
-    // Arxivdagilar guruhsiz qoladi: tiklanganda boshqa guruhga qo'shiladi
+    // Arxivdagilar guruhsiz qoladi: tiklanganda boshqa guruhga qo'shiladi.
+    // Guruhning a'zolik tarixi guruh bilan birga o'chadi (cascade); darsi yo'q guruh
     await db.$transaction([
       db.user.updateMany({
         where: { groupId: id, archivedAt: { not: null } },

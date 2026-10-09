@@ -70,6 +70,11 @@ export function toDbDate(date: DateStr): Date {
   return new Date(`${date}T00:00:00.000Z`);
 }
 
+/** Toshkentda shu kun boshlanadigan lahza (Toshkentda yozgi vaqt yo'q: doim +05:00) */
+export function startOfDayInTashkent(date: DateStr): Date {
+  return new Date(`${date}T00:00:00.000+05:00`);
+}
+
 /** @db.Date qiymati -> "2026-10-04" */
 export function fromDbDate(date: Date): DateStr {
   return date.toISOString().slice(0, 10);

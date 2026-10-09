@@ -67,8 +67,9 @@ model User {
   role         Role      @default(STUDENT)
   isActive     Boolean   @default(true)
   archivedAt   DateTime? // arxivlangan (yumshoq o'chirilgan) o'quvchi
-  groupId      String?
+  groupId      String?   // hozirgi guruh; GroupMembership bilan doim mos
   group        Group?    @relation(fields: [groupId], references: [id])
+  memberships  GroupMembership[]
   attempts     Attempt[]
   attendances  Attendance[]
   profile      StudentProfile?
@@ -83,6 +84,7 @@ model Group {
   tests     Test[]
   schedules GroupSchedule[]
   lessons   Lesson[]
+  memberships GroupMembership[]
   createdAt DateTime @default(now())
 }
 
@@ -208,6 +210,22 @@ model Attendance {
 
   @@unique([lessonId, studentId])
 }
+// O'quvchining guruhlar tarixi. leftAt = null — hozirgi guruh.
+// Bir o'quvchida faqat bitta ochiq a'zolik: qisman unique indeks (faqat SQL migratsiyada)
+model GroupMembership {
+  id        String    @id @default(cuid())
+  studentId String
+  student   User      @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  groupId   String
+  group     Group     @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  joinedAt  DateTime
+  leftAt    DateTime?
+  note      String?
+  createdAt DateTime  @default(now())
+
+  @@index([studentId, joinedAt])
+  @@index([groupId, joinedAt])
+}
 ```
 
 ---
@@ -242,7 +260,8 @@ model Attendance {
 - Vaqt zonasi: `Asia/Tashkent`. "Bugun" va dars sanasi shu zonada hisoblanadi (server UTC'da ishlasa ham).
 - Davomat sahifasi ochilganda bugungi kun jadvaliga ko'ra dars bo'lishi kerak bo'lgan guruhlar ko'rsatiladi. Jadvalda bo'lmagan kunga ham qo'lda dars qo'shish mumkin (qo'shimcha dars).
 - `Lesson` birinchi marta davomat saqlanganda yaratiladi (bir guruh + bir sana = bitta dars).
-- Davomat sahifasida guruhning hozirgi faol o'quvchilari chiqadi. Avval saqlangan dars ochilsa, o'sha darsdagi yozuvlar chiqadi (o'quvchi keyin boshqa guruhga o'tgan bo'lsa ham tarix saqlanadi).
+- Davomat sahifasida o'sha kuni (a'zolik tarixi bo'yicha) guruh a'zosi bo'lgan faol o'quvchilar chiqadi. Avval saqlangan dars ochilsa, o'sha darsdagi yozuvlar ham chiqadi (o'quvchi keyin boshqa guruhga o'tgan bo'lsa ham tarix saqlanadi).
+- Hisobotda o'quvchi faqat a'zolik davri ichidagi darslarda hisobga olinadi (davrdan tashqari kataklar kulrang). Guruhdan ketgan o'quvchi hisobotda "o'tkazilgan: [guruh], [sana]" yoki "guruhdan chiqarilgan, [sana]" belgisi bilan qoladi (Excel'da ham).
 - Statuslar: `PRESENT` (keldi), `ABSENT` (kelmadi), `LATE` (kechikdi). Hisobotda `LATE` "keldi" deb hisoblanadi. Alohida "sababli" status yo'q: sababli qolgan o'quvchi ham `ABSENT` (kelmadi) bo'ladi va foizga kelmagan sifatida kiradi. Sababini `note` maydoniga yozish mumkin.
 - Kelajakdagi sana uchun davomat belgilab bo'lmaydi. O'tgan darslarni tahrirlash mumkin.
 - Davomatni faqat o'qituvchi ko'radi va o'zgartiradi.
@@ -256,13 +275,13 @@ model Attendance {
 
 **Auth**
 - Login: username + parol. Xato bo'lsa umumiy xabar: "Login yoki parol noto'g'ri".
-- Session: JWT (`jose`, HS256), payload: `userId`, `role`, `groupId`. httpOnly, secure, sameSite=lax cookie, muddati 7 kun.
+- Session: JWT (`jose`, HS256), payload: `userId`, `role`, `sessionVersion`. Guruh tokenda saqlanmaydi: har so'rovda bazadan olinadi (o'quvchi o'tkazilsa, eski sessiya ham yangi guruhni ko'radi). httpOnly, secure, sameSite=lax cookie, muddati 7 kun.
 - Login urinishlariga oddiy cheklov: bir username uchun 15 daqiqada 10 ta xato bo'lsa, vaqtincha bloklanadi.
 - `isActive = false` yoki `archivedAt` bor bo'lsa, kira olmaydi (ochiq sessiya ham ishlamay qoladi).
 - Ro'yxatdan o'tish sahifasi YO'Q. Akkauntlarni faqat o'qituvchi yaratadi.
 
 **O'quvchini guruhdan chiqarish, arxivlash va o'chirish**
-- **Guruhdan chiqarish:** `groupId = null`. Test natijalari va davomat tarixi saqlanadi. Guruhsiz o'quvchi testlarni ko'rmaydi, guruh reytingida chiqmaydi, keyin "Tahrirlash" orqali boshqa guruhga qo'shiladi.
+- **Guruhdan chiqarish:** `groupId = null`, ochiq a'zolik yopiladi (`leftAt = now()`). Test natijalari va davomat tarixi saqlanadi. Guruhsiz o'quvchi testlarni ko'rmaydi, guruh reytingida chiqmaydi, keyin "Guruhga qo'shish" orqali guruhga qo'shiladi.
 - **Arxivlash (yumshoq o'chirish):** `archivedAt = now()`, `sessionVersion` oshadi. Arxivdagi o'quvchi kira olmaydi; o'quvchilar ro'yxati, guruh sahifasi, reyting, davomat sahifalari va hisobotlari, test natijalari, bosh sahifa hisoblari va Excel eksportda ko'rinmaydi. Natijalari bazada qoladi. Guruhi saqlanadi, tiklanganda o'sha guruhga qaytadi (guruh o'chirilgan bo'lsa, guruhsiz qoladi).
 - **Tiklash:** `archivedAt = null`. Faqat "Arxiv" filtrida.
 - **Butunlay o'chirish:** faqat arxivdagi o'quvchi, tasdiq oynasi bilan. O'quvchi, uning urinishlari va javoblari, davomati va profili o'chadi. Qaytarib bo'lmaydi.
@@ -286,8 +305,8 @@ model Attendance {
 | `/teacher/attendance` | teacher | Bugungi darslar (jadval bo'yicha), boshqa sanani tanlash, qo'shimcha dars qo'shish |
 | `/teacher/attendance/[groupId]/[date]` | teacher | Davomat belgilash |
 | `/teacher/groups/[id]/attendance` | teacher | Davomat hisoboti (o'quvchilar × sanalar jadvali), Excel'ga yuklab olish |
-| `/teacher/students` | teacher | O'quvchilar ro'yxati, qo'shish, Excel import/eksport, parol tiklash, bloklash, guruhdan chiqarish, arxivlash. Filtrlar: guruh, "Guruhsiz", "Arxiv" (tiklash, butunlay o'chirish) |
-| `/teacher/students/[id]` | teacher | O'quvchi kartochkasi: shaxsiy va aloqa ma'lumotlari, guruhi, test natijalari, davomat foizi |
+| `/teacher/students` | teacher | O'quvchilar ro'yxati, qo'shish, Excel import/eksport, parol tiklash, bloklash, boshqa guruhga o'tkazish (bir nechtasini tanlab ham), guruhdan chiqarish, arxivlash. Filtrlar: guruh, "Guruhsiz", "Arxiv" (tiklash, butunlay o'chirish) |
+| `/teacher/students/[id]` | teacher | O'quvchi kartochkasi: shaxsiy va aloqa ma'lumotlari, guruhi va guruhlar tarixi, boshqa guruhga o'tkazish, test natijalari, davomat foizi |
 | `/teacher/tests` | teacher | Testlar ro'yxati, yaratish |
 | `/teacher/tests/[id]` | teacher | Tahrirlash: savollar, sozlamalar, guruhlar, import |
 | `/teacher/tests/[id]/results` | teacher | Natijalar jadvali, savollar bo'yicha statistika |
@@ -392,6 +411,28 @@ Har bosqichdan keyin to'xta va hisobot ber. `lint`, `typecheck`, `test` o'tishi 
 - Vitest: reytingda arxivdagi o'quvchi ko'rinmaydi, guruhsiz o'quvchi guruh reytingida chiqmaydi
 
 **Tayyor:** guruhdan chiqarilgan o'quvchi testlarni ko'rmaydi, lekin natijalari kartochkasida qoladi; arxivdagi o'quvchi kira olmaydi va hech qayerda ko'rinmaydi, tiklansa hammasi qaytadi; faqat arxivdagini butunlay o'chirsa bo'ladi.
+
+### 11-bosqich: boshqa guruhga o'tkazish
+- Prisma: `GroupMembership` (migratsiyalar `group_membership`, `group_membership_one_open`). Mavjud o'quvchilar uchun hozirgi guruhi bo'yicha ochiq a'zolik (`joinedAt = createdAt`)
+- `User.groupId` hozirgi guruh bo'lib qoladi. Yaratish, Excel import, guruhdan chiqarish va o'tkazish a'zolikni `groupId` bilan bitta tranzaksiyada o'zgartiradi (`lib/memberships-data.ts`, `moveStudent`). Tahrirlash oynasida guruh maydoni yo'q
+- O'tkazish: amallar menyusi va kartochkadagi tugma, jadvalda bir nechtasini tanlab birga. Dialog: yangi guruh, sana (default bugun, Toshkent; kelajak va oxirgi a'zolik o'zgarishidan oldingi sana mumkin emas), izoh. Guruhsiz o'quvchi uchun "Guruhga qo'shish"
+- A'zolik `[joinedAt kuni, leftAt kuni)` oralig'idagi darslarni qamraydi: o'tkazish kuni yangi guruhga tegishli
+- Davomat varag'i, saqlash va hisobot (sahifa va Excel) a'zolik davri bo'yicha; ketganlar belgi bilan qoladi
+- Reyting: guruh reytingida hozirgi a'zolar; test natijalari o'quvchi bilan ko'chadi (`Attempt` o'quvchiga bog'langan)
+- Kartochkada guruhlar tarixi: guruh, qachondan, qachongacha, izoh
+- Xavfsizlik: faqat `requireTeacher()`; JWT'dan `groupId` olib tashlandi
+- Vitest: a'zolik davrlari, ketish belgisi, hisobot a'zolik davri bo'yicha
+
+**Tayyor:** o'quvchi o'tkazilgandan keyin eski sessiyasi bilan ham yangi guruh testlarini ko'radi; eski guruh davomat hisobotida "o'tkazilgan: ..." belgisi bilan qoladi, yangi guruhda faqat o'tkazish sanasidan boshlab hisoblanadi.
+
+### 12-bosqich: ballar tizimi (keyingi, hali boshlanmagan)
+O'tkazishdagi ballar varianti shu bosqichda qo'shiladi. Boshlashdan oldin maydonlarni kelishib olish kerak.
+- `Test.dueAt DateTime?` (muddat). Davr (`Period`: nomi, sanalar, `passPercent`) va uy vazifasi (`Homework`: muddat, `maxPoints`, o'quvchi ballari)
+- `GradeExemption`: `studentId`, `itemType` (`HOMEWORK` | `TEST`), `itemId`, `reason`. Ozod qilingan item jami va maksimal baldan chiqariladi, o'tish chegarasi `passPercent` bo'yicha qayta hisoblanadi
+- `PointAdjustment`: `studentId`, `periodId`, `points` (manfiy ham), `reason`, `createdAt`. Kartochkadan qo'shiladi
+- O'tkazish dialogida variant: (a) yangi guruhning o'tkazish sanasidan oldingi muddatli vazifa va testlaridan ozod qilish (default), (b) hech narsa qilmaslik
+- `lib/grades.ts`; hisobotda ozod kataklar "—" va izoh bilan, tuzatishlar alohida ustunda, Excel'da ham
+- Vitest: ozod qilishdan keyin maksimal ball va chegara, manfiy tuzatish, jami `maxPoints`dan oshmasligi
 
 ---
 

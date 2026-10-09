@@ -20,11 +20,13 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ResetPasswordDialog } from "./reset-password-dialog";
 import { StudentDialog } from "./student-dialog";
+import { TransferDialog } from "./transfer-dialog";
 import type { GroupOption, StudentRow } from "./types";
 
 type DialogKind =
   | "edit"
   | "password"
+  | "transfer"
   | "block"
   | "removeGroup"
   | "archive"
@@ -81,6 +83,11 @@ export function StudentRowActions({
               <DropdownMenuItem onClick={() => setDialog("password")}>
                 Parolni tiklash
               </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setDialog("transfer")}>
+                {student.groupId
+                  ? "Boshqa guruhga o'tkazish"
+                  : "Guruhga qo'shish"}
+              </DropdownMenuItem>
               {student.groupId && (
                 <DropdownMenuItem onClick={() => setDialog("removeGroup")}>
                   Guruhdan chiqarish
@@ -116,6 +123,12 @@ export function StudentRowActions({
             open={dialog === "password"}
             onOpenChange={close}
             student={student}
+          />
+          <TransferDialog
+            open={dialog === "transfer"}
+            onOpenChange={close}
+            students={[student]}
+            groups={groups}
           />
         </>
       )}

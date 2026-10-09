@@ -37,18 +37,41 @@ export type GroupFormInput = z.input<typeof groupFormSchema>;
 const studentFields = {
   fullName: fullNameSchema,
   username: usernameSchema,
-  groupId: z.string().min(1, "Guruhni tanlang"),
   ...studentProfileSchema.shape,
 };
 
 export const studentCreateSchema = z.object({
   ...studentFields,
+  groupId: z.string().min(1, "Guruhni tanlang"),
   password: passwordSchema,
 });
 export type StudentCreateInput = z.input<typeof studentCreateSchema>;
 
+// Guruh bu yerda o'zgarmaydi: faqat "Boshqa guruhga o'tkazish" orqali (a'zolik tarixi yuritiladi)
 export const studentUpdateSchema = z.object(studentFields);
 export type StudentUpdateInput = z.input<typeof studentUpdateSchema>;
+
+export const MAX_TRANSFER_BATCH = 200;
+
+/** Boshqa guruhga o'tkazish (bir yoki bir nechta o'quvchi). Sana "YYYY-MM-DD", Toshkent */
+export const transferSchema = z.object({
+  studentIds: z
+    .array(z.string().min(1).max(64))
+    .min(1, "O'quvchi tanlanmagan")
+    .max(
+      MAX_TRANSFER_BATCH,
+      `Bir martada ${MAX_TRANSFER_BATCH} tadan ko'p emas`,
+    ),
+  toGroupId: z.string().min(1, "Guruhni tanlang").max(64),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Sanani tanlang"),
+  note: z
+    .string()
+    .trim()
+    .max(300, "Izoh 300 belgidan oshmasin")
+    .nullish()
+    .transform((v) => v || null),
+});
+export type TransferInput = z.input<typeof transferSchema>;
 
 export const resetPasswordSchema = z.object({ password: passwordSchema });
 export type ResetPasswordInput = z.input<typeof resetPasswordSchema>;

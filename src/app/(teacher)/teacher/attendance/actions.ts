@@ -5,6 +5,7 @@ import { z } from "zod";
 import { validationFailed, type ActionResult } from "@/lib/action-result";
 import { requireTeacher } from "@/lib/auth/guards";
 import { db } from "@/lib/db";
+import { memberOnWhere } from "@/lib/memberships-data";
 import { isValidDateStr, toDbDate, todayInTashkent } from "@/lib/time";
 import {
   attendanceFormSchema,
@@ -44,11 +45,15 @@ export async function saveAttendance(
   });
   if (!group) return { ok: false, error: "Guruh topilmadi" };
 
-  // Faqat shu guruhning hozirgi o'quvchilari yoki shu darsda allaqachon yozuvi borlar
+  // Faqat o'sha kuni guruh a'zosi bo'lganlar yoki shu darsda allaqachon yozuvi borlar
   const lessonDate = toDbDate(date);
   const [members, existing] = await Promise.all([
     db.user.findMany({
-      where: { role: "STUDENT", archivedAt: null, groupId: gid },
+      where: {
+        role: "STUDENT",
+        archivedAt: null,
+        ...memberOnWhere(gid, date),
+      },
       select: { id: true },
     }),
     db.attendance.findMany({

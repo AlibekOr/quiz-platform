@@ -11,6 +11,7 @@ import {
   mostAbsent,
 } from "@/lib/attendance";
 import { getAttendanceReport } from "@/lib/attendance-data";
+import { departureLabel } from "@/lib/memberships";
 import { requireTeacher } from "@/lib/auth/guards";
 import { db } from "@/lib/db";
 import {
@@ -57,16 +58,12 @@ export default async function GroupAttendanceReportPage({
 
   const report = await getAttendanceReport(group.id, from, to);
   const worst = mostAbsent(report);
-  // Guruh ko'rsatkichlari faqat shu guruh darslari bo'yicha (oldingi guruh yozuvlarisiz)
-  const ownMarks = report.students.flatMap((s) =>
-    s.cells.flatMap((c) => (c && !c.fromGroup ? [c.status] : [])),
+  const marks = report.students.flatMap((s) =>
+    s.cells.flatMap((c) => (c ? [c.status] : [])),
   );
-  const totalMarks = ownMarks.length;
-  const totalPresent = ownMarks.filter(isPresent).length;
-  const ownLessons = report.foreignOnly.filter((only) => !only).length;
-  const hasForeign = report.students.some((s) =>
-    s.cells.some((c) => c?.fromGroup),
-  );
+  const totalMarks = marks.length;
+  const totalPresent = marks.filter(isPresent).length;
+  const hasOutside = report.students.some((s) => s.member.some((m) => !m));
 
   return (
     <>
@@ -104,7 +101,7 @@ export default async function GroupAttendanceReportPage({
       ) : (
         <>
           <p className="text-muted-foreground text-sm">
-            Darslar: {ownLessons} · O&apos;rtacha davomat:{" "}
+            Darslar: {report.dates.length} · O&apos;rtacha davomat:{" "}
             <b className="text-foreground">
               {totalMarks ? Math.round((totalPresent / totalMarks) * 100) : 0}%
             </b>
@@ -141,19 +138,10 @@ export default async function GroupAttendanceReportPage({
                   <th className="bg-muted sticky left-0 z-10 px-3 py-2 text-left font-medium">
                     O&apos;quvchi
                   </th>
-                  {report.dates.map((d, j) => (
+                  {report.dates.map((d) => (
                     <th
                       key={d}
-                      title={
-                        report.foreignOnly[j]
-                          ? "Faqat oldingi guruhdagi darslar"
-                          : undefined
-                      }
-                      className={cn(
-                        "px-1.5 py-2 text-center font-medium tabular-nums",
-                        report.foreignOnly[j] &&
-                          "text-muted-foreground font-normal italic",
-                      )}
+                      className="px-1.5 py-2 text-center font-medium tabular-nums"
                     >
                       {formatDayMonth(d)}
                     </th>
@@ -165,7 +153,10 @@ export default async function GroupAttendanceReportPage({
               </thead>
               <tbody>
                 {report.students.map((s) => (
-                  <tr key={s.id} className="border-b">
+                  <tr
+                    key={s.id}
+                    className={cn("border-b", s.departure && "text-muted-foreground")}
+                  >
                     <td className="bg-background sticky left-0 z-10 px-3 py-1.5 whitespace-nowrap">
                       <Link
                         href={`/teacher/students/${s.id}`}
@@ -173,21 +164,26 @@ export default async function GroupAttendanceReportPage({
                       >
                         {s.fullName}
                       </Link>
+                      {s.departure && (
+                        <span className="block text-xs italic">
+                          {departureLabel(s.departure)}
+                        </span>
+                      )}
                     </td>
                     {s.cells.map((c, j) => (
                       <td
                         key={report.dates[j]}
                         title={
                           c
-                            ? `${c.fromGroup ? `Oldingi guruh: ${c.fromGroup} · ` : ""}${MARK_LABEL[c.status]}${c.note ? `: ${c.note}` : ""}`
-                            : undefined
+                            ? `${MARK_LABEL[c.status]}${c.note ? `: ${c.note}` : ""}`
+                            : s.member[j]
+                              ? undefined
+                              : "Bu kuni guruhda emas edi"
                         }
                         className={cn(
                           "px-1.5 py-1.5 text-center font-medium",
-                          c &&
-                            (c.fromGroup
-                              ? "text-muted-foreground font-normal italic"
-                              : CELL_CLASS[c.status]),
+                          !s.member[j] && "bg-muted",
+                          c && CELL_CLASS[c.status],
                         )}
                       >
                         {c ? MARK_SYMBOL[c.status] : ""}
@@ -223,7 +219,7 @@ export default async function GroupAttendanceReportPage({
                       key={report.dates[j]}
                       className="px-1.5 py-2 text-center tabular-nums"
                     >
-                      {report.foreignOnly[j] ? "" : n}
+                      {n}
                     </td>
                   ))}
                   <td colSpan={3} />
@@ -234,8 +230,7 @@ export default async function GroupAttendanceReportPage({
           <p className="text-muted-foreground text-xs">
             + keldi · − kelmadi · K kechikdi (keldi hisoblanadi) · * izoh bor
             (ustiga olib boring)
-            {hasForeign &&
-              " · kulrang — o'quvchining oldingi guruhidagi darslar (foizga kiradi)"}
+            {hasOutside && " · kulrang — o'quvchi o'sha kuni bu guruhda bo'lmagan"}
           </p>
         </>
       )}

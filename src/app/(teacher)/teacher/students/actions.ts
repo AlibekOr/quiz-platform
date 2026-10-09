@@ -8,6 +8,14 @@ import { requireTeacher } from "@/lib/auth/guards";
 import { db } from "@/lib/db";
 import { isNotFound, isUniqueViolation } from "@/lib/prisma-errors";
 import { getUploadedFile, readFirstSheet } from "@/lib/excel";
+import { latestMembershipDay } from "@/lib/memberships";
+import { moveStudent } from "@/lib/memberships-data";
+import {
+  formatDate,
+  isValidDateStr,
+  startOfDayInTashkent,
+  todayInTashkent,
+} from "@/lib/time";
 import {
   sheetToRows,
   validateImportRows,
@@ -19,10 +27,12 @@ import {
   resetPasswordSchema,
   studentCreateSchema,
   studentUpdateSchema,
+  transferSchema,
   usernameSchema,
   type ResetPasswordInput,
   type StudentCreateInput,
   type StudentUpdateInput,
+  type TransferInput,
 } from "@/lib/validators/student";
 
 const idSchema = z.string().min(1);
@@ -79,6 +89,7 @@ export async function createStudent(
         role: "STUDENT",
         passwordHash: await hashPassword(password),
         profile: { create: profile },
+        memberships: { create: { groupId, joinedAt: new Date() } },
       },
     });
   } catch (e) {
@@ -103,10 +114,8 @@ export async function updateStudent(
   const id = idSchema.parse(studentId);
   const parsed = studentUpdateSchema.safeParse(input);
   if (!parsed.success) return validationFailed(parsed.error);
-  const { fullName, username, groupId, ...profile } = parsed.data;
+  const { fullName, username, ...profile } = parsed.data;
 
-  if (!(await groupExists(groupId)))
-    return { ok: false, error: "Guruh topilmadi" };
   if (await usernameTaken(username, id)) {
     return {
       ok: false,
@@ -122,7 +131,6 @@ export async function updateStudent(
       data: {
         fullName,
         username,
-        groupId,
         profile: { upsert: { create: profile, update: profile } },
       },
     });
@@ -187,24 +195,121 @@ export async function setStudentActive(
   return { ok: true, message: active ? "Blokdan chiqarildi" : "Bloklandi" };
 }
 
-/** Guruhdan chiqarish: test natijalari va davomat tarixi saqlanadi */
+/** Guruhdan chiqarish: a'zolik yopiladi, test natijalari va davomat tarixi saqlanadi */
 export async function removeStudentFromGroup(
   studentId: string,
 ): Promise<ActionResult> {
   await requireTeacher();
   const id = idSchema.parse(studentId);
 
-  try {
-    await db.user.update({
-      where: { id, role: "STUDENT", archivedAt: null },
-      data: { groupId: null },
-    });
-  } catch (e) {
-    if (isNotFound(e)) return { ok: false, error: "O'quvchi topilmadi" };
-    throw e;
-  }
+  const student = await db.user.findFirst({
+    where: { id, role: "STUDENT", archivedAt: null },
+    select: { groupId: true },
+  });
+  if (!student) return { ok: false, error: "O'quvchi topilmadi" };
+  if (!student.groupId) return { ok: false, error: "O'quvchi guruhsiz" };
+
+  await db.$transaction((tx) =>
+    moveStudent(tx, { studentId: id, toGroupId: null, at: new Date() }),
+  );
   revalidate();
   return { ok: true, message: "Guruhdan chiqarildi" };
+}
+
+/**
+ * Boshqa guruhga o'tkazish (bir yoki bir nechta o'quvchi). Hammasi bitta tranzaksiyada:
+ * eski a'zolik o'tkazish kuni bilan yopiladi, yangisi ochiladi, User.groupId yangilanadi.
+ * Test natijalari o'quvchi bilan birga ko'chadi (Attempt guruhga emas, o'quvchiga bog'langan).
+ */
+export async function transferStudents(
+  input: TransferInput,
+): Promise<ActionResult> {
+  await requireTeacher();
+  const parsed = transferSchema.safeParse(input);
+  if (!parsed.success) return validationFailed(parsed.error);
+  const { toGroupId, date, note } = parsed.data;
+  const studentIds = [...new Set(parsed.data.studentIds)];
+
+  if (!isValidDateStr(date)) {
+    return {
+      ok: false,
+      error: "Maydonlarni tekshiring",
+      fieldErrors: { date: ["Sana noto'g'ri"] },
+    };
+  }
+  if (date > todayInTashkent()) {
+    return {
+      ok: false,
+      error: "Maydonlarni tekshiring",
+      fieldErrors: { date: ["Kelajakdagi sana bilan o'tkazib bo'lmaydi"] },
+    };
+  }
+
+  const [group, students] = await Promise.all([
+    db.group.findUnique({ where: { id: toGroupId }, select: { name: true } }),
+    db.user.findMany({
+      where: { id: { in: studentIds }, role: "STUDENT", archivedAt: null },
+      select: {
+        id: true,
+        fullName: true,
+        groupId: true,
+        memberships: { select: { joinedAt: true, leftAt: true } },
+      },
+    }),
+  ]);
+  if (!group)
+    return {
+      ok: false,
+      error: "Maydonlarni tekshiring",
+      fieldErrors: { toGroupId: ["Guruh topilmadi"] },
+    };
+  if (students.length !== studentIds.length) {
+    return {
+      ok: false,
+      error: "Ba'zi o'quvchilar topilmadi yoki arxivda. Sahifani yangilang",
+    };
+  }
+
+  const already = students.filter((s) => s.groupId === toGroupId);
+  if (already.length > 0) {
+    return {
+      ok: false,
+      error: `Allaqachon "${group.name}" guruhida: ${already.map((s) => s.fullName).join(", ")}`,
+    };
+  }
+  // A'zoliklar ustma-ust tushmasin: sana oxirgi qo'shilish/chiqish kunidan oldin bo'lmasin
+  for (const s of students) {
+    const last = latestMembershipDay(s.memberships);
+    if (last && last > date) {
+      return {
+        ok: false,
+        error: "Maydonlarni tekshiring",
+        fieldErrors: {
+          date: [
+            `${s.fullName} guruhlari tarixida oxirgi o'zgarish ${formatDate(last)} da. O'tkazish sanasi undan oldin bo'lmasin`,
+          ],
+        },
+      };
+    }
+  }
+
+  const at = startOfDayInTashkent(date);
+  await db.$transaction(async (tx) => {
+    for (const s of students) {
+      await moveStudent(tx, { studentId: s.id, toGroupId, at, note });
+    }
+  });
+
+  revalidate();
+  revalidatePath("/teacher/attendance");
+  revalidatePath("/teacher/groups/[id]/attendance", "page");
+  return {
+    ok: true,
+    message:
+      students.length === 1
+        ? `${students[0].fullName} "${group.name}" guruhiga o'tkazildi`
+        : `${students.length} ta o'quvchi "${group.name}" guruhiga o'tkazildi`,
+  };
 }
 
 /** Yumshoq o'chirish: guruhi saqlanadi (tiklanganda qaytadi), sessiyalari yopiladi */
@@ -369,11 +474,20 @@ export async function importStudents(
       profile: { create: r.profile },
     })),
   );
+  const joinedAt = new Date();
 
   try {
     // createMany ichma-ich profil yarata olmaydi — bitta tranzaksiyada alohida create
     await db.$transaction(
-      data.map((d) => db.user.create({ data: d, select: { id: true } })),
+      data.map((d) =>
+        db.user.create({
+          data: {
+            ...d,
+            memberships: { create: { groupId: d.groupId, joinedAt } },
+          },
+          select: { id: true },
+        }),
+      ),
     );
     revalidate();
     return { ok: true, created: data.length };

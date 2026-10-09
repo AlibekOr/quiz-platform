@@ -1,4 +1,4 @@
-import { SignJWT } from "jose";
+import { decodeJwt, SignJWT } from "jose";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   decodeSession,
@@ -20,29 +20,32 @@ describe("jwt session", () => {
     const token = await encodeSession({
       userId: "u1",
       role: "STUDENT",
-      groupId: "g1",
       sessionVersion: 3,
     });
     expect(await decodeSession(token)).toEqual({
       userId: "u1",
       role: "STUDENT",
-      groupId: "g1",
       sessionVersion: 3,
     });
   });
 
-  it("groupId bo'lmasa null qaytaradi", async () => {
+  it("guruh tokenga yozilmaydi; eski tokendagi groupId e'tiborsiz qoldiriladi", async () => {
     const token = await encodeSession({
       userId: "t1",
       role: "TEACHER",
-      groupId: null,
       sessionVersion: 0,
     });
-    expect(await decodeSession(token)).toEqual({
-      userId: "t1",
-      role: "TEACHER",
-      groupId: null,
-      sessionVersion: 0,
+    expect(decodeJwt(token)).not.toHaveProperty("groupId");
+
+    const legacy = await new SignJWT({ role: "STUDENT", groupId: "old", sv: 2 })
+      .setProtectedHeader({ alg: "HS256" })
+      .setSubject("u1")
+      .setExpirationTime("1h")
+      .sign(new TextEncoder().encode(SECRET));
+    expect(await decodeSession(legacy)).toEqual({
+      userId: "u1",
+      role: "STUDENT",
+      sessionVersion: 2,
     });
   });
 
@@ -53,7 +56,6 @@ describe("jwt session", () => {
     const token = await encodeSession({
       userId: "u1",
       role: "STUDENT",
-      groupId: "g1",
       sessionVersion: 0,
     });
     const [header, payload, signature] = token.split(".");
@@ -89,7 +91,6 @@ describe("jwt session", () => {
     const token = await encodeSession({
       userId: "u1",
       role: "STUDENT",
-      groupId: "g1",
       sessionVersion: 0,
     });
     vi.advanceTimersByTime((SESSION_MAX_AGE_SEC - 60) * 1000);
@@ -104,7 +105,6 @@ describe("jwt session", () => {
       encodeSession({
         userId: "u1",
         role: "STUDENT",
-        groupId: null,
         sessionVersion: 0,
       }),
     ).rejects.toThrow("JWT_SECRET");

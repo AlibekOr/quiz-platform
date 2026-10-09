@@ -144,7 +144,7 @@ export function AttendanceSheet({
                 </span>
                 <div className="flex shrink-0 items-center gap-1">
                   {s.formerMember && (
-                    <Badge variant="outline">Boshqa guruhda</Badge>
+                    <Badge variant="outline">Guruhda emas</Badge>
                   )}
                   <Button
                     type="button"

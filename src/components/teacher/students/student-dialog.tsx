@@ -29,6 +29,7 @@ import { generatePassword } from "@/lib/students/generate-password";
 import {
   studentCreateSchema,
   studentUpdateSchema,
+  type StudentCreateInput,
   type StudentUpdateInput,
 } from "@/lib/validators/student";
 import { EMPTY_PROFILE } from "@/lib/validators/contact";
@@ -62,7 +63,7 @@ export function StudentDialog({
           )}
         </DialogHeader>
         {student ? (
-          <EditStudentForm groups={groups} student={student} onDone={onDone} />
+          <EditStudentForm student={student} onDone={onDone} />
         ) : (
           <CreateStudentForm groups={groups} onDone={onDone} />
         )}
@@ -106,7 +107,8 @@ function CreateStudentForm({
   return (
     <FormProvider {...form}>
       <form onSubmit={onSubmit} className="flex flex-col gap-4" noValidate>
-        <StudentFields groups={groups} />
+        <StudentFields />
+        <GroupField groups={groups} />
         <FormField id="password" label="Parol" error={errors.password?.message}>
           <div className="flex gap-2">
             <Input
@@ -143,11 +145,9 @@ function CreateStudentForm({
 }
 
 function EditStudentForm({
-  groups,
   student,
   onDone,
 }: {
-  groups: GroupOption[];
   student: StudentRow;
   onDone: () => void;
 }) {
@@ -157,7 +157,6 @@ function EditStudentForm({
     defaultValues: {
       fullName: student.fullName,
       username: student.username,
-      groupId: student.groupId ?? "",
       phone: student.profile?.phone ?? "",
       telegram: student.profile?.telegram ?? "",
       parentName: student.profile?.parentName ?? "",
@@ -183,7 +182,12 @@ function EditStudentForm({
   return (
     <FormProvider {...form}>
       <form onSubmit={onSubmit} className="flex flex-col gap-4" noValidate>
-        <StudentFields groups={groups} />
+        <StudentFields />
+        <p className="text-muted-foreground text-sm">
+          Guruh: {student.groupName ?? "guruhsiz"}. Guruhni o&apos;zgartirish
+          uchun amallar menyusidagi &quot;Boshqa guruhga o&apos;tkazish&quot;dan
+          foydalaning.
+        </p>
         <ContactFields />
         <FormError message={errors.root?.server?.message} />
         <DialogFooter>
@@ -196,8 +200,8 @@ function EditStudentForm({
   );
 }
 
-/** Yaratish va tahrirlash formalari uchun umumiy maydonlar (fullName, username, groupId) */
-function StudentFields({ groups }: { groups: GroupOption[] }) {
+/** Yaratish va tahrirlash formalari uchun umumiy maydonlar (fullName, username) */
+function StudentFields() {
   // Ikkala forma ham shu maydonlarga ega
   const {
     register,
@@ -224,22 +228,33 @@ function StudentFields({ groups }: { groups: GroupOption[] }) {
           {...register("username")}
         />
       </FormField>
-      <FormField id="groupId" label="Guruh" error={errors.groupId?.message}>
-        <NativeSelect
-          id="groupId"
-          aria-invalid={!!errors.groupId}
-          {...register("groupId")}
-        >
-          <NativeSelectOption value="" disabled>
-            Guruhni tanlang
-          </NativeSelectOption>
-          {groups.map((g) => (
-            <NativeSelectOption key={g.id} value={g.id}>
-              {g.name}
-            </NativeSelectOption>
-          ))}
-        </NativeSelect>
-      </FormField>
     </>
+  );
+}
+
+/** Faqat yangi o'quvchi uchun: keyin guruh faqat o'tkazish orqali o'zgaradi */
+function GroupField({ groups }: { groups: GroupOption[] }) {
+  const {
+    register,
+    formState: { errors },
+  } = useFormContext<StudentCreateInput>();
+
+  return (
+    <FormField id="groupId" label="Guruh" error={errors.groupId?.message}>
+      <NativeSelect
+        id="groupId"
+        aria-invalid={!!errors.groupId}
+        {...register("groupId")}
+      >
+        <NativeSelectOption value="" disabled>
+          Guruhni tanlang
+        </NativeSelectOption>
+        {groups.map((g) => (
+          <NativeSelectOption key={g.id} value={g.id}>
+            {g.name}
+          </NativeSelectOption>
+        ))}
+      </NativeSelect>
+    </FormField>
   );
 }

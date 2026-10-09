@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeftIcon, PhoneIcon, SendIcon } from "lucide-react";
 import { StudentRowActions } from "@/components/teacher/students/student-row-actions";
+import { TransferButton } from "@/components/teacher/students/transfer-button";
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
@@ -19,7 +20,12 @@ import { db } from "@/lib/db";
 import { percent } from "@/lib/format";
 import { formatPhone } from "@/lib/students/format";
 import { teacherProfileSelect } from "@/lib/students/profile-select";
-import { formatDateTime, formatDuration } from "@/lib/time";
+import {
+  formatDate,
+  formatDateTime,
+  formatDuration,
+  todayInTashkent,
+} from "@/lib/time";
 import { PARENT_RELATION_LABELS, telegramUrl } from "@/lib/validators/contact";
 
 export const metadata: Metadata = { title: "O'quvchi" };
@@ -45,6 +51,16 @@ export default async function StudentCardPage({
         group: { select: { name: true } },
         profile: { select: teacherProfileSelect },
         attendances: { select: { status: true } },
+        memberships: {
+          orderBy: [{ joinedAt: "desc" }, { createdAt: "desc" }],
+          select: {
+            id: true,
+            joinedAt: true,
+            leftAt: true,
+            note: true,
+            group: { select: { id: true, name: true } },
+          },
+        },
         attempts: {
           orderBy: { startedAt: "desc" },
           select: {
@@ -184,6 +200,63 @@ export default async function StudentCardPage({
           <div className="flex flex-col gap-1 rounded-lg border p-4 text-sm md:col-span-2">
             <h2 className="font-semibold">Izoh</h2>
             <p className="whitespace-pre-wrap">{profile.note}</p>
+          </div>
+        )}
+      </section>
+
+      <section className="flex flex-col gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="text-lg font-semibold">Guruhlar tarixi</h2>
+          {!student.archivedAt && (
+            <TransferButton student={row} groups={groups} />
+          )}
+        </div>
+        {student.memberships.length === 0 ? (
+          <p className="text-muted-foreground">Hech qaysi guruhda bo&apos;lmagan.</p>
+        ) : (
+          <div className="rounded-lg border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Guruh</TableHead>
+                  <TableHead>Qachondan</TableHead>
+                  <TableHead>Qachongacha</TableHead>
+                  <TableHead className="hidden sm:table-cell">Izoh</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {student.memberships.map((m) => (
+                  <TableRow key={m.id}>
+                    <TableCell className="font-medium">
+                      <Link
+                        href={`/teacher/groups/${m.group.id}`}
+                        className="hover:underline"
+                      >
+                        {m.group.name}
+                      </Link>
+                      {m.note && (
+                        <span className="text-muted-foreground block text-xs font-normal sm:hidden">
+                          {m.note}
+                        </span>
+                      )}
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap">
+                      {formatDate(todayInTashkent(m.joinedAt))}
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap">
+                      {m.leftAt ? (
+                        formatDate(todayInTashkent(m.leftAt))
+                      ) : (
+                        <Badge variant="secondary">Hozir</Badge>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground hidden whitespace-pre-wrap sm:table-cell">
+                      {m.note ?? "—"}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           </div>
         )}
       </section>

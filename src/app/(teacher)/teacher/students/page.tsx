@@ -4,22 +4,12 @@ import { DownloadIcon, FileSpreadsheetIcon } from "lucide-react";
 import type { Prisma } from "@/generated/prisma/client";
 import { AddStudentButton } from "@/components/teacher/students/add-student-button";
 import { StudentFilters } from "@/components/teacher/students/student-filters";
-import { StudentRowActions } from "@/components/teacher/students/student-row-actions";
+import { StudentsTable } from "@/components/teacher/students/students-table";
 import type { StudentRow } from "@/components/teacher/students/types";
-import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { requireTeacher } from "@/lib/auth/guards";
 import { db } from "@/lib/db";
 import { teacherProfileSelect } from "@/lib/students/profile-select";
-import { formatPhone } from "@/lib/students/format";
 
 export const metadata: Metadata = { title: "O'quvchilar" };
 
@@ -134,67 +124,7 @@ export default async function StudentsPage({
               : "Hali o'quvchi yo'q."}
         </p>
       ) : (
-        <>
-          <p className="text-muted-foreground text-sm">Jami: {rows.length}</p>
-          <div className="rounded-lg border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>F.I.Sh</TableHead>
-                  <TableHead>Login</TableHead>
-                  <TableHead>Guruh</TableHead>
-                  <TableHead className="hidden md:table-cell">
-                    Telefon
-                  </TableHead>
-                  <TableHead>Holat</TableHead>
-                  <TableHead className="w-12">
-                    <span className="sr-only">Amallar</span>
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {rows.map((s) => (
-                  <TableRow
-                    key={s.id}
-                    className={
-                      s.isActive && !s.archived
-                        ? undefined
-                        : "text-muted-foreground"
-                    }
-                  >
-                    <TableCell className="font-medium">
-                      <Link
-                        href={`/teacher/students/${s.id}`}
-                        className="hover:underline"
-                      >
-                        {s.fullName}
-                      </Link>
-                    </TableCell>
-                    <TableCell className="font-mono text-xs">
-                      {s.username}
-                    </TableCell>
-                    <TableCell>{s.groupName ?? "—"}</TableCell>
-                    <TableCell className="hidden whitespace-nowrap md:table-cell">
-                      {s.profile?.phone ? formatPhone(s.profile.phone) : "—"}
-                    </TableCell>
-                    <TableCell>
-                      {s.archived ? (
-                        <Badge variant="outline">Arxivda</Badge>
-                      ) : s.isActive ? (
-                        <Badge variant="secondary">Faol</Badge>
-                      ) : (
-                        <Badge variant="destructive">Bloklangan</Badge>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <StudentRowActions student={s} groups={groups} />
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        </>
+        <StudentsTable rows={rows} groups={groups} />
       )}
     </>
   );

@@ -76,13 +76,12 @@ export async function changeOwnPassword(
       passwordHash: await hashPassword(newPassword),
       sessionVersion: { increment: 1 },
     },
-    select: { role: true, groupId: true, sessionVersion: true },
+    select: { role: true, sessionVersion: true },
   });
   await clearLoginFailures(limitKey);
   await createSession({
     userId: teacher.id,
     role: updated.role,
-    groupId: updated.groupId,
     sessionVersion: updated.sessionVersion,
   });
   return {
