@@ -5,7 +5,9 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { validationFailed, type ActionResult } from "@/lib/action-result";
 import { cancelAttempt } from "@/lib/attempts";
-import { requireTeacher } from "@/lib/auth/guards";
+import { requireStaff } from "@/lib/auth/guards";
+import { canAccessStudent, FORBIDDEN, type Scope } from "@/lib/auth/scope";
+import { getTestAccess, outOfScopeGroups, staffBase } from "@/lib/tests/access";
 import { db } from "@/lib/db";
 import { isNotFound } from "@/lib/prisma-errors";
 import { getUploadedFile, readFirstSheet } from "@/lib/excel";
@@ -27,8 +29,26 @@ import {
 const idSchema = z.string().min(1).max(64);
 
 function revalidateTest(testId: string) {
-  revalidatePath("/teacher/tests");
-  revalidatePath(`/teacher/tests/${testId}`);
+  for (const base of ["/teacher", "/manager"]) {
+    revalidatePath(`${base}/tests`);
+    revalidatePath(`${base}/tests/${testId}`);
+  }
+}
+
+const TEST_NOT_FOUND: ActionResult = { ok: false, error: "Test topilmadi" };
+
+/**
+ * O'qituvchi yoki menejer, test tahrirlanadigan bo'lsa (lib/tests/access.ts).
+ * Menejer faqat o'zi yaratgan va barcha guruhlari doirada bo'lgan testni o'zgartiradi
+ */
+async function requireEditableTest(
+  testId: string,
+): Promise<{ denied: ActionResult } | { scope: Scope }> {
+  const user = await requireStaff();
+  const access = await getTestAccess(user, testId);
+  if (!access) return { denied: TEST_NOT_FOUND };
+  if (!access.canEdit) return { denied: FORBIDDEN };
+  return { scope: access.scope };
 }
 
 // ---------- Test ----------
@@ -36,27 +56,32 @@ function revalidateTest(testId: string) {
 export async function createTest(
   input: CreateTestInput,
 ): Promise<ActionResult> {
-  const teacher = await requireTeacher();
+  const user = await requireStaff();
   const parsed = createTestSchema.safeParse(input);
   if (!parsed.success) return validationFailed(parsed.error);
 
+  // Menejer yaratgan test davrga biriktirilmaydi — buni keyin o'qituvchi qiladi
   const test = await db.test.create({
-    data: { ...parsed.data, createdById: teacher.id },
+    data: { ...parsed.data, createdById: user.id },
   });
-  revalidatePath("/teacher/tests");
-  redirect(`/teacher/tests/${test.id}`);
+  const base = staffBase(user.role);
+  revalidatePath(`${base}/tests`);
+  redirect(`${base}/tests/${test.id}`);
 }
 
 export async function updateTestSettings(
   testId: string,
   input: TestSettingsInput,
 ): Promise<ActionResult> {
-  await requireTeacher();
   const id = idSchema.parse(testId);
+  const editable = await requireEditableTest(id);
+  if ("denied" in editable) return editable.denied;
   const parsed = testSettingsSchema.safeParse(input);
   if (!parsed.success)
     return { ok: false, error: issueMessages(parsed.error).join(". ") };
   const { groupIds, ...settings } = parsed.data;
+  // Menejer testni faqat doiradagi guruhlarga biriktiradi
+  if (outOfScopeGroups(editable.scope, groupIds).length > 0) return FORBIDDEN;
 
   const existingGroups = await db.group.count({
     where: { id: { in: groupIds } },
@@ -90,9 +115,10 @@ export async function setTestActive(
   testId: string,
   isActive: boolean,
 ): Promise<ActionResult> {
-  await requireTeacher();
   const id = idSchema.parse(testId);
   const active = z.boolean().parse(isActive);
+  const editable = await requireEditableTest(id);
+  if ("denied" in editable) return editable.denied;
 
   if (active) {
     const questions = await db.question.count({ where: { testId: id } });
@@ -114,8 +140,9 @@ export async function setTestActive(
 }
 
 export async function deleteTest(testId: string): Promise<ActionResult> {
-  await requireTeacher();
   const id = idSchema.parse(testId);
+  const editable = await requireEditableTest(id);
+  if ("denied" in editable) return editable.denied;
 
   try {
     // Savollar, urinishlar, javoblar va davr biriktirishlari cascade bilan o'chadi
@@ -128,6 +155,7 @@ export async function deleteTest(testId: string): Promise<ActionResult> {
     throw e;
   }
   revalidatePath("/teacher/tests");
+  revalidatePath("/manager/tests");
   return { ok: true, message: "Test o'chirildi" };
 }
 
@@ -137,13 +165,24 @@ export async function deleteTest(testId: string): Promise<ActionResult> {
 export async function cancelStudentAttempt(
   attemptId: string,
 ): Promise<ActionResult> {
-  await requireTeacher();
+  const user = await requireStaff();
   const id = idSchema.parse(attemptId);
+
+  // Menejer: test unga ko'rinsin va o'quvchi doirada bo'lsin
+  const attempt = await db.attempt.findUnique({
+    where: { id },
+    select: { testId: true, userId: true },
+  });
+  if (!attempt) return { ok: false, error: "Urinish topilmadi" };
+  const access = await getTestAccess(user, attempt.testId);
+  if (!access || !(await canAccessStudent(access.scope, attempt.userId)))
+    return FORBIDDEN;
 
   const result = await cancelAttempt(id);
   if (!result) return { ok: false, error: "Urinish topilmadi" };
 
   revalidatePath(`/teacher/tests/${result.testId}/results`);
+  revalidatePath(`/manager/tests/${result.testId}/results`);
   revalidatePath(`/teacher/students/${result.userId}`);
   return { ok: true, message: "Urinish bekor qilindi" };
 }
@@ -163,15 +202,13 @@ export async function createQuestion(
   testId: string,
   input: QuestionInput,
 ): Promise<ActionResult> {
-  await requireTeacher();
   const id = idSchema.parse(testId);
+  const editable = await requireEditableTest(id);
+  if ("denied" in editable) return editable.denied;
   const parsed = questionInputSchema.safeParse(input);
   if (!parsed.success)
     return { ok: false, error: issueMessages(parsed.error).join(". ") };
   const { options, ...question } = parsed.data;
-
-  if ((await db.test.count({ where: { id } })) === 0)
-    return { ok: false, error: "Test topilmadi" };
 
   await db.question.create({
     data: {
@@ -195,7 +232,7 @@ export async function updateQuestion(
   questionId: string,
   input: QuestionInput,
 ): Promise<ActionResult> {
-  await requireTeacher();
+  await requireStaff();
   const id = idSchema.parse(questionId);
   const parsed = questionInputSchema.safeParse(input);
   if (!parsed.success)
@@ -207,6 +244,8 @@ export async function updateQuestion(
     select: { testId: true, options: { select: { id: true } } },
   });
   if (!existing) return { ok: false, error: "Savol topilmadi" };
+  const editable = await requireEditableTest(existing.testId);
+  if ("denied" in editable) return editable.denied;
 
   const existingIds = new Set(existing.options.map((o) => o.id));
   if (options.some((o) => o.id && !existingIds.has(o.id))) {
@@ -243,7 +282,7 @@ export async function updateQuestion(
 export async function deleteQuestion(
   questionId: string,
 ): Promise<ActionResult> {
-  await requireTeacher();
+  await requireStaff();
   const id = idSchema.parse(questionId);
 
   const question = await db.question.findUnique({
@@ -251,6 +290,8 @@ export async function deleteQuestion(
     select: { testId: true },
   });
   if (!question) return { ok: false, error: "Savol topilmadi" };
+  const editable = await requireEditableTest(question.testId);
+  if ("denied" in editable) return editable.denied;
 
   await db.$transaction(async (tx) => {
     await tx.question.delete({ where: { id } });
@@ -272,7 +313,7 @@ export async function moveQuestion(
   questionId: string,
   direction: "up" | "down",
 ): Promise<ActionResult> {
-  await requireTeacher();
+  await requireStaff();
   const id = idSchema.parse(questionId);
   const dir = z.enum(["up", "down"]).parse(direction);
 
@@ -281,6 +322,8 @@ export async function moveQuestion(
     select: { testId: true, order: true },
   });
   if (!question) return { ok: false, error: "Savol topilmadi" };
+  const editable = await requireEditableTest(question.testId);
+  if ("denied" in editable) return editable.denied;
 
   const neighbor = await db.question.findFirst({
     where: {
@@ -321,7 +364,7 @@ export type QuestionImportPreview =
 export async function previewQuestionImport(
   formData: FormData,
 ): Promise<QuestionImportPreview> {
-  await requireTeacher();
+  await requireStaff();
   const result = await parseQuestionFile(formData);
   return "error" in result
     ? { ok: false, error: result.error }
@@ -332,8 +375,9 @@ export async function importQuestions(
   testId: string,
   formData: FormData,
 ): Promise<ActionResult> {
-  await requireTeacher();
   const id = idSchema.parse(testId);
+  const editable = await requireEditableTest(id);
+  if ("denied" in editable) return editable.denied;
 
   // Fayl serverda qayta o'qiladi va tekshiriladi
   const result = await parseQuestionFile(formData);
@@ -347,9 +391,6 @@ export async function importQuestions(
       error: "Savollarda xato bor. Faylni tuzatib, qayta yuklang",
     };
   }
-
-  if ((await db.test.count({ where: { id } })) === 0)
-    return { ok: false, error: "Test topilmadi" };
 
   const start = await nextOrder(id);
   await db.$transaction(

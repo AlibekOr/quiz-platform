@@ -26,9 +26,15 @@ import type { EditorQuestion } from "./types";
 export function QuestionList({
   testId,
   questions,
+  basePath = "/teacher",
+  readOnly = false,
 }: {
   testId: string;
   questions: EditorQuestion[];
+  /** "/teacher" yoki "/manager" — havolalar uchun */
+  basePath?: string;
+  /** Faqat ko'rish (menejer boshqa test yoki aralash guruhli testni ochganda) */
+  readOnly?: boolean;
 }) {
   const [editing, setEditing] = useState<EditorQuestion | "new" | null>(null);
   const [deleting, setDeleting] = useState<EditorQuestion | null>(null);
@@ -51,19 +57,21 @@ export function QuestionList({
             ({questions.length} ta, jami {totalPoints} ball)
           </span>
         </h2>
-        <div className="flex flex-wrap gap-2">
-          <Link
-            href={`/teacher/tests/${testId}/import`}
-            className={buttonVariants({ variant: "outline" })}
-          >
-            <FileUpIcon />
-            Import (JSON/Excel)
-          </Link>
-          <Button onClick={() => setEditing("new")}>
-            <PlusIcon />
-            Savol qo&apos;shish
-          </Button>
-        </div>
+        {!readOnly && (
+          <div className="flex flex-wrap gap-2">
+            <Link
+              href={`${basePath}/tests/${testId}/import`}
+              className={buttonVariants({ variant: "outline" })}
+            >
+              <FileUpIcon />
+              Import (JSON/Excel)
+            </Link>
+            <Button onClick={() => setEditing("new")}>
+              <PlusIcon />
+              Savol qo&apos;shish
+            </Button>
+          </div>
+        )}
       </div>
 
       {questions.length === 0 ? (
@@ -88,42 +96,44 @@ export function QuestionList({
                   </div>
                   <p className="break-words whitespace-pre-wrap">{q.text}</p>
                 </div>
-                <div className="flex shrink-0 gap-1">
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    aria-label={`${index + 1}-savolni yuqoriga`}
-                    disabled={pending || index === 0}
-                    onClick={() => move(q.id, "up")}
-                  >
-                    <ArrowUpIcon />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    aria-label={`${index + 1}-savolni pastga`}
-                    disabled={pending || index === questions.length - 1}
-                    onClick={() => move(q.id, "down")}
-                  >
-                    <ArrowDownIcon />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    aria-label={`${index + 1}-savolni tahrirlash`}
-                    onClick={() => setEditing(q)}
-                  >
-                    <PencilIcon />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    aria-label={`${index + 1}-savolni o'chirish`}
-                    onClick={() => setDeleting(q)}
-                  >
-                    <Trash2Icon />
-                  </Button>
-                </div>
+                {!readOnly && (
+                  <div className="flex shrink-0 gap-1">
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      aria-label={`${index + 1}-savolni yuqoriga`}
+                      disabled={pending || index === 0}
+                      onClick={() => move(q.id, "up")}
+                    >
+                      <ArrowUpIcon />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      aria-label={`${index + 1}-savolni pastga`}
+                      disabled={pending || index === questions.length - 1}
+                      onClick={() => move(q.id, "down")}
+                    >
+                      <ArrowDownIcon />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      aria-label={`${index + 1}-savolni tahrirlash`}
+                      onClick={() => setEditing(q)}
+                    >
+                      <PencilIcon />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      aria-label={`${index + 1}-savolni o'chirish`}
+                      onClick={() => setDeleting(q)}
+                    >
+                      <Trash2Icon />
+                    </Button>
+                  </div>
+                )}
               </div>
               <ul className="grid gap-1 text-sm sm:grid-cols-2">
                 {q.options.map((o, i) => (

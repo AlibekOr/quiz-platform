@@ -1,11 +1,13 @@
 import "server-only";
 import type { CurrentUser } from "@/lib/auth/guards";
+import { canAccessGroup, getScope, groupScopeWhere } from "@/lib/auth/scope";
 import { db } from "@/lib/db";
 import {
   getOverallLeaderboard,
   getTestLeaderboard,
   type Leaderboard,
 } from "@/lib/leaderboard";
+import { getTestAccess } from "@/lib/tests/access";
 import { leaderboardQuerySchema } from "@/lib/validators/leaderboard";
 
 export type LeaderboardScope = "group" | "all";
@@ -26,6 +28,7 @@ const EMPTY: Leaderboard = { entries: [], me: null, total: 0 };
  * Reyting so'rovini tekshiradi va bajaradi (API va sahifalar uchun umumiy).
  * O'quvchi: "group" doim uning BAZADAGI guruhi — URL'dagi groupId e'tiborga olinmaydi.
  * O'qituvchi: istalgan guruhni groupId bilan tanlaydi (berilmasa — birinchi guruh).
+ * Menejer: faqat doiradagi guruhlar va ko'rinadigan testlar; "Umumiy" — doiradagi o'quvchilar.
  */
 export async function resolveLeaderboard(
   user: CurrentUser,
@@ -35,12 +38,11 @@ export async function resolveLeaderboard(
     groupId?: string | null;
   },
 ): Promise<ResolvedLeaderboard | LeaderboardError> {
-  // Menejerga reyting hozircha yopiq (14-bosqichda doirasi bilan ochiladi)
-  if (user.role !== "TEACHER" && user.role !== "STUDENT")
-    return { error: "Ruxsat yo'q", status: 403 };
   const query = leaderboardQuerySchema.parse(params);
   const scope: LeaderboardScope = query.scope;
-  const isTeacher = user.role === "TEACHER";
+  // O'qituvchi va menejer guruhni tanlaydi; menejer faqat o'z doirasidan
+  const isStaff = user.role === "TEACHER" || user.role === "MANAGER";
+  const access = isStaff ? await getScope(user) : null;
 
   let test: ResolvedLeaderboard["test"] = null;
   if (query.testId) {
@@ -49,7 +51,10 @@ export async function resolveLeaderboard(
       select: { id: true, title: true, groups: { select: { id: true } } },
     });
     if (!found) return { error: "Test topilmadi", status: 404 };
-    if (!isTeacher) {
+    if (user.role === "MANAGER") {
+      if (!(await getTestAccess(user, found.id)))
+        return { error: "Bu test reytingini ko'rib bo'lmaydi", status: 403 };
+    } else if (!isStaff) {
       const assigned =
         user.groupId !== null &&
         found.groups.some((g) => g.id === user.groupId);
@@ -66,27 +71,32 @@ export async function resolveLeaderboard(
 
   let group: ResolvedLeaderboard["group"] = null;
   if (scope === "group") {
-    const groupId = isTeacher ? (query.groupId ?? null) : user.groupId;
+    const groupId = isStaff ? (query.groupId ?? null) : user.groupId;
+    if (groupId && access && !canAccessGroup(access, groupId))
+      return { error: "Ruxsat yo'q", status: 403 };
     group = groupId
       ? await db.group.findUnique({
           where: { id: groupId },
           select: { id: true, name: true },
         })
-      : isTeacher
+      : access
         ? await db.group.findFirst({
+            where: groupScopeWhere(access),
             orderBy: { name: "asc" },
             select: { id: true, name: true },
           })
         : null;
-    if (isTeacher && groupId && !group)
+    if (isStaff && groupId && !group)
       return { error: "Guruh topilmadi", status: 404 };
-    // Guruhsiz o'quvchi uchun "Mening guruhim" bo'sh
+    // Guruhsiz o'quvchi (yoki guruhsiz menejer) uchun bo'sh
     if (!group) return { scope, group: null, test, board: EMPTY };
   }
 
   const filter = {
     groupId: group?.id ?? null,
-    userId: isTeacher ? null : user.id,
+    // Menejerning "Umumiy" reytingi ham faqat doiradagi o'quvchilar
+    groupIds: access?.kind === "manager" ? access.groupIds : null,
+    userId: isStaff ? null : user.id,
   };
   const board = test
     ? await getTestLeaderboard(test.id, filter)

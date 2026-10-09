@@ -9,9 +9,13 @@ export default async function StudentLayout({ children }: LayoutProps<"/">) {
   const user = await getCurrentUser();
   const home = user ? homePathFor(user.role) : "/login";
   const links =
-    user?.role === "TEACHER"
+    user?.role === "TEACHER" || user?.role === "MANAGER"
       ? [
-          { href: "/teacher", label: "O'qituvchi paneli" },
+          {
+            href: homePathFor(user.role),
+            label:
+              user.role === "TEACHER" ? "O'qituvchi paneli" : "Menejer paneli",
+          },
           { href: "/leaderboard", label: "Reyting" },
         ]
       : [

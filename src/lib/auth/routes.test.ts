@@ -12,9 +12,17 @@ describe("allowedRoles", () => {
     expect(allowedRoles("/grades")).toEqual(["STUDENT"]);
   });
 
-  it("reyting o'qituvchi va o'quvchiga, menejerga emas", () => {
-    expect(allowedRoles("/leaderboard")).toEqual(["TEACHER", "STUDENT"]);
-    expect(allowedRoles("/test/abc/leaderboard")).toEqual(["TEACHER", "STUDENT"]);
+  it("reyting hamma rolga (menejer doirasi server tomonda)", () => {
+    expect(allowedRoles("/leaderboard")).toEqual([
+      "TEACHER",
+      "MANAGER",
+      "STUDENT",
+    ]);
+    expect(allowedRoles("/test/abc/leaderboard")).toEqual([
+      "TEACHER",
+      "MANAGER",
+      "STUDENT",
+    ]);
   });
 
   it("o'xshash prefikslar va ochiq sahifalar", () => {

@@ -1,5 +1,10 @@
 import "server-only";
 import { finalizeExpiredAttempts } from "@/lib/attempts";
+import {
+  canAccessGroup,
+  studentScopeWhere,
+  type Scope,
+} from "@/lib/auth/scope";
 import { db } from "@/lib/db";
 import {
   buildStudentRows,
@@ -18,7 +23,8 @@ export type TestResults = {
 };
 
 /**
- * Test natijalari (faqat o'qituvchi uchun; chaqiruvchi requireTeacher() qiladi).
+ * Test natijalari (o'qituvchi yoki menejer; chaqiruvchi testga ruxsatni tekshiradi).
+ * Menejer uchun faqat doiradagi o'quvchilar: qatorlar ham, savollar statistikasi ham.
  * Qatorlar: urinishi bor o'quvchilar + testga biriktirilgan guruhlardagi hali ishlamagan faol o'quvchilar.
  * Guruh filtri o'quvchining hozirgi guruhi bo'yicha. Savollar statistikasi faqat birinchi urinishlar bo'yicha
  * (qayta ishlashlar foizni sun'iy oshirmasligi uchun).
@@ -26,6 +32,7 @@ export type TestResults = {
 export async function getTestResults(
   testId: string,
   groupId: string | null,
+  scope: Scope,
 ): Promise<TestResults | null> {
   await finalizeExpiredAttempts({ testId });
 
@@ -61,13 +68,19 @@ export async function getTestResults(
   const groupWhere = groupId ? { groupId } : {};
   const assignedGroupIds = test.groups
     .map((g) => g.id)
-    .filter((id) => !groupId || id === groupId);
+    .filter((id) => !groupId || id === groupId)
+    .filter((id) => canAccessGroup(scope, id));
 
   const [attempts, idle] = await Promise.all([
     db.attempt.findMany({
       where: {
         testId,
-        user: { role: "STUDENT", archivedAt: null, ...groupWhere },
+        user: {
+          role: "STUDENT",
+          archivedAt: null,
+          ...groupWhere,
+          ...studentScopeWhere(scope),
+        },
       },
       orderBy: { startedAt: "asc" },
       select: {

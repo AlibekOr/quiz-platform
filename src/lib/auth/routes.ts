@@ -11,12 +11,12 @@ function under(pathname: string, prefix: string): boolean {
 export function allowedRoles(pathname: string): readonly Role[] | null {
   if (under(pathname, "/teacher")) return ["TEACHER"];
   if (under(pathname, "/manager")) return ["MANAGER"];
-  // Reyting: o'quvchi va o'qituvchi (menejerga hozircha yopiq)
+  // Reyting: hamma rol (menejer faqat o'z doirasini ko'radi — leaderboard-access.ts)
   if (
     under(pathname, "/leaderboard") ||
     /^\/test\/[^/]+\/leaderboard$/.test(pathname)
   )
-    return ["TEACHER", "STUDENT"];
+    return ["TEACHER", "MANAGER", "STUDENT"];
   if (
     under(pathname, "/dashboard") ||
     under(pathname, "/test") ||

@@ -317,6 +317,7 @@ model GroupMembership {
 | `/manager/students` | manager | Doiradagi o'quvchilar: qo'shish, tahrirlash, parol, o'tkazish, bloklash, import/eksport, o'chirishni so'rash |
 | `/manager/attendance` | manager | Doiradagi guruhlar davomat hisoboti va Excel (faqat ko'rish) |
 | `/manager/requests` | manager | O'z so'rovlari va holati |
+| `/manager/tests` | manager | Doiradagi testlar: yaratish, savollar, import, natijalar (faqat doiradagi o'quvchilar); boshqalarniki faqat ko'rish |
 | `/grades` | student | Baholarim: davr bo'yicha vazifa va test ballari, jami, holat |
 | `/teacher/tests` | teacher | Testlar ro'yxati, yaratish |
 | `/teacher/tests/[id]` | teacher | Tahrirlash: savollar, sozlamalar, guruhlar, import |
@@ -483,11 +484,17 @@ Kelishilgan: menejer o'z doirasidagi o'quvchilarga qo'shish, tahrirlash, parolni
 
 **Tayyor:** menejer faqat o'z doirasidagi o'quvchilarni ko'radi va boshqaradi, boshqa region o'quvchisi id bilan kelsa rad etiladi; o'chirish so'rovi o'qituvchi tasdiqlagach o'quvchi arxivlanadi; menejer o'qituvchi sahifalari, testlar va reytingga kira olmaydi.
 
-### 14-bosqich: menejer testlari (keyingi)
-- `/manager/tests`: doiradagi guruhlar testlari; o'qituvchi sahifa va komponentlari qayta ishlatiladi
-- Test faqat doiradagi guruhlarga biriktiriladi (aks holda 403). Tahrirlash/o'chirish: faqat o'zi yaratgan va barcha guruhlari doirada bo'lsa, aks holda "faqat ko'rish"
-- Natijalar, statistika, eksport, reyting: faqat doiradagi o'quvchilar
-- Davrga biriktirish va test bali faqat o'qituvchi uchun
+### 14-bosqich: menejer testlari
+- `lib/tests/access.ts`: `testScopeWhere` (doiradagi guruhlarga biriktirilgan yoki o'zi yaratgan testlar), `getTestAccess` (ko'rish / tahrirlash), `outOfScopeGroups`
+- Tahrirlash, savollar, import, faollashtirish va o'chirish: faqat o'zi yaratgan VA barcha guruhlari doirada bo'lgan testda; aks holda "faqat ko'rish" rejimi. Test faqat doiradagi guruhlarga biriktiriladi (aks holda "Ruxsat yo'q")
+- Sahifalar umumiy: `components/staff/tests/*-view.tsx`; `/teacher/tests/*` va `/manager/tests/*` — yupqa route'lar (`requireTeacher` / `requireManager`)
+- Natijalar, savollar statistikasi, CSV eksport, urinishni ko'rish va bekor qilish (qayta ishlashga ruxsat): menejer uchun faqat doiradagi o'quvchilar
+- Reyting: menejer `/leaderboard` va `/test/[id]/leaderboard` ni ochadi; guruh — faqat doiradagi, "Umumiy" — faqat doiradagi o'quvchilar; boshqa guruh yoki ko'rinmaydigan test — 403
+- Davrga biriktirish va test bali faqat o'qituvchida; menejer yaratgan test davrsiz saqlanadi, o'qituvchi keyin biriktiradi. Uyga vazifa va baholar menejerga yopiq
+- Menejer yon paneli: Bosh sahifa, O'quvchilar, Davomat, Testlar, Reyting, So'rovlarim
+- Vitest (DB): o'z testi tahrirlanadi, aralash guruhli — faqat ko'rish, boshqa region testi ko'rinmaydi, boshqa region guruhiga biriktirib bo'lmaydi, natijalar va statistika faqat doiradagi o'quvchilar, reyting doirasi va 403
+
+**Tayyor:** menejer o'z guruhlari uchun test yaratadi, savol qo'shadi, faollashtiradi; aralash guruhli testni faqat ko'radi, lekin o'z guruhlari natijalarini ko'radi; boshqa region natijalari va reytingi unga ko'rinmaydi.
 
 ---
 

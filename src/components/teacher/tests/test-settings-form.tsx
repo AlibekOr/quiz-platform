@@ -38,10 +38,13 @@ export function TestSettingsForm({
   testId,
   initial,
   groups,
+  readOnly = false,
 }: {
   testId: string;
   initial: TestSettingsInput;
+  /** Tanlash mumkin bo'lgan guruhlar (menejer uchun faqat doiradagilar) */
   groups: GroupOption[];
+  readOnly?: boolean;
 }) {
   const [pending, startTransition] = useTransition();
   const form = useForm({
@@ -70,110 +73,117 @@ export function TestSettingsForm({
       noValidate
     >
       <h2 className="font-semibold">Sozlamalar</h2>
-      <div className="grid gap-4 sm:grid-cols-[1fr_10rem]">
-        <FormField id="title" label="Nomi" error={errors.title?.message}>
-          <Input
-            id="title"
-            maxLength={200}
-            aria-invalid={!!errors.title}
-            {...form.register("title")}
-          />
-        </FormField>
-        <FormField
-          id="durationMin"
-          label="Vaqt (daqiqa)"
-          error={errors.durationMin?.message}
-        >
-          <Input
-            id="durationMin"
-            type="number"
-            min={1}
-            max={300}
-            aria-invalid={!!errors.durationMin}
-            {...form.register("durationMin", { valueAsNumber: true })}
-          />
-        </FormField>
-      </div>
-      <FormField
-        id="description"
-        label="Tavsif"
-        error={errors.description?.message}
-      >
-        <Textarea
-          id="description"
-          maxLength={2000}
-          rows={2}
-          {...form.register("description")}
-        />
-      </FormField>
-
-      <fieldset className="flex flex-col gap-2">
-        <legend className="mb-2 text-sm font-medium">Qoidalar</legend>
-        {FLAGS.map(({ key, label, hint }) => (
-          <label key={key} className="flex items-start gap-2 text-sm">
-            <input
-              type="checkbox"
-              className="accent-primary mt-0.5 size-4"
-              {...form.register(key)}
+      {/* Faqat ko'rish rejimida barcha maydonlar o'chiq */}
+      <fieldset disabled={readOnly} className="flex flex-col gap-4">
+        <div className="grid gap-4 sm:grid-cols-[1fr_10rem]">
+          <FormField id="title" label="Nomi" error={errors.title?.message}>
+            <Input
+              id="title"
+              maxLength={200}
+              aria-invalid={!!errors.title}
+              {...form.register("title")}
             />
-            <span>
-              {label}
-              {hint && (
-                <span className="text-muted-foreground block">{hint}</span>
+          </FormField>
+          <FormField
+            id="durationMin"
+            label="Vaqt (daqiqa)"
+            error={errors.durationMin?.message}
+          >
+            <Input
+              id="durationMin"
+              type="number"
+              min={1}
+              max={300}
+              aria-invalid={!!errors.durationMin}
+              {...form.register("durationMin", { valueAsNumber: true })}
+            />
+          </FormField>
+        </div>
+        <FormField
+          id="description"
+          label="Tavsif"
+          error={errors.description?.message}
+        >
+          <Textarea
+            id="description"
+            maxLength={2000}
+            rows={2}
+            {...form.register("description")}
+          />
+        </FormField>
+
+        <fieldset className="flex flex-col gap-2">
+          <legend className="mb-2 text-sm font-medium">Qoidalar</legend>
+          {FLAGS.map(({ key, label, hint }) => (
+            <label key={key} className="flex items-start gap-2 text-sm">
+              <input
+                type="checkbox"
+                className="accent-primary mt-0.5 size-4"
+                {...form.register(key)}
+              />
+              <span>
+                {label}
+                {hint && (
+                  <span className="text-muted-foreground block">{hint}</span>
+                )}
+              </span>
+            </label>
+          ))}
+        </fieldset>
+
+        <Controller
+          control={form.control}
+          name="groupIds"
+          render={({ field }) => (
+            <fieldset className="flex flex-col gap-2">
+              <legend className="mb-2 text-sm font-medium">Guruhlar</legend>
+              {groups.length === 0 ? (
+                <p className="text-muted-foreground text-sm">
+                  Guruhlar yo&apos;q.
+                </p>
+              ) : (
+                <div className="flex flex-wrap gap-x-6 gap-y-2">
+                  {groups.map((g) => (
+                    <label
+                      key={g.id}
+                      className="flex items-center gap-2 text-sm"
+                    >
+                      <input
+                        type="checkbox"
+                        className="accent-primary size-4"
+                        checked={field.value.includes(g.id)}
+                        onChange={(e) =>
+                          field.onChange(
+                            e.target.checked
+                              ? [...field.value, g.id]
+                              : field.value.filter((id) => id !== g.id),
+                          )
+                        }
+                      />
+                      {g.name}
+                    </label>
+                  ))}
+                </div>
               )}
-            </span>
-          </label>
-        ))}
+              {field.value.length === 0 && groups.length > 0 && (
+                <p className="text-muted-foreground text-sm">
+                  Guruh tanlanmasa, testni hech kim ko&apos;rmaydi.
+                </p>
+              )}
+            </fieldset>
+          )}
+        />
       </fieldset>
-
-      <Controller
-        control={form.control}
-        name="groupIds"
-        render={({ field }) => (
-          <fieldset className="flex flex-col gap-2">
-            <legend className="mb-2 text-sm font-medium">Guruhlar</legend>
-            {groups.length === 0 ? (
-              <p className="text-muted-foreground text-sm">
-                Guruhlar yo&apos;q.
-              </p>
-            ) : (
-              <div className="flex flex-wrap gap-x-6 gap-y-2">
-                {groups.map((g) => (
-                  <label key={g.id} className="flex items-center gap-2 text-sm">
-                    <input
-                      type="checkbox"
-                      className="accent-primary size-4"
-                      checked={field.value.includes(g.id)}
-                      onChange={(e) =>
-                        field.onChange(
-                          e.target.checked
-                            ? [...field.value, g.id]
-                            : field.value.filter((id) => id !== g.id),
-                        )
-                      }
-                    />
-                    {g.name}
-                  </label>
-                ))}
-              </div>
-            )}
-            {field.value.length === 0 && groups.length > 0 && (
-              <p className="text-muted-foreground text-sm">
-                Guruh tanlanmasa, testni hech kim ko&apos;rmaydi.
-              </p>
-            )}
-          </fieldset>
-        )}
-      />
-
       <FormError
         message={errors.groupIds?.message ?? errors.root?.server?.message}
       />
-      <div>
-        <Button type="submit" disabled={pending}>
-          Saqlash
-        </Button>
-      </div>
+      {!readOnly && (
+        <div>
+          <Button type="submit" disabled={pending}>
+            Saqlash
+          </Button>
+        </div>
+      )}
     </form>
   );
 }

@@ -29,6 +29,8 @@ export type Leaderboard = {
 type Filter = {
   /** null — barcha guruhlar */
   groupId: string | null;
+  /** Menejer doirasi: faqat shu guruhlardagi o'quvchilar (null — cheklovsiz) */
+  groupIds?: readonly string[] | null;
   /** Joriy o'quvchi (me qatori uchun) */
   userId?: string | null;
   limit?: number;
@@ -39,10 +41,14 @@ type Row = Omit<LeaderboardEntry, "groupName"> & {
   total: number;
 };
 
-function groupFilter(groupId: string | null) {
-  return groupId === null
-    ? Prisma.empty
-    : Prisma.sql`AND u."groupId" = ${groupId}`;
+function groupFilter(filter: Filter) {
+  const one =
+    filter.groupId === null
+      ? Prisma.empty
+      : Prisma.sql`AND u."groupId" = ${filter.groupId}`;
+  if (!filter.groupIds) return one;
+  // Bo'sh doira — hech kim (ANY('{}') hech narsaga mos kelmaydi)
+  return Prisma.sql`${one} AND u."groupId" = ANY(${[...filter.groupIds]}::text[])`;
 }
 
 function toEntry(r: Row): LeaderboardEntry {
@@ -95,7 +101,7 @@ export async function getTestLeaderboard(
         AND u."isActive" = true
         AND u."archivedAt" IS NULL
         AND u."role" = 'STUDENT'
-        ${groupFilter(filter.groupId)}
+        ${groupFilter(filter)}
     )
     SELECT * FROM ranked
     WHERE "rank" <= ${limit} OR "userId" = ${userId}
@@ -125,7 +131,7 @@ export async function getOverallLeaderboard(
         AND u."isActive" = true
         AND u."archivedAt" IS NULL
         AND u."role" = 'STUDENT'
-        ${groupFilter(filter.groupId)}
+        ${groupFilter(filter)}
       GROUP BY a."userId"
     ),
     ranked AS (

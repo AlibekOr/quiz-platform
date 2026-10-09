@@ -62,6 +62,8 @@ const LINKS: Record<NavVariant, NavLink[]> = {
     },
     { href: "/manager/students", label: "O'quvchilar", icon: UsersIcon },
     { href: "/manager/attendance", label: "Davomat", icon: CalendarCheckIcon },
+    { href: "/manager/tests", label: "Testlar", icon: ClipboardListIcon },
+    { href: "/leaderboard", label: "Reyting", icon: TrophyIcon },
     { href: "/manager/requests", label: "So'rovlarim", icon: InboxIcon },
   ],
 };

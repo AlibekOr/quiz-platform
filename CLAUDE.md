@@ -27,12 +27,12 @@ src/
     (student)/dashboard/  test/[id]/  result/[attemptId]/  leaderboard/  grades/
     (teacher)/teacher/tests/  teacher/students/  teacher/groups/  teacher/attendance/
     (teacher)/teacher/homework/  teacher/grades/  teacher/managers/  teacher/requests/
-    (manager)/manager/  manager/students/  manager/attendance/  manager/requests/
+    (manager)/manager/  manager/students/  manager/attendance/  manager/requests/  manager/tests/
     api/leaderboard/route.ts
     api/attendance/export/route.ts
     api/grades/export/route.ts
   components/ui/        # shadcn
-  components/           # umumiy komponentlar
+  components/           # umumiy komponentlar (staff/tests — o'qituvchi va menejer test sahifalari)
   lib/
     db.ts               # Prisma client (singleton)
     auth/               # session.ts, password.ts, guards.ts, scope.ts (menejer doirasi), routes.ts
@@ -63,7 +63,7 @@ prisma/
 9. Vaqt zonasi har doim `Asia/Tashkent` (davomat, "bugun", sanalar). Sana va vaqt hisoblari `lib/time.ts` orqali.
 10. **O'quvchilarning shaxsiy ma'lumotlari** (`StudentProfile`: telefonlar, Telegram, ota-ona) faqat o'qituvchiga va menejerga (faqat o'z doirasidagi o'quvchilar) ko'rinadi. O'quvchi sahifalari, reyting va o'quvchi uchun API javoblarida bu ma'lumotlar hech qachon `select` qilinmaydi. Ular logga ham yozilmaydi.
 11. Sirlar faqat `.env` da: `DATABASE_URL`, `DIRECT_URL` (ixtiyoriy, migratsiya uchun), `JWT_SECRET`, `SEED_TEACHER_USERNAME`, `SEED_TEACHER_PASSWORD`. `.env.example` yangilab bor.
-12. **Menejer doirasi** (`lib/auth/scope.ts`): `getAccessibleGroupIds(user)` = menejer regionidagi guruhlar ∪ `ManagerGroup` orqali biriktirilganlar (o'qituvchi uchun hammasi). Menejer uchun BARCHA so'rovlar (o'quvchilar, davomat, eksport, import) shu ro'yxat bilan filtrlanadi: `studentScopeWhere`, `groupScopeWhere`, `canAccessGroup`, `canAccessStudent`. Guruhsiz o'quvchini menejer faqat o'zi qo'shgan bo'lsa (`createdById`) ko'radi. Doiradan tashqaridagi id bilan kelgan so'rov rad etiladi: action'da `FORBIDDEN`, API'da 403. Menejer o'quvchini arxivlay yoki o'chira olmaydi — faqat `DeletionRequest` yuboradi.
+12. **Menejer doirasi** (`lib/auth/scope.ts`): `getAccessibleGroupIds(user)` = menejer regionidagi guruhlar ∪ `ManagerGroup` orqali biriktirilganlar (o'qituvchi uchun hammasi). Menejer uchun BARCHA so'rovlar (o'quvchilar, davomat, eksport, import) shu ro'yxat bilan filtrlanadi: `studentScopeWhere`, `groupScopeWhere`, `canAccessGroup`, `canAccessStudent`. Guruhsiz o'quvchini menejer faqat o'zi qo'shgan bo'lsa (`createdById`) ko'radi. Doiradan tashqaridagi id bilan kelgan so'rov rad etiladi: action'da `FORBIDDEN`, API'da 403. Menejer o'quvchini arxivlay yoki o'chira olmaydi — faqat `DeletionRequest` yuboradi. Testlar: `lib/tests/access.ts` (`getTestAccess`) — menejer faqat o'zi yaratgan va barcha guruhlari doirada bo'lgan testni tahrirlaydi; natijalar, statistika va reyting faqat doiradagi o'quvchilar bo'yicha. Davrga biriktirish, uyga vazifa va baholar faqat o'qituvchida.
 
 ## Ish tartibi
 

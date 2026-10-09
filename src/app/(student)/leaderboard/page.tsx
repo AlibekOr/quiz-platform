@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { LeaderboardView } from "@/components/leaderboard/leaderboard-view";
 import { requireRole } from "@/lib/auth/guards";
+import { getScope, groupScopeWhere } from "@/lib/auth/scope";
 import { db } from "@/lib/db";
 import { resolveLeaderboard } from "@/lib/leaderboard-access";
 
@@ -14,7 +15,7 @@ function one(value: string | string[] | undefined): string | null {
 export default async function LeaderboardPage({
   searchParams,
 }: PageProps<"/leaderboard">) {
-  const user = await requireRole(["TEACHER", "STUDENT"]);
+  const user = await requireRole(["TEACHER", "MANAGER", "STUDENT"]);
   const params = await searchParams;
   const data = await resolveLeaderboard(user, {
     scope: one(params.scope),
@@ -22,9 +23,11 @@ export default async function LeaderboardPage({
   });
   if ("error" in data) notFound();
 
-  const isTeacher = user.role === "TEACHER";
+  // O'qituvchi va menejer guruhni tanlaydi (menejer — faqat doiradagilar)
+  const isTeacher = user.role !== "STUDENT";
   const groups = isTeacher
     ? await db.group.findMany({
+        where: groupScopeWhere(await getScope(user)),
         orderBy: { name: "asc" },
         select: { id: true, name: true },
       })

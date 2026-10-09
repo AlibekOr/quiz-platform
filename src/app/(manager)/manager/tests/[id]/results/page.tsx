@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { TestResultsView } from "@/components/staff/tests/test-results-view";
-import { requireTeacher } from "@/lib/auth/guards";
+import { requireManager } from "@/lib/auth/guards";
 
 export const metadata: Metadata = { title: "Test natijalari" };
 
@@ -8,8 +8,8 @@ export const metadata: Metadata = { title: "Test natijalari" };
 export default async function Page({
   params,
   searchParams,
-}: PageProps<"/teacher/tests/[id]/results">) {
-  const user = await requireTeacher();
+}: PageProps<"/manager/tests/[id]/results">) {
+  const user = await requireManager();
   const { id } = await params;
   return (
     <TestResultsView user={user} id={id} searchParams={await searchParams} />

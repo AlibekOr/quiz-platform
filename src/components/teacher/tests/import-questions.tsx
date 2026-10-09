@@ -18,7 +18,13 @@ import { cn } from "@/lib/utils";
 const JSON_EXAMPLE = `[{ "text": "...", "type": "SINGLE", "points": 1,
    "options": [{ "text": "...", "isCorrect": true }, { "text": "...", "isCorrect": false }] }]`;
 
-export function ImportQuestions({ testId }: { testId: string }) {
+export function ImportQuestions({
+  testId,
+  basePath = "/teacher",
+}: {
+  testId: string;
+  basePath?: string;
+}) {
   const router = useRouter();
   const [file, setFile] = useState<File | null>(null);
   const [questions, setQuestions] = useState<ParsedQuestion[] | null>(null);
@@ -53,7 +59,7 @@ export function ImportQuestions({ testId }: { testId: string }) {
       const result = await importQuestions(testId, toFormData(file));
       if (result.ok) {
         toast.success(result.message);
-        router.push(`/teacher/tests/${testId}`);
+        router.push(`${basePath}/tests/${testId}`);
       } else {
         setError(result.error);
       }

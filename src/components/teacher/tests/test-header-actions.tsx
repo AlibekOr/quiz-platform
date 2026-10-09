@@ -17,12 +17,17 @@ export function TestHeaderActions({
   isActive,
   questionCount,
   attemptCount,
+  basePath = "/teacher",
+  readOnly = false,
 }: {
   testId: string;
   title: string;
   isActive: boolean;
   questionCount: number;
   attemptCount: number;
+  basePath?: string;
+  /** Faqat ko'rish: faollashtirish va o'chirish yo'q */
+  readOnly?: boolean;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -39,7 +44,7 @@ export function TestHeaderActions({
   return (
     <div className="flex flex-wrap gap-2">
       <Link
-        href={`/teacher/tests/${testId}/results`}
+        href={`${basePath}/tests/${testId}/results`}
         className={buttonVariants({ variant: "outline" })}
       >
         Natijalar
@@ -50,42 +55,48 @@ export function TestHeaderActions({
       >
         Reyting
       </Link>
-      <Button
-        onClick={toggleActive}
-        disabled={pending || (!isActive && questionCount === 0)}
-        variant={isActive ? "outline" : "default"}
-        title={
-          !isActive && questionCount === 0 ? "Avval savol qo'shing" : undefined
-        }
-      >
-        {isActive ? "To'xtatish" : "Faollashtirish"}
-      </Button>
-      <Button variant="destructive" onClick={() => setDeleteOpen(true)}>
-        O&apos;chirish
-      </Button>
-      <ConfirmAction
-        open={deleteOpen}
-        onOpenChange={setDeleteOpen}
-        title={`"${title}" testini o'chirish`}
-        description={
-          attemptCount > 0 ? (
-            <span className="text-destructive font-medium">
-              Diqqat: bu testda {attemptCount} ta urinish (o&apos;quvchilar
-              natijalari) bor. Ular ham butunlay o&apos;chadi va reytingdan
-              yo&apos;qoladi. Bu amalni qaytarib bo&apos;lmaydi.
-            </span>
-          ) : (
-            "Test va uning barcha savollari o'chadi. Bu amalni qaytarib bo'lmaydi."
-          )
-        }
-        confirmLabel="O'chirish"
-        destructive
-        action={async () => {
-          const result = await deleteTest(testId);
-          if (result.ok) router.push("/teacher/tests");
-          return result;
-        }}
-      />
+      {!readOnly && (
+        <>
+          <Button
+            onClick={toggleActive}
+            disabled={pending || (!isActive && questionCount === 0)}
+            variant={isActive ? "outline" : "default"}
+            title={
+              !isActive && questionCount === 0
+                ? "Avval savol qo'shing"
+                : undefined
+            }
+          >
+            {isActive ? "To'xtatish" : "Faollashtirish"}
+          </Button>
+          <Button variant="destructive" onClick={() => setDeleteOpen(true)}>
+            O&apos;chirish
+          </Button>
+          <ConfirmAction
+            open={deleteOpen}
+            onOpenChange={setDeleteOpen}
+            title={`"${title}" testini o'chirish`}
+            description={
+              attemptCount > 0 ? (
+                <span className="text-destructive font-medium">
+                  Diqqat: bu testda {attemptCount} ta urinish (o&apos;quvchilar
+                  natijalari) bor. Ular ham butunlay o&apos;chadi va reytingdan
+                  yo&apos;qoladi. Bu amalni qaytarib bo&apos;lmaydi.
+                </span>
+              ) : (
+                "Test va uning barcha savollari o'chadi. Bu amalni qaytarib bo'lmaydi."
+              )
+            }
+            confirmLabel="O'chirish"
+            destructive
+            action={async () => {
+              const result = await deleteTest(testId);
+              if (result.ok) router.push(`${basePath}/tests`);
+              return result;
+            }}
+          />
+        </>
+      )}
     </div>
   );
 }
