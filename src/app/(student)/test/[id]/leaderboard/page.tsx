@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { LeaderboardView } from "@/components/leaderboard/leaderboard-view";
-import { requireUser } from "@/lib/auth/guards";
+import { requireRole } from "@/lib/auth/guards";
 import { db } from "@/lib/db";
 import { resolveLeaderboard } from "@/lib/leaderboard-access";
 
@@ -15,7 +15,7 @@ export default async function TestLeaderboardPage({
   params,
   searchParams,
 }: PageProps<"/test/[id]/leaderboard">) {
-  const user = await requireUser();
+  const user = await requireRole(["TEACHER", "STUDENT"]);
   const { id } = await params;
   const query = await searchParams;
   const data = await resolveLeaderboard(user, {

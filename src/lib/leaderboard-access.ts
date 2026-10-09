@@ -35,6 +35,9 @@ export async function resolveLeaderboard(
     groupId?: string | null;
   },
 ): Promise<ResolvedLeaderboard | LeaderboardError> {
+  // Menejerga reyting hozircha yopiq (14-bosqichda doirasi bilan ochiladi)
+  if (user.role !== "TEACHER" && user.role !== "STUDENT")
+    return { error: "Ruxsat yo'q", status: 403 };
   const query = leaderboardQuerySchema.parse(params);
   const scope: LeaderboardScope = query.scope;
   const isTeacher = user.role === "TEACHER";

@@ -1,6 +1,6 @@
 # Test platformasi: loyiha qoidalari
 
-O'quv markaz o'quvchilari uchun onlayn test platformasi. O'qituvchi test yaratadi, o'quvchilar akkauntini ochadi, guruhlar dars jadvali va davomatini yuritadi. O'quvchilar login/parol bilan kirib test ishlaydi va reytingni ko'radi.
+O'quv markaz o'quvchilari uchun onlayn test platformasi. O'qituvchi test yaratadi, o'quvchilar akkauntini ochadi, guruhlar dars jadvali va davomatini yuritadi. O'quvchilar login/parol bilan kirib test ishlaydi va reytingni ko'radi. Menejerlar o'z doirasidagi (region + biriktirilgan guruhlar) o'quvchilarni boshqaradi.
 
 Batafsil reja va bosqichlar `PLAN.md` faylida. Har doim joriy bosqichni o'sha yerdan o'qi.
 
@@ -26,7 +26,8 @@ src/
     (auth)/login/
     (student)/dashboard/  test/[id]/  result/[attemptId]/  leaderboard/  grades/
     (teacher)/teacher/tests/  teacher/students/  teacher/groups/  teacher/attendance/
-    (teacher)/teacher/homework/  teacher/grades/
+    (teacher)/teacher/homework/  teacher/grades/  teacher/managers/  teacher/requests/
+    (manager)/manager/  manager/students/  manager/attendance/  manager/requests/
     api/leaderboard/route.ts
     api/attendance/export/route.ts
     api/grades/export/route.ts
@@ -34,7 +35,8 @@ src/
   components/           # umumiy komponentlar
   lib/
     db.ts               # Prisma client (singleton)
-    auth/               # session.ts, password.ts, guards.ts
+    auth/               # session.ts, password.ts, guards.ts, scope.ts (menejer doirasi), routes.ts
+    deletion-requests.ts # o'chirish so'rovlari (menejer so'raydi, o'qituvchi hal qiladi)
     grading.ts          # baholash logikasi
     attendance.ts       # davomat hisobi va Excel eksport
     time.ts             # Asia/Tashkent vaqt yordamchilari
@@ -51,7 +53,7 @@ prisma/
 ## Majburiy qoidalar
 
 1. **To'g'ri javoblar hech qachon brauzerga yuborilmaydi** (test davomida). Test ishlash sahifasi uchun maxsus `select` ishlat: `Option.isCorrect` bo'lmasin. Tekshirish faqat serverda.
-2. **Rol tekshiruvi ikki joyda:** `proxy.ts` faqat yo'naltiradi, lekin har bir server action va route handler o'zi ham `requireTeacher()` / `requireStudent()` chaqiradi. Faqat proxy'ga ishonma.
+2. **Rol tekshiruvi ikki joyda:** `proxy.ts` faqat yo'naltiradi (`lib/auth/routes.ts`), lekin har bir server action va route handler o'zi ham `requireTeacher()` / `requireManager()` / `requireStaff()` / `requireStudent()` chaqiradi. Faqat proxy'ga ishonma. Rol, faollik va region har so'rovda bazadan olinadi (JWT'da faqat `userId`, `role`, `sessionVersion`).
 3. **Vaqt serverda hisoblanadi.** Attempt boshlanganda `deadlineAt` yoziladi. Deadline'dan keyin kelgan javob qabul qilinmaydi (5 soniya grace). Klient taymeri faqat ko'rsatish uchun.
 4. **Guruh sessiyadan olinadi,** URL yoki body'dan emas (o'quvchi uchun).
 5. Barcha kirish ma'lumotlari Zod bilan tekshiriladi.
@@ -59,8 +61,9 @@ prisma/
 7. Interfeys tili: **o'zbekcha (lotin)**. Kod, o'zgaruvchi nomlari va commitlar inglizcha.
 8. Mobile-first: o'quvchilar asosan telefondan kiradi.
 9. Vaqt zonasi har doim `Asia/Tashkent` (davomat, "bugun", sanalar). Sana va vaqt hisoblari `lib/time.ts` orqali.
-10. **O'quvchilarning shaxsiy ma'lumotlari** (`StudentProfile`: telefonlar, Telegram, ota-ona) faqat o'qituvchiga ko'rinadi. O'quvchi sahifalari, reyting va o'quvchi uchun API javoblarida bu ma'lumotlar hech qachon `select` qilinmaydi. Ular logga ham yozilmaydi.
+10. **O'quvchilarning shaxsiy ma'lumotlari** (`StudentProfile`: telefonlar, Telegram, ota-ona) faqat o'qituvchiga va menejerga (faqat o'z doirasidagi o'quvchilar) ko'rinadi. O'quvchi sahifalari, reyting va o'quvchi uchun API javoblarida bu ma'lumotlar hech qachon `select` qilinmaydi. Ular logga ham yozilmaydi.
 11. Sirlar faqat `.env` da: `DATABASE_URL`, `DIRECT_URL` (ixtiyoriy, migratsiya uchun), `JWT_SECRET`, `SEED_TEACHER_USERNAME`, `SEED_TEACHER_PASSWORD`. `.env.example` yangilab bor.
+12. **Menejer doirasi** (`lib/auth/scope.ts`): `getAccessibleGroupIds(user)` = menejer regionidagi guruhlar ∪ `ManagerGroup` orqali biriktirilganlar (o'qituvchi uchun hammasi). Menejer uchun BARCHA so'rovlar (o'quvchilar, davomat, eksport, import) shu ro'yxat bilan filtrlanadi: `studentScopeWhere`, `groupScopeWhere`, `canAccessGroup`, `canAccessStudent`. Guruhsiz o'quvchini menejer faqat o'zi qo'shgan bo'lsa (`createdById`) ko'radi. Doiradan tashqaridagi id bilan kelgan so'rov rad etiladi: action'da `FORBIDDEN`, API'da 403. Menejer o'quvchini arxivlay yoki o'chira olmaydi — faqat `DeletionRequest` yuboradi.
 
 ## Ish tartibi
 

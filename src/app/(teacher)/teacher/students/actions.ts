@@ -4,7 +4,16 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { validationFailed, type ActionResult } from "@/lib/action-result";
 import { hashPassword } from "@/lib/auth/password";
-import { requireTeacher } from "@/lib/auth/guards";
+import { requireStaff, requireTeacher } from "@/lib/auth/guards";
+import {
+  canAccessGroup,
+  canAccessStudent,
+  FORBIDDEN,
+  getScope,
+  groupScopeWhere,
+  studentScopeWhere,
+  type Scope,
+} from "@/lib/auth/scope";
 import { db } from "@/lib/db";
 import { isNotFound, isUniqueViolation } from "@/lib/prisma-errors";
 import { getUploadedFile, readFirstSheet } from "@/lib/excel";
@@ -39,6 +48,7 @@ import {
 const idSchema = z.string().min(1);
 
 function revalidate() {
+  revalidatePath("/manager/students");
   revalidatePath("/teacher/students");
   revalidatePath("/teacher/students/[id]", "page");
   revalidatePath("/teacher/groups");
@@ -63,16 +73,33 @@ async function groupExists(groupId: string): Promise<boolean> {
   return (await db.group.count({ where: { id: groupId } })) > 0;
 }
 
+/**
+ * O'qituvchi yoki menejer. Menejer faqat o'z doirasidagi o'quvchi va guruhlar bilan ishlaydi
+ * (lib/auth/scope.ts); doiradan tashqaridagi id — FORBIDDEN
+ */
+async function requireStaffScope() {
+  const user = await requireStaff();
+  return { user, scope: await getScope(user) };
+}
+
+async function forbiddenStudent(
+  scope: Scope,
+  studentId: string,
+): Promise<boolean> {
+  return !(await canAccessStudent(scope, studentId));
+}
+
 export async function createStudent(
   input: StudentCreateInput,
 ): Promise<ActionResult> {
-  await requireTeacher();
+  const { user, scope } = await requireStaffScope();
   const parsed = studentCreateSchema.safeParse(input);
   if (!parsed.success) return validationFailed(parsed.error);
   const { fullName, username, groupId, password, ...profile } = parsed.data;
 
   if (!(await groupExists(groupId)))
     return { ok: false, error: "Guruh topilmadi" };
+  if (!canAccessGroup(scope, groupId)) return FORBIDDEN;
   if (await usernameTaken(username)) {
     return {
       ok: false,
@@ -88,6 +115,7 @@ export async function createStudent(
         username,
         groupId,
         role: "STUDENT",
+        createdById: user.id,
         passwordHash: await hashPassword(password),
         profile: { create: profile },
         memberships: { create: { groupId, joinedAt: new Date() } },
@@ -111,10 +139,11 @@ export async function updateStudent(
   studentId: string,
   input: StudentUpdateInput,
 ): Promise<ActionResult> {
-  await requireTeacher();
+  const { scope } = await requireStaffScope();
   const id = idSchema.parse(studentId);
   const parsed = studentUpdateSchema.safeParse(input);
   if (!parsed.success) return validationFailed(parsed.error);
+  if (await forbiddenStudent(scope, id)) return FORBIDDEN;
   const { fullName, username, ...profile } = parsed.data;
 
   if (await usernameTaken(username, id)) {
@@ -154,10 +183,11 @@ export async function resetStudentPassword(
   studentId: string,
   input: ResetPasswordInput,
 ): Promise<ActionResult> {
-  await requireTeacher();
+  const { scope } = await requireStaffScope();
   const id = idSchema.parse(studentId);
   const parsed = resetPasswordSchema.safeParse(input);
   if (!parsed.success) return validationFailed(parsed.error);
+  if (await forbiddenStudent(scope, id)) return FORBIDDEN;
 
   try {
     await db.user.update({
@@ -179,9 +209,10 @@ export async function setStudentActive(
   studentId: string,
   isActive: boolean,
 ): Promise<ActionResult> {
-  await requireTeacher();
+  const { scope } = await requireStaffScope();
   const id = idSchema.parse(studentId);
   const active = z.boolean().parse(isActive);
+  if (await forbiddenStudent(scope, id)) return FORBIDDEN;
 
   try {
     await db.user.update({
@@ -225,7 +256,7 @@ export async function removeStudentFromGroup(
 export async function transferStudents(
   input: TransferInput,
 ): Promise<ActionResult> {
-  const teacher = await requireTeacher();
+  const { user: actor, scope } = await requireStaffScope();
   const parsed = transferSchema.safeParse(input);
   if (!parsed.success) return validationFailed(parsed.error);
   const { toGroupId, date, note, exemptPast } = parsed.data;
@@ -246,10 +277,17 @@ export async function transferStudents(
     };
   }
 
+  // Menejer faqat doira ichida o'tkazadi: yangi guruh ham, o'quvchilar ham doirada bo'lsin
+  if (!canAccessGroup(scope, toGroupId)) return FORBIDDEN;
   const [group, students] = await Promise.all([
     db.group.findUnique({ where: { id: toGroupId }, select: { name: true } }),
     db.user.findMany({
-      where: { id: { in: studentIds }, role: "STUDENT", archivedAt: null },
+      where: {
+        id: { in: studentIds },
+        role: "STUDENT",
+        archivedAt: null,
+        ...studentScopeWhere(scope),
+      },
       select: {
         id: true,
         fullName: true,
@@ -265,6 +303,7 @@ export async function transferStudents(
       fieldErrors: { toGroupId: ["Guruh topilmadi"] },
     };
   if (students.length !== studentIds.length) {
+    if (scope.kind === "manager") return FORBIDDEN;
     return {
       ok: false,
       error: "Ba'zi o'quvchilar topilmadi yoki arxivda. Sahifani yangilang",
@@ -305,7 +344,7 @@ export async function transferStudents(
           groupId: toGroupId,
           date,
           reason: `Boshqa guruhdan o'tkazilgan (${formatDate(date)})`,
-          createdById: teacher.id,
+          createdById: actor.id,
         })
       : 0;
   });
@@ -383,6 +422,7 @@ export async function deleteStudent(studentId: string): Promise<ActionResult> {
 
 async function validateAgainstDb(
   rows: (ImportRow & { line: number })[],
+  scope: Scope,
 ): Promise<ValidatedRow[]> {
   const [existing, groups] = await Promise.all([
     db.user.findMany({
@@ -393,7 +433,8 @@ async function validateAgainstDb(
       },
       select: { username: true },
     }),
-    db.group.findMany({ select: { name: true } }),
+    // Menejer uchun doiradan tashqaridagi guruh "topilmadi" bo'ladi
+    db.group.findMany({ where: groupScopeWhere(scope), select: { name: true } }),
   ]);
   return validateImportRows(rows, {
     existingUsernames: new Set(existing.map((u) => u.username)),
@@ -404,6 +445,7 @@ async function validateAgainstDb(
 /** Faylni serverda o'qiydi va tekshiradi. Klient yuborgan "tayyor" qatorlarga ishonilmaydi */
 async function parseStudentFile(
   formData: FormData,
+  scope: Scope,
 ): Promise<{ rows: ValidatedRow[] } | { error: string }> {
   const upload = getUploadedFile(formData, ["xlsx"]);
   if ("error" in upload) return upload;
@@ -411,7 +453,7 @@ async function parseStudentFile(
   if ("error" in sheet) return sheet;
   const parsed = sheetToRows(sheet);
   if ("error" in parsed) return parsed;
-  return { rows: await validateAgainstDb(parsed.rows) };
+  return { rows: await validateAgainstDb(parsed.rows, scope) };
 }
 
 /** Preview'da parol qaytarilmaydi */
@@ -446,8 +488,8 @@ export type ImportPreview =
 export async function previewStudentImport(
   formData: FormData,
 ): Promise<ImportPreview> {
-  await requireTeacher();
-  const result = await parseStudentFile(formData);
+  const { scope } = await requireStaffScope();
+  const result = await parseStudentFile(formData, scope);
   if ("error" in result) return { ok: false, error: result.error };
   return { ok: true, rows: withoutPasswords(result.rows) };
 }
@@ -459,9 +501,9 @@ export type ImportResult =
 export async function importStudents(
   formData: FormData,
 ): Promise<ImportResult> {
-  await requireTeacher();
+  const { user, scope } = await requireStaffScope();
   // Preview'dan keyin baza o'zgargan bo'lishi mumkin — fayl qayta o'qiladi va tekshiriladi
-  const result = await parseStudentFile(formData);
+  const result = await parseStudentFile(formData, scope);
   if ("error" in result) return { ok: false, error: result.error };
   const { rows } = result;
   if (rows.some((r) => r.errors.length > 0)) {
@@ -472,7 +514,10 @@ export async function importStudents(
     };
   }
 
-  const groups = await db.group.findMany({ select: { id: true, name: true } });
+  const groups = await db.group.findMany({
+    where: groupScopeWhere(scope),
+    select: { id: true, name: true },
+  });
   const groupIdByName = new Map(
     groups.map((g) => [g.name.toLowerCase(), g.id]),
   );
@@ -484,6 +529,7 @@ export async function importStudents(
       passwordHash: await hashPassword(r.password),
       groupId: groupIdByName.get(r.group.toLowerCase())!,
       role: "STUDENT" as const,
+      createdById: user.id,
       profile: { create: r.profile },
     })),
   );

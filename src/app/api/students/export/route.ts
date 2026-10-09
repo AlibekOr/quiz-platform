@@ -1,5 +1,10 @@
 import type { NextRequest } from "next/server";
 import { getCurrentUser } from "@/lib/auth/guards";
+import {
+  canAccessGroup,
+  getScope,
+  studentScopeWhere,
+} from "@/lib/auth/scope";
 import { db } from "@/lib/db";
 import { fileSafe } from "@/lib/format";
 import { buildStudentsWorkbook } from "@/lib/students/export";
@@ -9,13 +14,15 @@ import { studentExportQuerySchema } from "@/lib/validators/student";
 const XLSX =
   "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 
-// GET /api/students/export?groupId= — faqat o'qituvchi. groupId berilmasa barcha o'quvchilar
+// GET /api/students/export?groupId= — o'qituvchi yoki menejer (faqat o'z doirasi).
+// groupId berilmasa doiradagi barcha o'quvchilar; doiradan tashqaridagi groupId — 403
 export async function GET(request: NextRequest) {
   const user = await getCurrentUser();
   if (!user)
     return Response.json({ error: "Avtorizatsiya kerak" }, { status: 401 });
-  if (user.role !== "TEACHER")
+  if (user.role !== "TEACHER" && user.role !== "MANAGER")
     return Response.json({ error: "Ruxsat yo'q" }, { status: 403 });
+  const scope = await getScope(user);
 
   const query = studentExportQuerySchema.safeParse({
     groupId: request.nextUrl.searchParams.get("groupId"),
@@ -31,12 +38,15 @@ export async function GET(request: NextRequest) {
     : null;
   if (groupId && !group)
     return Response.json({ error: "Guruh topilmadi" }, { status: 404 });
+  if (groupId && !canAccessGroup(scope, groupId))
+    return Response.json({ error: "Ruxsat yo'q" }, { status: 403 });
 
   const students = await db.user.findMany({
     where: {
       role: "STUDENT",
       archivedAt: null,
       ...(groupId ? { groupId } : {}),
+      ...studentScopeWhere(scope),
     },
     orderBy: [{ group: { name: "asc" } }, { fullName: "asc" }],
     select: {

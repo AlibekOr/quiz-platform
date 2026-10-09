@@ -16,15 +16,18 @@ import {
 import { formatPhone } from "@/lib/students/format";
 import { StudentRowActions } from "./student-row-actions";
 import { TransferDialog } from "./transfer-dialog";
-import type { GroupOption, StudentRow } from "./types";
+import type { GroupOption, StaffVariant, StudentRow } from "./types";
 
 /** O'quvchilar jadvali: bir nechtasini tanlab birga boshqa guruhga o'tkazish mumkin */
 export function StudentsTable({
   rows,
   groups,
+  variant = "teacher",
 }: {
   rows: StudentRow[];
   groups: GroupOption[];
+  /** Menejerda kartochka havolasi va arxiv amallari yo'q */
+  variant?: StaffVariant;
 }) {
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
   const [transferOpen, setTransferOpen] = useState(false);
@@ -122,12 +125,16 @@ export function StudentsTable({
                   )}
                 </TableCell>
                 <TableCell className="font-medium">
-                  <Link
-                    href={`/teacher/students/${s.id}`}
-                    className="hover:underline"
-                  >
-                    {s.fullName}
-                  </Link>
+                  {variant === "teacher" ? (
+                    <Link
+                      href={`/teacher/students/${s.id}`}
+                      className="hover:underline"
+                    >
+                      {s.fullName}
+                    </Link>
+                  ) : (
+                    s.fullName
+                  )}
                 </TableCell>
                 <TableCell className="font-mono text-xs">
                   {s.username}
@@ -139,6 +146,8 @@ export function StudentsTable({
                 <TableCell>
                   {s.archived ? (
                     <Badge variant="outline">Arxivda</Badge>
+                  ) : s.deletionPending ? (
+                    <Badge variant="outline">O&apos;chirish kutilmoqda</Badge>
                   ) : s.isActive ? (
                     <Badge variant="secondary">Faol</Badge>
                   ) : (
@@ -146,7 +155,11 @@ export function StudentsTable({
                   )}
                 </TableCell>
                 <TableCell>
-                  <StudentRowActions student={s} groups={groups} />
+                  <StudentRowActions
+                    student={s}
+                    groups={groups}
+                    variant={variant}
+                  />
                 </TableCell>
               </TableRow>
             ))}

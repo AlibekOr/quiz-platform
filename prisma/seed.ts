@@ -255,35 +255,90 @@ async function main() {
   }
 
   const title = "CSS asoslari";
-  // Qayta ishga tushirilganda dublikat bo'lmasligi uchun
-  await db.test.deleteMany({ where: { title, createdById: teacher.id } });
-  await db.test.create({
-    data: {
-      title,
-      description: "Namunaviy test: selektorlar, layout, birliklar",
-      durationMin: 15,
-      isActive: true,
-      createdById: teacher.id,
-      groups: { connect: groups.map((g) => ({ id: g.id })) },
-      questions: {
-        create: CSS_QUESTIONS.map((q, qi) => ({
-          text: q.text,
-          type: q.type,
-          order: qi,
-          options: {
-            create: q.options.map(([text, isCorrect], oi) => ({
-              text,
-              isCorrect,
-              order: oi,
-            })),
-          },
-        })),
-      },
-    },
+  // Test bor bo'lsa tegilmaydi: qayta yaratish uning urinishlari va natijalarini o'chirib yuboradi
+  const existingTest = await db.test.findFirst({
+    where: { title, createdById: teacher.id },
+    select: { id: true },
   });
+  if (!existingTest)
+    await db.test.create({
+      data: {
+        title,
+        description: "Namunaviy test: selektorlar, layout, birliklar",
+        durationMin: 15,
+        isActive: true,
+        createdById: teacher.id,
+        groups: { connect: groups.map((g) => ({ id: g.id })) },
+        questions: {
+          create: CSS_QUESTIONS.map((q, qi) => ({
+            text: q.text,
+            type: q.type,
+            order: qi,
+            options: {
+              create: q.options.map(([text, isCorrect], oi) => ({
+                text,
+                isCorrect,
+                order: oi,
+              })),
+            },
+          })),
+        },
+      },
+    });
+
+  // Regionlar va menejerlar (faqat dev): har regionda bitta guruh, ikkinchi menejerga
+  // birinchi regiondagi guruh qo'shimcha biriktiriladi. Parol — o'quvchilarniki bilan bir xil
+  const managerSetup = [
+    {
+      region: "Toshkent",
+      group: "Frontend-1",
+      username: "manager1",
+      extra: null,
+    },
+    {
+      region: "Samarqand",
+      group: "Frontend-2",
+      username: "manager2",
+      extra: "Frontend-1",
+    },
+  ];
+  for (const [i, m] of managerSetup.entries()) {
+    const region = await db.region.upsert({
+      where: { name: m.region },
+      update: {},
+      create: { name: m.region },
+    });
+    // O'qituvchi o'zgartirgan regionga tegilmaydi
+    await db.group.updateMany({
+      where: { name: m.group, regionId: null },
+      data: { regionId: region.id },
+    });
+    const manager = await db.user.upsert({
+      where: { username: m.username },
+      update: {},
+      create: {
+        username: m.username,
+        fullName: `Menejer ${i + 1}`,
+        passwordHash: studentHash,
+        role: "MANAGER",
+        regionId: region.id,
+        createdById: teacher.id,
+      },
+    });
+    const extra = groups.find((g) => g.name === m.extra);
+    if (extra) {
+      await db.managerGroup.upsert({
+        where: {
+          managerId_groupId: { managerId: manager.id, groupId: extra.id },
+        },
+        update: {},
+        create: { managerId: manager.id, groupId: extra.id },
+      });
+    }
+  }
 
   console.log(
-    `Seed tayyor: 1 o'qituvchi, ${GROUPS.length} guruh, ${GROUPS.length * STUDENTS_PER_GROUP} o'quvchi, 1 test (${CSS_QUESTIONS.length} savol), dars jadvali va 2 haftalik davomat`,
+    `Seed tayyor: 1 o'qituvchi, ${GROUPS.length} guruh, ${GROUPS.length * STUDENTS_PER_GROUP} o'quvchi, 1 test (${CSS_QUESTIONS.length} savol), dars jadvali, 2 haftalik davomat, ${managerSetup.length} region va ${managerSetup.length} menejer`,
   );
 }
 

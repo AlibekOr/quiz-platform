@@ -33,6 +33,7 @@ datasource db {
 
 enum Role {
   TEACHER
+  MANAGER
   STUDENT
 }
 
@@ -310,6 +311,12 @@ model GroupMembership {
 | `/teacher/homework` | teacher | Guruh davrlari bo'yicha uyga vazifalar: yaratish, tahrirlash, o'chirish |
 | `/teacher/homework/[id]` | teacher | Vazifaga ball qo'yish |
 | `/teacher/grades` | teacher | Guruh + davr baholar jadvali, Excel eksport |
+| `/teacher/managers` | teacher | Menejerlar va regionlar |
+| `/teacher/requests` | teacher | Menejerlarning o'chirish so'rovlari: tasdiqlash (arxivlash) yoki rad etish |
+| `/manager` | manager | Doiradagi guruhlar, bugungi darslar |
+| `/manager/students` | manager | Doiradagi o'quvchilar: qo'shish, tahrirlash, parol, o'tkazish, bloklash, import/eksport, o'chirishni so'rash |
+| `/manager/attendance` | manager | Doiradagi guruhlar davomat hisoboti va Excel (faqat ko'rish) |
+| `/manager/requests` | manager | O'z so'rovlari va holati |
 | `/grades` | student | Baholarim: davr bo'yicha vazifa va test ballari, jami, holat |
 | `/teacher/tests` | teacher | Testlar ro'yxati, yaratish |
 | `/teacher/tests/[id]` | teacher | Tahrirlash: savollar, sozlamalar, guruhlar, import |
@@ -461,14 +468,20 @@ Sahifalar:
 
 **Tayyor:** o'qituvchi davr va vazifa yaratadi, ball qo'yadi, testni davrga biriktiradi; "Baholar" jadvali va Excel'da jami, foiz va holat to'g'ri; o'tkazilgan o'quvchi yangi guruhning eski vazifalaridan ozod; o'quvchi "Baholarim"da faqat o'zini ko'radi.
 
-### 13-bosqich: menejerlar, regionlar va o'chirish so'rovlari (keyingi)
-- Rollar: `TEACHER`, `MANAGER`, `STUDENT`. `Region` (`name` unique), `Group.regionId?`, `User.regionId` (menejer), `ManagerGroup` (qo'shimcha biriktirilgan guruhlar), `User.createdById`
-- `lib/auth/scope.ts`: `getAccessibleGroupIds(user)` = region guruhlari ∪ biriktirilganlar (o'qituvchi uchun hammasi). Menejerning barcha so'rovlari shu bilan filtrlanadi; guruhsiz o'quvchini faqat o'zi qo'shgan bo'lsa ko'radi; doiradan tashqaridagi id bilan so'rov 403
-- Menejer o'quvchilar bilan: qo'shish, tahrirlash, parolni tiklash, doira ichida o'tkazish, bloklash, Excel import/eksport, "O'chirishni so'rash". Davomat: faqat ko'rish va eksport
-- `DeletionRequest` (PENDING | APPROVED | REJECTED), bitta o'quvchiga bitta PENDING. `/teacher/requests`: tasdiqlash arxivlaydi, rad etish izoh bilan
-- `/teacher/managers`, regionlarni boshqarish, guruh formasida region. `/manager/*` alohida layout
-- Guard'lar: `requireTeacher`, `requireManager`, `requireStaff`; rol va region har so'rovda bazadan
-- Yon panelda "Menejerlar" va "So'rovlar" (kutilayotganlar soni bilan)
+### 13-bosqich: menejerlar, regionlar va o'chirish so'rovlari
+Kelishilgan: menejer o'z doirasidagi o'quvchilarga qo'shish, tahrirlash, parolni tiklash, doira ichida o'tkazish, bloklash, Excel import/eksport va "O'chirishni so'rash" qila oladi. Testlar, uyga vazifa, baholar va reyting menejerga yopiq (testlar 14-bosqichda).
+
+- Prisma (migratsiya `managers_regions`): `Role` ga `MANAGER`; `Region` (`name` unique); `Group.regionId?`; `User.regionId?` (menejer); `ManagerGroup` (`managerId`, `groupId`, unique); `User.createdById?` (o'quvchini kim qo'shgan); `DeletionRequest` (`studentId`, `requestedById`, `reason`, `status` PENDING | APPROVED | REJECTED, `decidedById`, `decidedAt`, `decisionNote`). Bitta o'quvchiga bitta PENDING — qisman unique indeks (faqat SQL)
+- `lib/auth/scope.ts`: `getAccessibleGroupIds(user)` = region guruhlari ∪ biriktirilganlar (o'qituvchi — hammasi). Menejerning barcha so'rovlari shu bilan filtrlanadi; guruhsiz o'quvchini faqat o'zi qo'shgan bo'lsa ko'radi; doiradan tashqaridagi id — action'da "Ruxsat yo'q", API'da 403 (CLAUDE.md, 12-qoida)
+- Auth: `requireTeacher`, `requireManager`, `requireStaff`, `requireStudent` (`requireRole`). `proxy.ts`: `/teacher/*` — TEACHER, `/manager/*` — MANAGER, o'quvchi sahifalari — STUDENT, reyting — TEACHER va STUDENT. Rol, faollik va region har so'rovda bazadan: bloklangan yoki regioni o'zgargan menejerning eski sessiyasi yangi qoidalar bilan ishlaydi
+- O'quvchi action'lari (`teacher/students/actions.ts`) umumiy: o'qituvchi — hammasi, menejer — doira bilan. Guruhdan chiqarish, arxivlash va butunlay o'chirish faqat o'qituvchida
+- `DeletionRequest` mantig'i `lib/deletion-requests.ts` da: menejer faqat so'raydi, o'qituvchi tasdiqlasa o'quvchi arxivlanadi (sessiyalari yopiladi), rad etishda izoh majburiy. O'qituvchining o'zi arxivlasa tasdiq kerak emas
+- O'qituvchi: `/teacher/managers` (menejerlar: yaratish, tahrirlash, region, parol, bloklash, qo'shimcha guruhlar; regionlar: qo'shish, nomini o'zgartirish), `/teacher/requests` (kutilayotganlar tepada), guruh yaratish formasi va guruhlar jadvalida region tanlash. Yon panel: Bosh sahifa, Guruhlar, O'quvchilar, Davomat, Testlar, Uyga vazifalar, Baholar, Menejerlar, So'rovlar (kutilayotganlar soni), Reyting, Profil
+- Menejer (`/manager/*`, alohida layout, telefonda hamburger): `/manager` (guruhlar, bugungi darslar), `/manager/students` (+ import), `/manager/attendance` (faqat ko'rish va Excel), `/manager/requests`. "O'chirish kutilmoqda" belgisi ro'yxatlarda
+- Dev seed: 2 region (Toshkent, Samarqand), har birida guruh, 2 menejer (`manager1`, `manager2`; ikkinchisiga qo'shimcha guruh), parol — `SEED_STUDENT_PASSWORD`
+- Vitest (DB): `getAccessibleGroupIds` (faqat region, faqat biriktirilgan, ikkalasi, hech biri), boshqa region o'quvchisi ko'rinmasligi va unga amal qilib bo'lmasligi, guruhsiz o'quvchi, region o'zgarishi; o'chirish so'rovi (menejer o'chira olmaydi, tasdiqdan keyin arxiv, ikkinchi PENDING rad etiladi). Unit: `allowedRoles`, `MANAGER` JWT
+
+**Tayyor:** menejer faqat o'z doirasidagi o'quvchilarni ko'radi va boshqaradi, boshqa region o'quvchisi id bilan kelsa rad etiladi; o'chirish so'rovi o'qituvchi tasdiqlagach o'quvchi arxivlanadi; menejer o'qituvchi sahifalari, testlar va reytingga kira olmaydi.
 
 ### 14-bosqich: menejer testlari (keyingi)
 - `/manager/tests`: doiradagi guruhlar testlari; o'qituvchi sahifa va komponentlari qayta ishlatiladi

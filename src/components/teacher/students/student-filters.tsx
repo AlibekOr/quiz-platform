@@ -9,7 +9,14 @@ import {
 } from "@/components/ui/native-select";
 import type { GroupOption } from "./types";
 
-export function StudentFilters({ groups }: { groups: GroupOption[] }) {
+export function StudentFilters({
+  groups,
+  showArchive = true,
+}: {
+  groups: GroupOption[];
+  /** Menejer arxivni ko'rmaydi */
+  showArchive?: boolean;
+}) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -51,7 +58,9 @@ export function StudentFilters({ groups }: { groups: GroupOption[] }) {
           </NativeSelectOption>
         ))}
         <NativeSelectOption value="none">Guruhsiz</NativeSelectOption>
-        <NativeSelectOption value="archived">Arxiv</NativeSelectOption>
+        {showArchive && (
+          <NativeSelectOption value="archived">Arxiv</NativeSelectOption>
+        )}
       </NativeSelect>
     </div>
   );

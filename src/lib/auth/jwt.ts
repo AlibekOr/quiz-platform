@@ -2,7 +2,13 @@ import { jwtVerify, SignJWT } from "jose";
 
 // proxy.ts va session.ts ikkalasi ishlatadi, shuning uchun next/headers va server-only yo'q
 
-export type Role = "TEACHER" | "STUDENT";
+export type Role = "TEACHER" | "MANAGER" | "STUDENT";
+
+const ROLES: readonly Role[] = ["TEACHER", "MANAGER", "STUDENT"];
+
+function isRole(value: unknown): value is Role {
+  return ROLES.includes(value as Role);
+}
 
 // Guruh tokenda saqlanmaydi: o'quvchi boshqa guruhga o'tkazilsa eski sessiya ham
 // yangi guruhni bazadan oladi (guards.ts, getCurrentUser)
@@ -46,7 +52,7 @@ export async function decodeSession(
     });
     // Eski tokenlardagi groupId e'tiborsiz qoldiriladi
     const { sub, role, sv } = payload;
-    if (typeof sub !== "string" || (role !== "TEACHER" && role !== "STUDENT"))
+    if (typeof sub !== "string" || !isRole(role))
       return null;
     return {
       userId: sub,
@@ -59,6 +65,12 @@ export async function decodeSession(
   }
 }
 
+const HOME: Record<Role, string> = {
+  TEACHER: "/teacher",
+  MANAGER: "/manager",
+  STUDENT: "/dashboard",
+};
+
 export function homePathFor(role: Role): string {
-  return role === "TEACHER" ? "/teacher" : "/dashboard";
+  return HOME[role];
 }

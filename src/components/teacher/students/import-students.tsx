@@ -22,7 +22,12 @@ import {
 } from "@/components/ui/table";
 import { IMPORT_COLUMNS, REQUIRED_COLUMNS } from "@/lib/students/import";
 
-export function ImportStudents() {
+export function ImportStudents({
+  returnTo = "/teacher/students",
+}: {
+  /** Import tugagach qaytiladigan ro'yxat (o'qituvchi yoki menejer) */
+  returnTo?: string;
+}) {
   const router = useRouter();
   const [file, setFile] = useState<File | null>(null);
   const [rows, setRows] = useState<ImportPreviewRow[] | null>(null);
@@ -57,7 +62,7 @@ export function ImportStudents() {
       const result = await importStudents(toFormData(file));
       if (result.ok) {
         toast.success(`${result.created} ta o'quvchi qo'shildi`);
-        router.push("/teacher/students");
+        router.push(returnTo);
       } else {
         setError(result.error);
         if (result.rows) setRows(result.rows);

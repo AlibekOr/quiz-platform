@@ -10,6 +10,7 @@ import {
   setStudentArchived,
 } from "@/app/(teacher)/teacher/students/actions";
 import { ConfirmAction } from "@/components/common/confirm-action";
+import { RequestDeletionDialog } from "@/components/manager/request-deletion-dialog";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -21,7 +22,7 @@ import {
 import { ResetPasswordDialog } from "./reset-password-dialog";
 import { StudentDialog } from "./student-dialog";
 import { TransferDialog } from "./transfer-dialog";
-import type { GroupOption, StudentRow } from "./types";
+import type { GroupOption, StaffVariant, StudentRow } from "./types";
 
 type DialogKind =
   | "edit"
@@ -31,21 +32,25 @@ type DialogKind =
   | "removeGroup"
   | "archive"
   | "restore"
-  | "delete";
+  | "delete"
+  | "requestDeletion";
 
 export function StudentRowActions({
   student,
   groups,
   onCard,
+  variant = "teacher",
 }: {
   student: StudentRow;
   groups: GroupOption[];
+  variant?: StaffVariant;
   /** O'quvchi kartochkasida: butunlay o'chirilgandan keyin ro'yxatga qaytadi */
   onCard?: boolean;
 }) {
   const router = useRouter();
   const [dialog, setDialog] = useState<DialogKind | null>(null);
   const close = (open: boolean) => !open && setDialog(null);
+  const teacher = variant === "teacher";
 
   return (
     <>
@@ -88,7 +93,7 @@ export function StudentRowActions({
                   ? "Boshqa guruhga o'tkazish"
                   : "Guruhga qo'shish"}
               </DropdownMenuItem>
-              {student.groupId && (
+              {teacher && student.groupId && (
                 <DropdownMenuItem onClick={() => setDialog("removeGroup")}>
                   Guruhdan chiqarish
                 </DropdownMenuItem>
@@ -100,12 +105,24 @@ export function StudentRowActions({
               >
                 {student.isActive ? "Bloklash" : "Blokdan chiqarish"}
               </DropdownMenuItem>
-              <DropdownMenuItem
-                variant="destructive"
-                onClick={() => setDialog("archive")}
-              >
-                Arxivlash
-              </DropdownMenuItem>
+              {teacher ? (
+                <DropdownMenuItem
+                  variant="destructive"
+                  onClick={() => setDialog("archive")}
+                >
+                  Arxivlash
+                </DropdownMenuItem>
+              ) : (
+                <DropdownMenuItem
+                  variant="destructive"
+                  disabled={student.deletionPending}
+                  onClick={() => setDialog("requestDeletion")}
+                >
+                  {student.deletionPending
+                    ? "O'chirish kutilmoqda"
+                    : "O'chirishni so'rash"}
+                </DropdownMenuItem>
+              )}
             </>
           )}
         </DropdownMenuContent>
@@ -130,6 +147,13 @@ export function StudentRowActions({
             students={[student]}
             groups={groups}
           />
+          {!teacher && (
+            <RequestDeletionDialog
+              open={dialog === "requestDeletion"}
+              onOpenChange={close}
+              student={student}
+            />
+          )}
         </>
       )}
       <ConfirmAction

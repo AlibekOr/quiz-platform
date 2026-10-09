@@ -18,7 +18,7 @@ pnpm db:seed                 # o'qituvchi + 2 guruh, 10 o'quvchi, namunaviy test
 pnpm dev                     # http://localhost:3000
 ```
 
-Kirish: `.env` dagi `SEED_TEACHER_USERNAME` / `SEED_TEACHER_PASSWORD` (o'qituvchi). Namunaviy o'quvchilar: `student11`…`student15`, `student21`…`student25`, paroli `SEED_STUDENT_PASSWORD`.
+Kirish: `.env` dagi `SEED_TEACHER_USERNAME` / `SEED_TEACHER_PASSWORD` (o'qituvchi). Namunaviy o'quvchilar: `student11`…`student15`, `student21`…`student25`; menejerlar: `manager1` (Toshkent), `manager2` (Samarqand + Frontend-1). Hammasining paroli `SEED_STUDENT_PASSWORD`.
 
 ## Muhit o'zgaruvchilari
 
@@ -30,7 +30,7 @@ Kirish: `.env` dagi `SEED_TEACHER_USERNAME` / `SEED_TEACHER_PASSWORD` (o'qituvch
 | `SEED_TEACHER_USERNAME` | seed uchun     | O'qituvchi logini                                                                                     |
 | `SEED_TEACHER_PASSWORD` | seed uchun     | O'qituvchi paroli (prod'da kamida 8 belgi)                                                            |
 | `SEED_TEACHER_FULLNAME` | yo'q           | O'qituvchi ismi (standart: "O'qituvchi")                                                              |
-| `SEED_STUDENT_PASSWORD` | faqat dev seed | Namunaviy o'quvchilar paroli                                                                          |
+| `SEED_STUDENT_PASSWORD` | faqat dev seed | Namunaviy o'quvchilar va menejerlar paroli                                                            |
 | `TEST_DATABASE_URL`     | testlar uchun  | Reyting/urinish SQL testlari uchun **alohida** baza. Har testda tozalanadi, asosiy bazani bermang     |
 
 Sirlar faqat `.env` da saqlanadi (gitga tushmaydi). Prod'da (`NODE_ENV=production`) sessiya cookie'si `httpOnly`, `secure`, `sameSite=lax`.

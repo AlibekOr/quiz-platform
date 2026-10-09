@@ -10,9 +10,15 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { NavLinks } from "./nav-links";
+import { NavLinks, type NavVariant } from "./nav-links";
 
-export function MobileNav() {
+export function MobileNav({
+  variant,
+  badges,
+}: {
+  variant: NavVariant;
+  badges?: Record<string, number>;
+}) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -28,7 +34,11 @@ export function MobileNav() {
         <SheetHeader className="p-0">
           <SheetTitle>Test platformasi</SheetTitle>
         </SheetHeader>
-        <NavLinks onNavigate={() => setOpen(false)} />
+        <NavLinks
+          variant={variant}
+          badges={badges}
+          onNavigate={() => setOpen(false)}
+        />
       </SheetContent>
     </Sheet>
   );

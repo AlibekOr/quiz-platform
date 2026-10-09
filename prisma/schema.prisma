@@ -10,7 +10,14 @@ datasource db {
 
 enum Role {
   TEACHER
+  MANAGER
   STUDENT
+}
+
+enum DeletionStatus {
+  PENDING
+  APPROVED
+  REJECTED
 }
 
 enum QuestionType {
@@ -37,27 +44,38 @@ enum AttemptStatus {
 }
 
 model User {
-  id             String            @id @default(cuid())
-  username       String            @unique
-  fullName       String
-  passwordHash   String
-  role           Role              @default(STUDENT)
-  isActive       Boolean           @default(true)
+  id                 String            @id @default(cuid())
+  username           String            @unique
+  fullName           String
+  passwordHash       String
+  role               Role              @default(STUDENT)
+  isActive           Boolean           @default(true)
   // Parol tiklanganda oshiriladi: eski sessiyalar (JWT) yaroqsiz bo'ladi
-  sessionVersion Int               @default(0)
+  sessionVersion     Int               @default(0)
   // Arxivlangan (yumshoq o'chirilgan) o'quvchi: kira olmaydi, ro'yxat va reytinglarda ko'rinmaydi
-  archivedAt     DateTime?
-  groupId        String?
-  group          Group?            @relation(fields: [groupId], references: [id])
-  attempts       Attempt[]
-  profile        StudentProfile?
-  attendances    Attendance[]
-  memberships    GroupMembership[]
-  homeworkGrades HomeworkGrade[]
-  exemptions     GradeExemption[]
-  adjustments    PointAdjustment[]
-  createdTests   Test[]            @relation("TestAuthor")
-  createdAt      DateTime          @default(now())
+  archivedAt         DateTime?
+  groupId            String?
+  group              Group?            @relation(fields: [groupId], references: [id])
+  attempts           Attempt[]
+  profile            StudentProfile?
+  attendances        Attendance[]
+  memberships        GroupMembership[]
+  homeworkGrades     HomeworkGrade[]
+  exemptions         GradeExemption[]
+  adjustments        PointAdjustment[]
+  createdTests       Test[]            @relation("TestAuthor")
+  // Menejerning regioni (faqat MANAGER uchun); doirasi: region guruhlari + ManagerGroup
+  regionId           String?
+  region             Region?           @relation(fields: [regionId], references: [id], onDelete: SetNull)
+  managedGroups      ManagerGroup[]
+  // O'quvchini kim qo'shgan (menejer guruhsiz o'quvchini faqat o'zi qo'shgan bo'lsa ko'radi)
+  createdById        String?
+  createdBy          User?             @relation("CreatedStudents", fields: [createdById], references: [id], onDelete: SetNull)
+  createdUsers       User[]            @relation("CreatedStudents")
+  deletionRequests   DeletionRequest[] @relation("DeletionStudent")
+  requestedDeletions DeletionRequest[] @relation("DeletionRequester")
+  decidedDeletions   DeletionRequest[] @relation("DeletionDecider")
+  createdAt          DateTime          @default(now())
 }
 
 model Group {
@@ -69,6 +87,9 @@ model Group {
   lessons     Lesson[]
   memberships GroupMembership[]
   periods     Period[]
+  regionId    String?
+  region      Region?           @relation(fields: [regionId], references: [id], onDelete: SetNull)
+  managers    ManagerGroup[]
   createdAt   DateTime          @default(now())
 }
 
@@ -322,4 +343,44 @@ model PointAdjustment {
   createdAt   DateTime @default(now())
 
   @@index([studentId, periodId])
+}
+
+model Region {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  groups    Group[]
+  managers  User[]
+  createdAt DateTime @default(now())
+}
+
+// O'qituvchi menejerga qo'lda biriktirgan qo'shimcha guruhlar (regiondan tashqari)
+model ManagerGroup {
+  id        String   @id @default(cuid())
+  managerId String
+  manager   User     @relation(fields: [managerId], references: [id], onDelete: Cascade)
+  groupId   String
+  group     Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([managerId, groupId])
+}
+
+// Menejerning o'quvchini o'chirish so'rovi. Tasdiqlansa o'quvchi arxivlanadi.
+// Bitta o'quvchiga bir vaqtda faqat bitta PENDING: qisman unique indeks (faqat SQL migratsiyada)
+model DeletionRequest {
+  id            String         @id @default(cuid())
+  studentId     String
+  student       User           @relation("DeletionStudent", fields: [studentId], references: [id], onDelete: Cascade)
+  requestedById String
+  requestedBy   User           @relation("DeletionRequester", fields: [requestedById], references: [id], onDelete: Cascade)
+  reason        String
+  status        DeletionStatus @default(PENDING)
+  decidedById   String?
+  decidedBy     User?          @relation("DeletionDecider", fields: [decidedById], references: [id], onDelete: SetNull)
+  decidedAt     DateTime?
+  decisionNote  String?
+  createdAt     DateTime       @default(now())
+
+  @@index([status, createdAt])
+  @@index([requestedById, createdAt])
 }

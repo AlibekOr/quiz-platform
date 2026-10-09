@@ -2,14 +2,17 @@ import "server-only";
 import { cache } from "react";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
+import { homePathFor, type Role } from "./jwt";
 import { readSession } from "./session";
 
 export type CurrentUser = {
   id: string;
   username: string;
   fullName: string;
-  role: "TEACHER" | "STUDENT";
+  role: Role;
   groupId: string | null;
+  /** Menejerning regioni (doira har so'rovda bazadan hisoblanadi — lib/auth/scope.ts) */
+  regionId: string | null;
 };
 
 export const getSession = cache(readSession);
@@ -30,6 +33,7 @@ export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
       fullName: true,
       role: true,
       groupId: true,
+      regionId: true,
       isActive: true,
       archivedAt: true,
       sessionVersion: true,
@@ -45,6 +49,7 @@ export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
     fullName: user.fullName,
     role: user.role,
     groupId: user.groupId,
+    regionId: user.regionId,
   };
 });
 
@@ -54,14 +59,28 @@ export async function requireUser(): Promise<CurrentUser> {
   return user;
 }
 
-export async function requireTeacher(): Promise<CurrentUser> {
+/** Rol mos kelmasa — o'z bosh sahifasiga yo'naltiriladi */
+export async function requireRole(
+  roles: readonly Role[],
+): Promise<CurrentUser> {
   const user = await requireUser();
-  if (user.role !== "TEACHER") redirect("/dashboard");
+  if (!roles.includes(user.role)) redirect(homePathFor(user.role));
   return user;
 }
 
-export async function requireStudent(): Promise<CurrentUser> {
-  const user = await requireUser();
-  if (user.role !== "STUDENT") redirect("/teacher");
-  return user;
+export function requireTeacher(): Promise<CurrentUser> {
+  return requireRole(["TEACHER"]);
+}
+
+export function requireManager(): Promise<CurrentUser> {
+  return requireRole(["MANAGER"]);
+}
+
+/** O'qituvchi yoki menejer. Menejer uchun har bir so'rov doira bilan cheklanadi (scope.ts) */
+export function requireStaff(): Promise<CurrentUser> {
+  return requireRole(["TEACHER", "MANAGER"]);
+}
+
+export function requireStudent(): Promise<CurrentUser> {
+  return requireRole(["STUDENT"]);
 }

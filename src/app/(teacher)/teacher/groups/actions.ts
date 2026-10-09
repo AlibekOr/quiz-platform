@@ -11,6 +11,7 @@ import {
   type ScheduleFormInput,
 } from "@/lib/validators/attendance";
 import { isNotFound, isUniqueViolation } from "@/lib/prisma-errors";
+import { groupRegionSchema } from "@/lib/validators/manager";
 import { groupFormSchema, type GroupFormInput } from "@/lib/validators/student";
 
 const idSchema = z.string().min(1);
@@ -18,17 +19,28 @@ const idSchema = z.string().min(1);
 function revalidate() {
   revalidatePath("/teacher/groups");
   revalidatePath("/teacher/students");
+  revalidatePath("/teacher/managers");
+}
+
+/** Region tanlansa, u mavjud bo'lsin */
+async function regionMissing(regionId: string | null): Promise<boolean> {
+  return (
+    regionId !== null && (await db.region.count({ where: { id: regionId } })) === 0
+  );
 }
 
 export async function createGroup(
-  input: GroupFormInput,
+  input: GroupFormInput & { regionId: string },
 ): Promise<ActionResult> {
   await requireTeacher();
-  const parsed = groupFormSchema.safeParse(input);
+  const parsed = groupFormSchema.merge(groupRegionSchema).safeParse(input);
   if (!parsed.success) return validationFailed(parsed.error);
+  const { name, regionId } = parsed.data;
+  if (await regionMissing(regionId))
+    return { ok: false, error: "Region topilmadi" };
 
   try {
-    await db.group.create({ data: { name: parsed.data.name } });
+    await db.group.create({ data: { name, regionId } });
   } catch (e) {
     if (isUniqueViolation(e))
       return {
@@ -65,6 +77,31 @@ export async function renameGroup(
   }
   revalidate();
   return { ok: true, message: "Guruh nomi o'zgartirildi" };
+}
+
+/** Guruh regioni o'zgarsa, o'sha regiondagi menejerlarning doirasi ham darhol o'zgaradi */
+export async function setGroupRegion(
+  groupId: string,
+  regionId: string,
+): Promise<ActionResult> {
+  await requireTeacher();
+  const id = idSchema.parse(groupId);
+  const parsed = groupRegionSchema.safeParse({ regionId });
+  if (!parsed.success) return validationFailed(parsed.error);
+  if (await regionMissing(parsed.data.regionId))
+    return { ok: false, error: "Region topilmadi" };
+
+  try {
+    await db.group.update({
+      where: { id },
+      data: { regionId: parsed.data.regionId },
+    });
+  } catch (e) {
+    if (isNotFound(e)) return { ok: false, error: "Guruh topilmadi" };
+    throw e;
+  }
+  revalidate();
+  return { ok: true, message: "Region saqlandi" };
 }
 
 export async function deleteGroup(groupId: string): Promise<ActionResult> {

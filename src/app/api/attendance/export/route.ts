@@ -2,6 +2,7 @@ import type { NextRequest } from "next/server";
 import { attendanceFileName, buildAttendanceWorkbook } from "@/lib/attendance";
 import { getAttendanceReport } from "@/lib/attendance-data";
 import { getCurrentUser } from "@/lib/auth/guards";
+import { canAccessGroup, getScope } from "@/lib/auth/scope";
 import { db } from "@/lib/db";
 import { formatDate, formatSchedule } from "@/lib/time";
 import { attendanceExportQuerySchema } from "@/lib/validators/attendance";
@@ -10,12 +11,12 @@ const XLSX =
   "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 const MAX_DAYS = 366;
 
-// GET /api/attendance/export?groupId=&from=&to= — faqat o'qituvchi
+// GET /api/attendance/export?groupId=&from=&to= — o'qituvchi yoki menejer (faqat doiradagi guruh)
 export async function GET(request: NextRequest) {
   const user = await getCurrentUser();
   if (!user)
     return Response.json({ error: "Avtorizatsiya kerak" }, { status: 401 });
-  if (user.role !== "TEACHER")
+  if (user.role !== "TEACHER" && user.role !== "MANAGER")
     return Response.json({ error: "Ruxsat yo'q" }, { status: 403 });
 
   const params = request.nextUrl.searchParams;
@@ -31,6 +32,8 @@ export async function GET(request: NextRequest) {
     );
   }
   const { groupId, from, to } = query.data;
+  if (!canAccessGroup(await getScope(user), groupId))
+    return Response.json({ error: "Ruxsat yo'q" }, { status: 403 });
   if ((Date.parse(to) - Date.parse(from)) / 86_400_000 > MAX_DAYS) {
     return Response.json({ error: "Davr 1 yildan oshmasin" }, { status: 400 });
   }

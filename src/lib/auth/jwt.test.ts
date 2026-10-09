@@ -113,6 +113,22 @@ describe("jwt session", () => {
   it("rol bo'yicha bosh sahifa", () => {
     expect(homePathFor("TEACHER")).toBe("/teacher");
     expect(homePathFor("STUDENT")).toBe("/dashboard");
+    expect(homePathFor("MANAGER")).toBe("/manager");
+  });
+
+  it("MANAGER rolini qabul qiladi", async () => {
+    vi.stubEnv("JWT_SECRET", SECRET);
+    const token = await encodeSession({
+      userId: "m1",
+      role: "MANAGER",
+      sessionVersion: 0,
+    });
+    expect(await decodeSession(token)).toEqual({
+      userId: "m1",
+      role: "MANAGER",
+      sessionVersion: 0,
+    });
+    vi.unstubAllEnvs();
   });
 });
 

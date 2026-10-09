@@ -69,15 +69,22 @@ export default async function StudentsPage({
         groupId: true,
         group: { select: { name: true } },
         profile: { select: teacherProfileSelect },
+        deletionRequests: {
+          where: { status: "PENDING" },
+          select: { id: true },
+        },
       },
     }),
   ]);
 
-  const rows: StudentRow[] = students.map(({ group, archivedAt, ...s }) => ({
-    ...s,
-    archived: archivedAt !== null,
-    groupName: group?.name ?? null,
-  }));
+  const rows: StudentRow[] = students.map(
+    ({ group, archivedAt, deletionRequests, ...s }) => ({
+      ...s,
+      archived: archivedAt !== null,
+      groupName: group?.name ?? null,
+      deletionPending: deletionRequests.length > 0,
+    }),
+  );
 
   return (
     <>
