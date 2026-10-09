@@ -16,6 +16,7 @@ export default async function StudentLayout({ children }: LayoutProps<"/">) {
         ]
       : [
           { href: "/dashboard", label: "Testlarim" },
+          { href: "/grades", label: "Baholarim" },
           { href: "/leaderboard", label: "Reyting" },
         ];
 

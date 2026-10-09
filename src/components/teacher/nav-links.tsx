@@ -3,8 +3,10 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
+  BookOpenCheckIcon,
   CalendarCheckIcon,
   ClipboardListIcon,
+  GraduationCapIcon,
   LayoutDashboardIcon,
   TrophyIcon,
   UserIcon,
@@ -24,6 +26,12 @@ const LINKS = [
   { href: "/teacher/groups", label: "Guruhlar", icon: UsersRoundIcon },
   { href: "/teacher/students", label: "O'quvchilar", icon: UsersIcon },
   { href: "/teacher/tests", label: "Testlar", icon: ClipboardListIcon },
+  {
+    href: "/teacher/homework",
+    label: "Uyga vazifalar",
+    icon: BookOpenCheckIcon,
+  },
+  { href: "/teacher/grades", label: "Baholar", icon: GraduationCapIcon },
   { href: "/leaderboard", label: "Reyting", icon: TrophyIcon },
   { href: "/teacher/account", label: "Profil", icon: UserIcon },
 ] as const;

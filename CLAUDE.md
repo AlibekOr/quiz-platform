@@ -24,10 +24,12 @@ Batafsil reja va bosqichlar `PLAN.md` faylida. Har doim joriy bosqichni o'sha ye
 src/
   app/
     (auth)/login/
-    (student)/dashboard/  test/[id]/  result/[attemptId]/  leaderboard/
+    (student)/dashboard/  test/[id]/  result/[attemptId]/  leaderboard/  grades/
     (teacher)/teacher/tests/  teacher/students/  teacher/groups/  teacher/attendance/
+    (teacher)/teacher/homework/  teacher/grades/
     api/leaderboard/route.ts
     api/attendance/export/route.ts
+    api/grades/export/route.ts
   components/ui/        # shadcn
   components/           # umumiy komponentlar
   lib/
@@ -37,6 +39,8 @@ src/
     attendance.ts       # davomat hisobi va Excel eksport
     time.ts             # Asia/Tashkent vaqt yordamchilari
     leaderboard.ts      # reyting so'rovlari
+    grades.ts           # baholar hisobi (sof funksiyalar); grades-data.ts, grades-excel.ts
+    memberships.ts      # guruh a'zoligi davrlari; memberships-data.ts
     validators/         # Zod sxemalar
   proxy.ts
 prisma/

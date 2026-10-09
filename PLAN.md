@@ -306,7 +306,11 @@ model GroupMembership {
 | `/teacher/attendance/[groupId]/[date]` | teacher | Davomat belgilash |
 | `/teacher/groups/[id]/attendance` | teacher | Davomat hisoboti (o'quvchilar × sanalar jadvali), Excel'ga yuklab olish |
 | `/teacher/students` | teacher | O'quvchilar ro'yxati, qo'shish, Excel import/eksport, parol tiklash, bloklash, boshqa guruhga o'tkazish (bir nechtasini tanlab ham), guruhdan chiqarish, arxivlash. Filtrlar: guruh, "Guruhsiz", "Arxiv" (tiklash, butunlay o'chirish) |
-| `/teacher/students/[id]` | teacher | O'quvchi kartochkasi: shaxsiy va aloqa ma'lumotlari, guruhi va guruhlar tarixi, boshqa guruhga o'tkazish, test natijalari, davomat foizi |
+| `/teacher/students/[id]` | teacher | O'quvchi kartochkasi: shaxsiy va aloqa ma'lumotlari, guruhi va guruhlar tarixi, boshqa guruhga o'tkazish, baholar (ball tuzatish, ozod qilish), test natijalari, davomat foizi |
+| `/teacher/homework` | teacher | Guruh davrlari bo'yicha uyga vazifalar: yaratish, tahrirlash, o'chirish |
+| `/teacher/homework/[id]` | teacher | Vazifaga ball qo'yish |
+| `/teacher/grades` | teacher | Guruh + davr baholar jadvali, Excel eksport |
+| `/grades` | student | Baholarim: davr bo'yicha vazifa va test ballari, jami, holat |
 | `/teacher/tests` | teacher | Testlar ro'yxati, yaratish |
 | `/teacher/tests/[id]` | teacher | Tahrirlash: savollar, sozlamalar, guruhlar, import |
 | `/teacher/tests/[id]/results` | teacher | Natijalar jadvali, savollar bo'yicha statistika |
@@ -425,14 +429,52 @@ Har bosqichdan keyin to'xta va hisobot ber. `lint`, `typecheck`, `test` o'tishi 
 
 **Tayyor:** o'quvchi o'tkazilgandan keyin eski sessiyasi bilan ham yangi guruh testlarini ko'radi; eski guruh davomat hisobotida "o'tkazilgan: ..." belgisi bilan qoladi, yangi guruhda faqat o'tkazish sanasidan boshlab hisoblanadi.
 
-### 12-bosqich: ballar tizimi (keyingi, hali boshlanmagan)
-O'tkazishdagi ballar varianti shu bosqichda qo'shiladi. Boshlashdan oldin maydonlarni kelishib olish kerak.
-- `Test.dueAt DateTime?` (muddat). Davr (`Period`: nomi, sanalar, `passPercent`) va uy vazifasi (`Homework`: muddat, `maxPoints`, o'quvchi ballari)
-- `GradeExemption`: `studentId`, `itemType` (`HOMEWORK` | `TEST`), `itemId`, `reason`. Ozod qilingan item jami va maksimal baldan chiqariladi, o'tish chegarasi `passPercent` bo'yicha qayta hisoblanadi
-- `PointAdjustment`: `studentId`, `periodId`, `points` (manfiy ham), `reason`, `createdAt`. Kartochkadan qo'shiladi
-- O'tkazish dialogida variant: (a) yangi guruhning o'tkazish sanasidan oldingi muddatli vazifa va testlaridan ozod qilish (default), (b) hech narsa qilmaslik
-- `lib/grades.ts`; hisobotda ozod kataklar "—" va izoh bilan, tuzatishlar alohida ustunda, Excel'da ham
-- Vitest: ozod qilishdan keyin maksimal ball va chegara, manfiy tuzatish, jami `maxPoints`dan oshmasligi
+### 12-bosqich: uyga vazifalar va baholar
+Kelishilgan: davr har guruhga alohida; uyga vazifaga faqat o'qituvchi ball qo'yadi (javob platformaga yuborilmaydi); test bali = birinchi urinish foizi × testning davrdagi bali; o'quvchi o'z baholarini ko'radi.
+
+Prisma:
+- `Period`: `groupId` (cascade), `name`, `startDate`, `endDate` (`@db.Date`), `passPercent` (default 60). `@@unique([groupId, name])`
+- `Homework`: `periodId` (cascade), `title`, `description?`, `dueDate` (`@db.Date`), `maxPoints`, `createdById`
+- `HomeworkGrade`: `homeworkId`, `studentId`, `points` (0..maxPoints), `note?`, `gradedAt`. `@@unique([homeworkId, studentId])`
+- `TestPeriod`: `testId`, `periodId`, `points` (testning shu davrdagi bali). `@@unique([testId, periodId])`. Test bir nechta guruhda bo'lgani uchun har guruh davriga alohida biriktiriladi
+- `Test.dueDate DateTime? @db.Date` (muddat, vazifadagi kabi Toshkent kuni)
+- `GradeExemption`: `studentId`, `itemType` (`HOMEWORK` | `TEST`), `itemId` (homeworkId yoki testId), `reason`, `createdById`. `@@unique([studentId, itemType, itemId])`
+- `PointAdjustment`: `studentId`, `periodId`, `points` (manfiy ham bo'lishi mumkin), `reason`, `createdById`, `createdAt`
+
+Hisoblash (`lib/grades.ts`, sof funksiyalar):
+- Davr varag'ida davr ichida kamida bir kun guruh a'zosi bo'lgan o'quvchilar (a'zolik tarixi bo'yicha)
+- Item hisobga olinadi: muddati o'tgan yoki baholangan/ishlangan bo'lsa. Muddati o'tib baholanmagan vazifa yoki ishlanmagan test = 0
+- Test: birinchi tugallangan urinish `score/maxScore × points` (0.1 gacha yaxlitlanadi)
+- Ozod qilingan item o'quvchining jami va maksimal balidan chiqariladi
+- Jami = ballar + tuzatishlar, `[0, max]` oralig'ida. Foiz = jami / max. O'tdi: foiz >= `passPercent`
+
+Sahifalar:
+- `/teacher/groups/[id]`: "Davrlar" bo'limi (yaratish, tahrirlash, o'chirish)
+- `/teacher/homework`: guruh va davr bo'yicha vazifalar, yaratish/tahrirlash/o'chirish. `/teacher/homework/[id]`: ball qo'yish (telefonda qulay ro'yxat)
+- `/teacher/tests/[id]` sozlamalarida: muddat va guruh davrlariga biriktirish (bal bilan)
+- `/teacher/grades`: guruh + davr, o'quvchilar × itemlar jadvali, jami, foiz, holat. Ozod kataklar "—" va izoh bilan, tuzatishlar alohida ustunda. Excel eksport
+- O'quvchi kartochkasi: ball tuzatish qo'shish va ozod qilishlar
+- O'tkazish dialogida variant: (a) yangi guruhning o'tkazish sanasidan oldin muddati tugagan vazifa va testlaridan ozod qilish (default), (b) hech narsa qilmaslik
+- O'quvchi: `/grades` "Baholarim" (davr bo'yicha vazifa va test ballari, jami, holat), bosh sahifada yaqin vazifalar
+- Yon panelda "Uyga vazifalar" va "Baholar"
+- Vitest: ozod qilishdan keyin maksimal ball va chegara, manfiy tuzatish, jami `max`dan oshmasligi, muddati o'tmagan item hisobga olinmasligi, test foizi × bal, Excel; DB testlar: davr varag'i, o'quvchi faqat o'zini ko'rishi, o'tkazishdagi ozod qilish
+
+**Tayyor:** o'qituvchi davr va vazifa yaratadi, ball qo'yadi, testni davrga biriktiradi; "Baholar" jadvali va Excel'da jami, foiz va holat to'g'ri; o'tkazilgan o'quvchi yangi guruhning eski vazifalaridan ozod; o'quvchi "Baholarim"da faqat o'zini ko'radi.
+
+### 13-bosqich: menejerlar, regionlar va o'chirish so'rovlari (keyingi)
+- Rollar: `TEACHER`, `MANAGER`, `STUDENT`. `Region` (`name` unique), `Group.regionId?`, `User.regionId` (menejer), `ManagerGroup` (qo'shimcha biriktirilgan guruhlar), `User.createdById`
+- `lib/auth/scope.ts`: `getAccessibleGroupIds(user)` = region guruhlari ∪ biriktirilganlar (o'qituvchi uchun hammasi). Menejerning barcha so'rovlari shu bilan filtrlanadi; guruhsiz o'quvchini faqat o'zi qo'shgan bo'lsa ko'radi; doiradan tashqaridagi id bilan so'rov 403
+- Menejer o'quvchilar bilan: qo'shish, tahrirlash, parolni tiklash, doira ichida o'tkazish, bloklash, Excel import/eksport, "O'chirishni so'rash". Davomat: faqat ko'rish va eksport
+- `DeletionRequest` (PENDING | APPROVED | REJECTED), bitta o'quvchiga bitta PENDING. `/teacher/requests`: tasdiqlash arxivlaydi, rad etish izoh bilan
+- `/teacher/managers`, regionlarni boshqarish, guruh formasida region. `/manager/*` alohida layout
+- Guard'lar: `requireTeacher`, `requireManager`, `requireStaff`; rol va region har so'rovda bazadan
+- Yon panelda "Menejerlar" va "So'rovlar" (kutilayotganlar soni bilan)
+
+### 14-bosqich: menejer testlari (keyingi)
+- `/manager/tests`: doiradagi guruhlar testlari; o'qituvchi sahifa va komponentlari qayta ishlatiladi
+- Test faqat doiradagi guruhlarga biriktiriladi (aks holda 403). Tahrirlash/o'chirish: faqat o'zi yaratgan va barcha guruhlari doirada bo'lsa, aks holda "faqat ko'rish"
+- Natijalar, statistika, eksport, reyting: faqat doiradagi o'quvchilar
+- Davrga biriktirish va test bali faqat o'qituvchi uchun
 
 ---
 

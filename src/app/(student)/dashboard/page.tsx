@@ -6,7 +6,14 @@ import { buttonVariants } from "@/components/ui/button";
 import { finalizeExpiredAttempts } from "@/lib/attempts";
 import { requireStudent } from "@/lib/auth/guards";
 import { db } from "@/lib/db";
-import { formatDateTime, formatDuration } from "@/lib/time";
+import {
+  formatDate,
+  formatDateTime,
+  formatDuration,
+  fromDbDate,
+  toDbDate,
+  todayInTashkent,
+} from "@/lib/time";
 
 export const metadata: Metadata = { title: "Testlarim" };
 
@@ -14,7 +21,8 @@ export default async function DashboardPage() {
   const student = await requireStudent();
   await finalizeExpiredAttempts({ userId: student.id });
 
-  const [tests, results] = await Promise.all([
+  const today = todayInTashkent();
+  const [tests, results, homeworks] = await Promise.all([
     student.groupId
       ? db.test.findMany({
           where: { isActive: true, groups: { some: { id: student.groupId } } },
@@ -48,11 +56,64 @@ export default async function DashboardPage() {
         test: { select: { title: true } },
       },
     }),
+    // Muddati hali o'tmagan uyga vazifalar (faqat hozirgi guruh)
+    student.groupId
+      ? db.homework.findMany({
+          where: {
+            period: { groupId: student.groupId },
+            dueDate: { gte: toDbDate(today) },
+          },
+          orderBy: { dueDate: "asc" },
+          take: 5,
+          select: {
+            id: true,
+            title: true,
+            description: true,
+            dueDate: true,
+            maxPoints: true,
+          },
+        })
+      : [],
   ]);
 
   return (
     <>
       <h1 className="text-2xl font-semibold">Salom, {student.fullName}</h1>
+
+      {homeworks.length > 0 && (
+        <section className="flex flex-col gap-3">
+          <div className="flex items-baseline justify-between gap-2">
+            <h2 className="text-lg font-semibold">Uyga vazifalar</h2>
+            <Link
+              href="/grades"
+              className="text-muted-foreground text-sm hover:underline"
+            >
+              Baholarim
+            </Link>
+          </div>
+          <ul className="divide-y rounded-lg border">
+            {homeworks.map((h) => {
+              const due = fromDbDate(h.dueDate);
+              return (
+                <li key={h.id} className="flex flex-col gap-1 p-3">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="font-medium">{h.title}</span>
+                    {due === today ? (
+                      <Badge>Bugun</Badge>
+                    ) : (
+                      <Badge variant="outline">{formatDate(due)} gacha</Badge>
+                    )}
+                  </div>
+                  <p className="text-muted-foreground text-sm">
+                    {h.maxPoints} ball
+                    {h.description && ` · ${h.description}`}
+                  </p>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      )}
 
       <section className="flex flex-col gap-3">
         <h2 className="text-lg font-semibold">Mavjud testlar</h2>

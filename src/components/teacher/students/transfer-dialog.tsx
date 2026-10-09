@@ -103,6 +103,7 @@ function TransferForm({
       toGroupId: "",
       date: today,
       note: "",
+      exemptPast: true,
     },
   });
   const { errors } = form.formState;
@@ -163,6 +164,21 @@ function TransferForm({
           {...form.register("note")}
         />
       </FormField>
+      <label className="flex items-start gap-2 text-sm">
+        <input
+          type="checkbox"
+          className="accent-primary mt-0.5 size-4"
+          {...form.register("exemptPast")}
+        />
+        <span>
+          Yangi guruhning shu sanadan oldin muddati tugagan vazifa va
+          testlaridan ozod qilish
+          <span className="text-muted-foreground block">
+            O&apos;chirilsa, ular baholarda 0 hisoblanadi. Allaqachon ishlangan
+            test ozod qilinmaydi.
+          </span>
+        </span>
+      </label>
       <FormError
         message={errors.studentIds?.message ?? errors.root?.server?.message}
       />

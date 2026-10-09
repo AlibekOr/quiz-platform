@@ -4,10 +4,11 @@ import { notFound } from "next/navigation";
 import { ArrowLeftIcon, CalendarDaysIcon } from "lucide-react";
 import { RemoveFromGroupButton } from "@/components/teacher/groups/remove-from-group-button";
 import { ScheduleForm } from "@/components/teacher/groups/schedule-form";
+import { PeriodsSection } from "@/components/teacher/grades/periods-section";
 import { buttonVariants } from "@/components/ui/button";
 import { requireTeacher } from "@/lib/auth/guards";
 import { db } from "@/lib/db";
-import { formatSchedule } from "@/lib/time";
+import { formatSchedule, fromDbDate } from "@/lib/time";
 
 export const metadata: Metadata = { title: "Guruh" };
 
@@ -30,6 +31,17 @@ export default async function GroupPage({
         where: { role: "STUDENT", archivedAt: null },
         orderBy: { fullName: "asc" },
         select: { id: true, fullName: true, username: true, isActive: true },
+      },
+      periods: {
+        orderBy: { startDate: "desc" },
+        select: {
+          id: true,
+          name: true,
+          startDate: true,
+          endDate: true,
+          passPercent: true,
+          _count: { select: { homeworks: true, tests: true } },
+        },
       },
     },
   });
@@ -102,6 +114,21 @@ export default async function GroupPage({
               ))}
             </ul>
           )}
+        </section>
+
+        <section className="rounded-lg border p-4 lg:col-span-2">
+          <PeriodsSection
+            groupId={group.id}
+            periods={group.periods.map((p) => ({
+              id: p.id,
+              name: p.name,
+              startDate: fromDbDate(p.startDate),
+              endDate: fromDbDate(p.endDate),
+              passPercent: p.passPercent,
+              homeworkCount: p._count.homeworks,
+              testCount: p._count.tests,
+            }))}
+          />
         </section>
       </div>
     </>

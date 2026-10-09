@@ -4,10 +4,12 @@ import { notFound } from "next/navigation";
 import { ArrowLeftIcon, TriangleAlertIcon } from "lucide-react";
 import { QuestionList } from "@/components/teacher/tests/question-list";
 import { TestHeaderActions } from "@/components/teacher/tests/test-header-actions";
+import { TestGradingForm } from "@/components/teacher/tests/test-grading-form";
 import { TestSettingsForm } from "@/components/teacher/tests/test-settings-form";
 import { Badge } from "@/components/ui/badge";
 import { requireTeacher } from "@/lib/auth/guards";
 import { db } from "@/lib/db";
+import { fromDbDate } from "@/lib/time";
 
 export const metadata: Metadata = { title: "Testni tahrirlash" };
 
@@ -21,7 +23,18 @@ export default async function EditTestPage({
     db.test.findUnique({
       where: { id },
       include: {
-        groups: { select: { id: true } },
+        groups: {
+          orderBy: { name: "asc" },
+          select: {
+            id: true,
+            name: true,
+            periods: {
+              orderBy: { startDate: "desc" },
+              select: { id: true, name: true },
+            },
+          },
+        },
+        periods: { select: { periodId: true, points: true } },
         questions: {
           orderBy: { order: "asc" },
           include: { options: { orderBy: { order: "asc" } } },
@@ -91,6 +104,23 @@ export default async function EditTestPage({
           shuffleQuestions: test.shuffleQuestions,
           groupIds: test.groups.map((g) => g.id),
         }}
+      />
+
+      <TestGradingForm
+        // Guruhlar o'zgarsa forma yangidan quriladi
+        key={test.groups.map((g) => g.id).join(",")}
+        testId={test.id}
+        dueDate={test.dueDate ? fromDbDate(test.dueDate) : null}
+        groups={test.groups.map((g) => ({
+          id: g.id,
+          name: g.name,
+          periods: g.periods.map((p) => ({
+            id: p.id,
+            name: p.name,
+            points:
+              test.periods.find((tp) => tp.periodId === p.id)?.points ?? null,
+          })),
+        }))}
       />
 
       <QuestionList

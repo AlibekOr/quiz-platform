@@ -53,6 +53,9 @@ model User {
   profile        StudentProfile?
   attendances    Attendance[]
   memberships    GroupMembership[]
+  homeworkGrades HomeworkGrade[]
+  exemptions     GradeExemption[]
+  adjustments    PointAdjustment[]
   createdTests   Test[]            @relation("TestAuthor")
   createdAt      DateTime          @default(now())
 }
@@ -65,24 +68,28 @@ model Group {
   schedules   GroupSchedule[]
   lessons     Lesson[]
   memberships GroupMembership[]
+  periods     Period[]
   createdAt   DateTime          @default(now())
 }
 
 model Test {
-  id               String     @id @default(cuid())
+  id               String       @id @default(cuid())
   title            String
   description      String?
   durationMin      Int
-  isActive         Boolean    @default(false)
-  allowRetake      Boolean    @default(true)
-  showAnswers      Boolean    @default(false)
-  shuffleQuestions Boolean    @default(false)
+  isActive         Boolean      @default(false)
+  allowRetake      Boolean      @default(true)
+  showAnswers      Boolean      @default(false)
+  shuffleQuestions Boolean      @default(false)
   createdById      String
-  createdBy        User       @relation("TestAuthor", fields: [createdById], references: [id])
+  createdBy        User         @relation("TestAuthor", fields: [createdById], references: [id])
+  // Muddat (Toshkent kuni): shu kun tugagach ishlanmagan test baholarda 0 hisoblanadi
+  dueDate          DateTime?    @db.Date
   groups           Group[]
+  periods          TestPeriod[]
   questions        Question[]
   attempts         Attempt[]
-  createdAt        DateTime   @default(now())
+  createdAt        DateTime     @default(now())
 }
 
 model Question {
@@ -218,4 +225,101 @@ model GroupMembership {
 
   @@index([studentId, joinedAt])
   @@index([groupId, joinedAt])
+}
+
+enum GradeItemType {
+  HOMEWORK
+  TEST
+}
+
+// Baholash davri (masalan, "Oktyabr" yoki "1-modul"). Har guruhga alohida
+model Period {
+  id          String            @id @default(cuid())
+  groupId     String
+  group       Group             @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  name        String
+  startDate   DateTime          @db.Date
+  endDate     DateTime          @db.Date
+  // O'tish chegarasi: jami foiz shundan kam bo'lmasa — o'tdi
+  passPercent Int               @default(60)
+  homeworks   Homework[]
+  tests       TestPeriod[]
+  adjustments PointAdjustment[]
+  createdAt   DateTime          @default(now())
+
+  @@unique([groupId, name])
+  @@index([groupId, startDate])
+}
+
+// Uyga vazifa: javob platformaga yuborilmaydi, ballni o'qituvchi qo'yadi
+model Homework {
+  id          String          @id @default(cuid())
+  periodId    String
+  period      Period          @relation(fields: [periodId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  dueDate     DateTime        @db.Date
+  maxPoints   Int
+  createdById String
+  grades      HomeworkGrade[]
+  createdAt   DateTime        @default(now())
+
+  @@index([periodId, dueDate])
+}
+
+model HomeworkGrade {
+  id         String   @id @default(cuid())
+  homeworkId String
+  homework   Homework @relation(fields: [homeworkId], references: [id], onDelete: Cascade)
+  studentId  String
+  student    User     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  points     Int
+  note       String?
+  gradedAt   DateTime @updatedAt
+
+  @@unique([homeworkId, studentId])
+}
+
+// Testni guruh davriga biriktirish. points — testning shu davrdagi bali
+// (o'quvchi bali = birinchi urinish foizi × points)
+model TestPeriod {
+  id       String @id @default(cuid())
+  testId   String
+  test     Test   @relation(fields: [testId], references: [id], onDelete: Cascade)
+  periodId String
+  period   Period @relation(fields: [periodId], references: [id], onDelete: Cascade)
+  points   Int
+
+  @@unique([testId, periodId])
+  @@index([periodId])
+}
+
+// O'quvchini vazifa yoki testdan ozod qilish: item jami va maksimal baldan chiqariladi.
+// itemId — Homework.id yoki Test.id (item o'chirilsa, yozuv e'tiborsiz qoladi)
+model GradeExemption {
+  id          String        @id @default(cuid())
+  studentId   String
+  student     User          @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  itemType    GradeItemType
+  itemId      String
+  reason      String
+  createdById String
+  createdAt   DateTime      @default(now())
+
+  @@unique([studentId, itemType, itemId])
+}
+
+// Davr baliga qo'lda tuzatish (manfiy ham bo'lishi mumkin)
+model PointAdjustment {
+  id          String   @id @default(cuid())
+  studentId   String
+  student     User     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  periodId    String
+  period      Period   @relation(fields: [periodId], references: [id], onDelete: Cascade)
+  points      Int
+  reason      String
+  createdById String
+  createdAt   DateTime @default(now())
+
+  @@index([studentId, periodId])
 }

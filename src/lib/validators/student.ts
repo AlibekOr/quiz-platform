@@ -70,6 +70,8 @@ export const transferSchema = z.object({
     .max(300, "Izoh 300 belgidan oshmasin")
     .nullish()
     .transform((v) => v || null),
+  /** Yangi guruhning o'tkazish kunidan oldin muddati tugagan vazifa va testlaridan ozod qilish */
+  exemptPast: z.boolean(),
 });
 export type TransferInput = z.input<typeof transferSchema>;
 
