@@ -49,3 +49,6 @@ graphify-out/.graphify_*
 /src/generated/
 graphify-out/20*/
 graphify-out/.rebuild.lock
+
+# IDE
+.idea/
