@@ -15,6 +15,7 @@ import {
   isValidDateStr,
   isValidMonthStr,
   monthRange,
+  nextLessonDate,
   toDbDate,
   todayInTashkent,
   weekdayOf,
@@ -136,5 +137,24 @@ describe("kalendar yordamchilari", () => {
   it("oy dushanbadan boshlansa birinchi katak — 1-kun", () => {
     // 2026-06-01 — dushanba
     expect(calendarDays("2026-06")[0]).toBe("2026-06-01");
+  });
+});
+
+describe("nextLessonDate", () => {
+  // 2026-10-12 — dushanba
+  it("shu hafta ichidagi keyingi dars", () => {
+    expect(nextLessonDate([1, 3, 5], "2026-10-12")).toBe("2026-10-14");
+  });
+
+  it("keyingi haftaga o'tadi", () => {
+    expect(nextLessonDate([1, 3], "2026-10-14")).toBe("2026-10-19");
+  });
+
+  it("faqat bitta kun bo'lsa — bir haftadan keyin", () => {
+    expect(nextLessonDate([1], "2026-10-12")).toBe("2026-10-19");
+  });
+
+  it("jadval bo'sh — null", () => {
+    expect(nextLessonDate([], "2026-10-12")).toBeNull();
   });
 });

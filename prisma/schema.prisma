@@ -210,6 +210,8 @@ model Lesson {
   topic       String?
   attendances Attendance[]
   oralScores  OralScore[]
+  // Shu darsda berilgan topshiriqlar (uyga vazifa darsga bog'lanadi)
+  assignments Assignment[]
   createdAt   DateTime     @default(now())
 
   @@unique([groupId, date])
@@ -290,6 +292,9 @@ model Assignment {
   semesterId  String             @map("periodId")
   semester    Semester           @relation(fields: [semesterId], references: [id], onDelete: Cascade)
   category    AssignmentCategory @default(HOMEWORK)
+  // Qaysi darsda berilgan (uyga vazifa); eski topshiriqlarda null
+  lessonId    String?
+  lesson      Lesson?            @relation(fields: [lessonId], references: [id], onDelete: SetNull)
   title       String
   description String?
   dueDate     DateTime           @db.Date
@@ -299,6 +304,7 @@ model Assignment {
   createdAt   DateTime           @default(now())
 
   @@index([semesterId, dueDate])
+  @@index([lessonId])
   @@map("Homework")
 }
 

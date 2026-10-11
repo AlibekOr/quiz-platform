@@ -10,6 +10,8 @@ describe("allowedRoles", () => {
     expect(allowedRoles("/test/abc")).toEqual(["STUDENT"]);
     expect(allowedRoles("/result/abc")).toEqual(["STUDENT"]);
     expect(allowedRoles("/grades")).toEqual(["STUDENT"]);
+    expect(allowedRoles("/homework")).toEqual(["STUDENT"]);
+    expect(allowedRoles("/teacher/homework")).toEqual(["TEACHER"]);
   });
 
   it("reyting hamma rolga (menejer doirasi server tomonda)", () => {

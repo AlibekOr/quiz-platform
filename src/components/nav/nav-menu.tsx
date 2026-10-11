@@ -139,6 +139,7 @@ const MENUS: Record<NavVariant, { main: MenuItem[]; footer: MenuLink[] }> = {
         icon: LayoutDashboardIcon,
         exact: true,
       },
+      { href: "/homework", label: "Vazifalar", icon: BookOpenCheckIcon },
       { href: "/grades", label: "Baholarim", icon: GraduationCapIcon },
       { href: "/leaderboard", label: "Reyting", icon: TrophyIcon },
     ],

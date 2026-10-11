@@ -87,10 +87,10 @@ export default async function DashboardPage() {
           <div className="flex items-baseline justify-between gap-2">
             <h2 className="text-lg font-semibold">Uyga vazifalar</h2>
             <Link
-              href="/grades"
+              href="/homework"
               className="text-muted-foreground text-sm hover:underline"
             >
-              Baholarim
+              Barcha vazifalar
             </Link>
           </div>
           <ul className="divide-y rounded-lg border">

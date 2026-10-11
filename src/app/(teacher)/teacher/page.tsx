@@ -7,11 +7,13 @@ import {
   UsersIcon,
   UsersRoundIcon,
 } from "lucide-react";
+import { MissingHomeworkList } from "@/components/teacher/homework/missing-homework";
 import { Badge } from "@/components/ui/badge";
 import { requireTeacher } from "@/lib/auth/guards";
 import { isPresent } from "@/lib/attendance";
 import { db } from "@/lib/db";
 import { percent } from "@/lib/format";
+import { getMissingHomeworkLessons } from "@/lib/homework-data";
 import {
   addDays,
   formatDate,
@@ -164,6 +166,7 @@ export default async function TeacherPage() {
       icon: ClipboardListIcon,
     },
   ];
+  const missingHomework = await getMissingHomeworkLessons();
 
   return (
     <>
@@ -173,6 +176,8 @@ export default async function TeacherPage() {
           {formatDate(today)}, {weekdayLong(weekday).toLowerCase()}
         </p>
       </div>
+
+      <MissingHomeworkList lessons={missingHomework} />
 
       <ul className="grid grid-cols-3 gap-3">
         {stats.map(({ label, value, href, icon: Icon }) => (

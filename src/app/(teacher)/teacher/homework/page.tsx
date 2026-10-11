@@ -5,7 +5,9 @@ import {
   AddHomeworkButton,
   HomeworkRowActions,
 } from "@/components/teacher/homework/homework-controls";
+import { HomeworkMatrix } from "@/components/teacher/homework/homework-matrix";
 import { Badge } from "@/components/ui/badge";
+import { buttonVariants } from "@/components/ui/button";
 import {
   Table,
   TableBody,
@@ -17,6 +19,7 @@ import {
 import { requireTeacher } from "@/lib/auth/guards";
 import { db } from "@/lib/db";
 import { CATEGORY_LABEL } from "@/lib/grades";
+import { getSemesterGrades } from "@/lib/grades-data";
 import { formatDate, fromDbDate, todayInTashkent } from "@/lib/time";
 
 export const metadata: Metadata = { title: "Uyga vazifalar" };
@@ -53,6 +56,7 @@ export default async function HomeworkPage({
               id: true,
               semesterId: true,
               category: true,
+              lesson: { select: { id: true, date: true } },
               title: true,
               description: true,
               dueDate: true,
@@ -69,6 +73,15 @@ export default async function HomeworkPage({
   const current = periods.find(
     (p) => fromDbDate(p.startDate) <= today && today <= fromDbDate(p.endDate),
   );
+  // Jadval ko'rinishi: o'quvchilar × joriy (bo'lmasa eng yangi) semestr topshiriqlari
+  const view = param(params.view) === "table" ? "table" : "list";
+  const matrixSemester = current ?? periods[0];
+  const matrix =
+    view === "table" && matrixSemester
+      ? await getSemesterGrades(matrixSemester.id)
+      : null;
+  const viewHref = (v: "list" | "table") =>
+    `/teacher/homework?group=${groupId ?? ""}${v === "table" ? "&view=table" : ""}`;
 
   return (
     <>
@@ -92,16 +105,42 @@ export default async function HomeworkPage({
         </p>
       ) : (
         <>
-          <div className="sm:max-w-xs">
-            <ParamSelect
-              name="group"
-              value={groupId ?? ""}
-              label="Guruh"
-              options={groups.map((g) => ({ value: g.id, label: g.name }))}
-            />
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <div className="sm:w-64">
+              <ParamSelect
+                name="group"
+                value={groupId ?? ""}
+                label="Guruh"
+                options={groups.map((g) => ({ value: g.id, label: g.name }))}
+              />
+            </div>
+            <div className="flex gap-1" role="tablist" aria-label="Ko'rinish">
+              {(["list", "table"] as const).map((v) => (
+                <Link
+                  key={v}
+                  href={viewHref(v)}
+                  role="tab"
+                  aria-selected={view === v}
+                  className={buttonVariants({
+                    size: "sm",
+                    variant: view === v ? "secondary" : "ghost",
+                  })}
+                >
+                  {v === "list" ? "Ro'yxat" : "Jadval"}
+                </Link>
+              ))}
+            </div>
           </div>
 
-          {periods.length === 0 ? (
+          {matrix && (
+            <section className="flex flex-col gap-2">
+              <h2 className="font-semibold">{matrix.semester.name}</h2>
+              <HomeworkMatrix data={matrix} today={today} />
+            </section>
+          )}
+
+          {view === "table" && periods.length > 0 ? null : periods.length ===
+            0 ? (
             <p className="text-muted-foreground">
               Bu guruhda semestr yo&apos;q.{" "}
               <Link href={`/teacher/groups/${groupId}`} className="underline">
@@ -184,6 +223,10 @@ export default async function HomeworkPage({
                                     dueDate: due,
                                     maxPoints: h.maxPoints,
                                     gradedCount: h._count.grades,
+                                    lessonId: h.lesson?.id ?? null,
+                                    lessonDate: h.lesson
+                                      ? fromDbDate(h.lesson.date)
+                                      : null,
                                   }}
                                 />
                               </TableCell>

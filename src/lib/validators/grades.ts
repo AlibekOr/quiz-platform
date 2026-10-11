@@ -84,6 +84,12 @@ export const assignmentSchema = z.object({
   category: z.enum(ASSIGNMENT_CATEGORY_VALUES, {
     error: "Turini tanlang",
   }),
+  /** Qaysi darsda berilgan (ixtiyoriy) — dars semestr guruhida bo'lishi serverda tekshiriladi */
+  lessonId: z
+    .string()
+    .max(64)
+    .nullish()
+    .transform((v) => v || null),
   title: z
     .string()
     .trim()

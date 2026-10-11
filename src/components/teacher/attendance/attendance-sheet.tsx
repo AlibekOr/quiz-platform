@@ -113,7 +113,8 @@ export function AttendanceSheet({
       const result = await saveAttendance(groupId, date, form.getValues());
       if (result.ok) {
         toast.success(result.message);
-        router.push(`/teacher/attendance?date=${date}`);
+        // Darsga uyga vazifa berilmagan bo'lsa, ro'yxat sahifasida taklif chiqadi
+        router.push(`/teacher/attendance?date=${date}&homework=${groupId}`);
       } else {
         applyServerErrors(form, result);
         toast.error(result.error);

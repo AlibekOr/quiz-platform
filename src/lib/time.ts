@@ -186,3 +186,18 @@ export function calendarDays(month: string): DateStr[] {
   const start = addDays(first, 1 - weekdayOf(first));
   return Array.from({ length: 42 }, (_, i) => addDays(start, i));
 }
+
+/**
+ * Jadval bo'yicha `after` dan keyingi birinchi dars kuni (uyga vazifaning default muddati).
+ * weekdays: 1 = Dushanba ... 7 = Yakshanba; jadval bo'sh bo'lsa null
+ */
+export function nextLessonDate(
+  weekdays: readonly number[],
+  after: DateStr,
+): DateStr | null {
+  for (let i = 1; i <= 7; i++) {
+    const d = addDays(after, i);
+    if (weekdays.includes(weekdayOf(d))) return d;
+  }
+  return null;
+}

@@ -39,7 +39,7 @@ import {
   CATEGORY_LABEL,
   type AssignmentCategory,
 } from "@/lib/grades";
-import type { DateStr } from "@/lib/time";
+import { formatDate, type DateStr } from "@/lib/time";
 import {
   assignmentSchema,
   type AssignmentInput,
@@ -57,21 +57,44 @@ export type HomeworkRow = {
   maxPoints: number;
   /** Ball qo'yilgan o'quvchilar soni (o'chirishda ogohlantirish) */
   gradedCount: number;
+  /** Qaysi darsda berilgan (bo'lmasa null) */
+  lessonId: string | null;
+  lessonDate: DateStr | null;
+};
+
+/** Darsdan vazifa berishda oldindan to'ldiriladigan qiymatlar (lib/homework-data.ts) */
+export type HomeworkInitial = {
+  semesterId: string;
+  lessonId: string;
+  lessonDate: DateStr;
+  title: string;
+  dueDate: DateStr;
 };
 
 export function AddHomeworkButton({
   periods,
   defaultPeriodId,
+  initial,
+  label = "Topshiriq qo'shish",
+  size = "default",
 }: {
   periods: SemesterOption[];
   defaultPeriodId?: string;
+  /** Darsdan berilganda: dars, semestr, nom va muddat tayyor */
+  initial?: HomeworkInitial;
+  label?: string;
+  size?: "default" | "sm";
 }) {
   const [open, setOpen] = useState(false);
   return (
     <>
-      <Button onClick={() => setOpen(true)} disabled={periods.length === 0}>
+      <Button
+        size={size}
+        onClick={() => setOpen(true)}
+        disabled={periods.length === 0}
+      >
         <PlusIcon />
-        Topshiriq qo&apos;shish
+        {label}
       </Button>
       <HomeworkDialog
         open={open}
@@ -79,6 +102,7 @@ export function AddHomeworkButton({
         periods={periods}
         homework={null}
         defaultPeriodId={defaultPeriodId}
+        initial={initial}
       />
     </>
   );
@@ -148,12 +172,14 @@ function HomeworkDialog({
   periods,
   homework,
   defaultPeriodId,
+  initial,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   periods: SemesterOption[];
   homework: HomeworkRow | null;
   defaultPeriodId?: string;
+  initial?: HomeworkInitial;
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -167,6 +193,7 @@ function HomeworkDialog({
           periods={periods}
           homework={homework}
           defaultPeriodId={defaultPeriodId}
+          initial={initial}
           onDone={() => onOpenChange(false)}
         />
       </DialogContent>
@@ -178,11 +205,13 @@ function HomeworkForm({
   periods,
   homework,
   defaultPeriodId,
+  initial,
   onDone,
 }: {
   periods: SemesterOption[];
   homework: HomeworkRow | null;
   defaultPeriodId?: string;
+  initial?: HomeworkInitial;
   onDone: () => void;
 }) {
   const [pending, startTransition] = useTransition();
@@ -190,19 +219,23 @@ function HomeworkForm({
     ? {
         semesterId: homework.semesterId,
         category: homework.category,
+        lessonId: homework.lessonId,
         title: homework.title,
         description: homework.description ?? "",
         dueDate: homework.dueDate,
         maxPoints: homework.maxPoints,
       }
     : {
-        semesterId: defaultPeriodId ?? periods[0]?.id ?? "",
+        semesterId:
+          initial?.semesterId ?? defaultPeriodId ?? periods[0]?.id ?? "",
         category: "HOMEWORK",
-        title: "",
+        lessonId: initial?.lessonId ?? null,
+        title: initial?.title ?? "",
         description: "",
-        dueDate: "",
+        dueDate: initial?.dueDate ?? "",
         maxPoints: 1,
       };
+  const lessonDate = homework?.lessonDate ?? initial?.lessonDate ?? null;
   const form = useForm({
     resolver: zodResolver(assignmentSchema),
     defaultValues,
@@ -227,6 +260,11 @@ function HomeworkForm({
 
   return (
     <form onSubmit={onSubmit} className="flex flex-col gap-4" noValidate>
+      {lessonDate && (
+        <p className="text-muted-foreground -mb-1 text-sm">
+          Dars: {formatDate(lessonDate)}
+        </p>
+      )}
       <FormField id="hw-category" label="Turi" error={errors.category?.message}>
         <NativeSelect
           id="hw-category"

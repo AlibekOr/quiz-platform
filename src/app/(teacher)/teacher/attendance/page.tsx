@@ -3,10 +3,18 @@ import Link from "next/link";
 import { CheckCircle2Icon, CircleDashedIcon } from "lucide-react";
 import { AttendanceDatePicker } from "@/components/teacher/attendance/date-picker";
 import { ExtraLesson } from "@/components/teacher/attendance/extra-lesson";
+import {
+  HomeworkSuggestion,
+  MissingHomeworkList,
+} from "@/components/teacher/homework/missing-homework";
 import { Badge } from "@/components/ui/badge";
 import { requireTeacher } from "@/lib/auth/guards";
 import { db } from "@/lib/db";
 import { isPresent } from "@/lib/attendance";
+import {
+  getHomeworkPrefill,
+  getMissingHomeworkLessons,
+} from "@/lib/homework-data";
 import {
   formatDate,
   isValidDateStr,
@@ -24,7 +32,8 @@ export default async function AttendancePage({
 }: PageProps<"/teacher/attendance">) {
   await requireTeacher();
   const today = todayInTashkent();
-  const requested = (await searchParams).date;
+  const params = await searchParams;
+  const requested = params.date;
   const date =
     typeof requested === "string" &&
     isValidDateStr(requested) &&
@@ -66,6 +75,20 @@ export default async function AttendancePage({
     );
   const others = groups.filter((g) => !lessonsToday.includes(g));
 
+  // Davomat saqlangandan keyin (?homework=<groupId>): shu darsga vazifa berish taklifi
+  const savedGroup =
+    typeof params.homework === "string" ? params.homework : null;
+  const savedLesson = savedGroup
+    ? await db.lesson.findUnique({
+        where: { groupId_date: { groupId: savedGroup, date: toDbDate(date) } },
+        select: { id: true },
+      })
+    : null;
+  const [suggestion, missing] = await Promise.all([
+    savedLesson ? getHomeworkPrefill(savedLesson.id) : null,
+    getMissingHomeworkLessons(),
+  ]);
+
   return (
     <>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
@@ -78,6 +101,11 @@ export default async function AttendancePage({
         </div>
         <AttendanceDatePicker date={date} max={today} />
       </div>
+
+      {suggestion && <HomeworkSuggestion lesson={suggestion} />}
+      <MissingHomeworkList
+        lessons={missing.filter((m) => m.lessonId !== suggestion?.lessonId)}
+      />
 
       {lessonsToday.length === 0 ? (
         <p className="text-muted-foreground">
