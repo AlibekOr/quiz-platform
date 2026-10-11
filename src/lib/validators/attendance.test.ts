@@ -42,8 +42,8 @@ describe("attendanceFormSchema", () => {
     const result = attendanceFormSchema.safeParse({
       topic: "",
       records: [
-        { studentId: "a", status: "PRESENT", note: "" },
-        { studentId: "b", status: "", note: "" },
+        { studentId: "a", status: "PRESENT", note: "", oral: "" },
+        { studentId: "b", status: "", note: "", oral: "" },
       ],
     });
     expect(result.success).toBe(false);
@@ -53,11 +53,35 @@ describe("attendanceFormSchema", () => {
   it("bo'sh mavzu va izoh null bo'ladi", () => {
     const result = attendanceFormSchema.parse({
       topic: "  ",
-      records: [{ studentId: "a", status: "LATE", note: " " }],
+      records: [{ studentId: "a", status: "LATE", note: " ", oral: "" }],
     });
     expect(result).toEqual({
       topic: null,
-      records: [{ studentId: "a", status: "LATE", note: null }],
+      records: [{ studentId: "a", status: "LATE", note: null, oral: null }],
     });
+  });
+
+  it("og'zaki ball: 0 / 0.5 / 1, kelmaganga qo'yilmaydi", () => {
+    const ok = attendanceFormSchema.parse({
+      topic: "",
+      records: [
+        { studentId: "a", status: "PRESENT", note: "", oral: "0.5" },
+        { studentId: "b", status: "LATE", note: "", oral: "1" },
+      ],
+    });
+    expect(ok.records.map((r) => r.oral)).toEqual([0.5, 1]);
+
+    const absent = attendanceFormSchema.safeParse({
+      topic: "",
+      records: [{ studentId: "a", status: "ABSENT", note: "", oral: "1" }],
+    });
+    expect(absent.success).toBe(false);
+    expect(absent.error!.issues[0].path).toEqual(["records", 0, "oral"]);
+
+    const bad = attendanceFormSchema.safeParse({
+      topic: "",
+      records: [{ studentId: "a", status: "PRESENT", note: "", oral: "2" }],
+    });
+    expect(bad.success).toBe(false);
   });
 });

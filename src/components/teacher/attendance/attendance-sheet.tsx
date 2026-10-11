@@ -29,7 +29,16 @@ export type SheetStudent = {
   parentName: string | null;
   parentPhone: string | null;
   formerMember: boolean;
+  oral: number | null;
 };
+
+/** Og'zaki savol-javob bali: 0 / 0.5 / 1 (qayta bosilsa — olib tashlanadi) */
+const ORAL_VALUES = [
+  { value: "0", label: "0" },
+  { value: "0.5", label: "0,5" },
+  { value: "1", label: "1" },
+] as const;
+type OralValue = (typeof ORAL_VALUES)[number]["value"];
 
 const MARKS: { value: AttendanceMark; active: string }[] = [
   {
@@ -71,6 +80,7 @@ export function AttendanceSheet({
       studentId: s.studentId,
       status: s.status ?? "",
       note: s.note ?? "",
+      oral: s.oral === null ? "" : (String(s.oral) as OralValue),
     })),
   };
   const form = useForm({
@@ -86,6 +96,9 @@ export function AttendanceSheet({
 
   function mark(index: number, status: AttendanceMark) {
     form.setValue(`records.${index}.status`, status, { shouldDirty: true });
+    // Kelmagan o'quvchiga og'zaki ball qo'yilmaydi
+    if (status === "ABSENT")
+      form.setValue(`records.${index}.oral`, "", { shouldDirty: true });
     // "N ta belgilanmagan" — ro'yxat darajasidagi xato, shuning uchun butun forma qayta tekshiriladi
     if (form.formState.isSubmitted) void form.trigger();
   }
@@ -94,9 +107,10 @@ export function AttendanceSheet({
     records.forEach((_, i) => mark(i, "PRESENT"));
   }
 
-  const onSubmit = form.handleSubmit((values) =>
+  // Server Zod bilan qayta tekshiradi — xom (kiritilgan) qiymatlar yuboriladi
+  const onSubmit = form.handleSubmit(() =>
     startTransition(async () => {
-      const result = await saveAttendance(groupId, date, values);
+      const result = await saveAttendance(groupId, date, form.getValues());
       if (result.ok) {
         toast.success(result.message);
         router.push(`/teacher/attendance?date=${date}`);
@@ -186,6 +200,44 @@ export function AttendanceSheet({
                   </button>
                 ))}
               </div>
+              {status !== "ABSENT" && (
+                <div className="flex items-center gap-2">
+                  <span className="text-muted-foreground text-sm">
+                    Og&apos;zaki:
+                  </span>
+                  <div
+                    role="radiogroup"
+                    aria-label={`${s.fullName}: og'zaki ball`}
+                    className="flex gap-1"
+                  >
+                    {ORAL_VALUES.map((o) => {
+                      const checked = records[i]?.oral === o.value;
+                      return (
+                        <button
+                          key={o.value}
+                          type="button"
+                          role="radio"
+                          aria-checked={checked}
+                          onClick={() =>
+                            form.setValue(
+                              `records.${i}.oral`,
+                              checked ? "" : o.value,
+                              { shouldDirty: true },
+                            )
+                          }
+                          className={cn(
+                            "hover:bg-muted h-9 w-11 rounded-md border text-sm font-medium tabular-nums transition-colors",
+                            checked &&
+                              "border-primary bg-primary text-primary-foreground hover:bg-primary/90",
+                          )}
+                        >
+                          {o.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
               {status === "ABSENT" && s.parentPhone && (
                 <a
                   href={`tel:${s.parentPhone}`}

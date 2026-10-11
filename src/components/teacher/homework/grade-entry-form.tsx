@@ -1,19 +1,17 @@
 "use client";
 
 import { useTransition } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
-import { saveHomeworkGrades } from "@/app/(teacher)/teacher/homework/actions";
+import { saveAssignmentGrades } from "@/app/(teacher)/teacher/homework/actions";
 import { applyServerErrors } from "@/components/common/form-errors";
 import { FormError } from "@/components/common/form-field";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  homeworkGradesSchema,
-  type HomeworkGradesInput,
-} from "@/lib/validators/grades";
+import type { AssignmentCategory } from "@/lib/grades";
+import { cn } from "@/lib/utils";
+import type { AssignmentGradesInput } from "@/lib/validators/grades";
 
 export type GradeEntryRow = {
   studentId: string;
@@ -22,45 +20,56 @@ export type GradeEntryRow = {
   label: string | null;
   points: number | null;
   note: string | null;
-  /** Ozod qilingan bo'lsa — sabab; ball qo'yilmaydi */
-  exempt: string | null;
+  /** Ball qo'yib bo'lmaydi (EXTRA: holati mos emas) — sababi */
+  blocked: string | null;
 };
 
-/** Ball qo'yish ro'yxati: telefonda bir ustunli, bo'sh qoldirilgan ball — baholanmagan */
+const HOMEWORK_POINTS = [
+  { value: "0", label: "0" },
+  { value: "0.5", label: "0,5" },
+  { value: "1", label: "1" },
+] as const;
+
+/**
+ * Ball qo'yish ro'yxati: telefonda bir ustunli. Uyga vazifa — 0 / 0,5 / 1 tugmalari
+ * (qayta bosilsa olib tashlanadi), qolganlari — 0..maxPoints, 0,5 qadam. Qiymatlar serverda
+ * kategoriya bo'yicha tekshiriladi
+ */
 export function GradeEntryForm({
-  homeworkId,
+  assignmentId,
+  category,
   maxPoints,
   rows,
 }: {
-  homeworkId: string;
+  assignmentId: string;
+  category: AssignmentCategory;
   maxPoints: number;
   rows: GradeEntryRow[];
 }) {
   const [pending, startTransition] = useTransition();
-  const editable = rows.filter((r) => r.exempt === null);
-  const defaultValues: HomeworkGradesInput = {
+  const editable = rows.filter((r) => r.blocked === null);
+  const defaultValues: AssignmentGradesInput = {
     grades: editable.map((r) => ({
       studentId: r.studentId,
       points: r.points === null ? "" : String(r.points),
       note: r.note ?? "",
     })),
   };
-  const form = useForm({
-    resolver: zodResolver(homeworkGradesSchema),
-    defaultValues,
-  });
+  const form = useForm<AssignmentGradesInput>({ defaultValues });
+  const grades = useWatch({ control: form.control, name: "grades" });
   const { errors, isDirty } = form.formState;
   const index = new Map(editable.map((r, i) => [r.studentId, i]));
-  const firstRowError = errors.grades?.find?.((g) => g?.points)?.points;
+  const graded = grades.filter((g) => g.points !== "").length;
 
   const onSubmit = form.handleSubmit((values) =>
     startTransition(async () => {
-      const result = await saveHomeworkGrades(homeworkId, values);
+      const result = await saveAssignmentGrades(assignmentId, values);
       if (result.ok) {
         toast.success(result.message);
-        form.reset(form.getValues());
+        form.reset(values);
       } else {
         applyServerErrors(form, result);
+        toast.error(result.error);
       }
     }),
   );
@@ -84,27 +93,58 @@ export function GradeEntryForm({
                 )}
               </div>
               {i === undefined ? (
-                <div className="flex items-center gap-2 text-sm">
-                  <Badge variant="outline">Ozod</Badge>
-                  <span className="text-muted-foreground">{r.exempt}</span>
-                </div>
+                <Badge variant="outline">{r.blocked}</Badge>
               ) : (
-                <div className="flex gap-2">
-                  <div className="flex items-center gap-1">
-                    <Input
-                      type="number"
-                      inputMode="numeric"
-                      min={0}
-                      max={maxPoints}
-                      className="w-20 text-right tabular-nums"
+                <div className="flex flex-wrap gap-2">
+                  {category === "HOMEWORK" ? (
+                    <div
+                      role="radiogroup"
                       aria-label={`${r.fullName}: ball`}
-                      aria-invalid={!!errors.grades?.[i]?.points}
-                      {...form.register(`grades.${i}.points`)}
-                    />
-                    <span className="text-muted-foreground text-sm">
-                      /{maxPoints}
-                    </span>
-                  </div>
+                      className="flex gap-1"
+                    >
+                      {HOMEWORK_POINTS.map((p) => {
+                        const checked = grades[i]?.points === p.value;
+                        return (
+                          <button
+                            key={p.value}
+                            type="button"
+                            role="radio"
+                            aria-checked={checked}
+                            onClick={() =>
+                              form.setValue(
+                                `grades.${i}.points`,
+                                checked ? "" : p.value,
+                                { shouldDirty: true },
+                              )
+                            }
+                            className={cn(
+                              "hover:bg-muted h-10 w-12 rounded-md border text-sm font-medium tabular-nums transition-colors",
+                              checked &&
+                                "border-primary bg-primary text-primary-foreground hover:bg-primary/90",
+                            )}
+                          >
+                            {p.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-1">
+                      <Input
+                        type="number"
+                        inputMode="decimal"
+                        min={0}
+                        max={maxPoints}
+                        step={0.5}
+                        className="w-20 text-right tabular-nums"
+                        aria-label={`${r.fullName}: ball`}
+                        {...form.register(`grades.${i}.points`)}
+                      />
+                      <span className="text-muted-foreground text-sm">
+                        /{maxPoints}
+                      </span>
+                    </div>
+                  )}
                   <Input
                     placeholder="Izoh"
                     maxLength={300}
@@ -118,10 +158,11 @@ export function GradeEntryForm({
           );
         })}
       </ul>
-      <FormError
-        message={firstRowError?.message ?? errors.root?.server?.message}
-      />
-      <div className="bg-background sticky bottom-0 border-t py-3">
+      <FormError message={errors.root?.server?.message} />
+      <div className="bg-background sticky bottom-0 flex items-center justify-between gap-3 border-t py-3">
+        <span className="text-muted-foreground text-sm">
+          Baholangan: {graded} / {editable.length}
+        </span>
         <Button type="submit" disabled={pending || !isDirty}>
           Ballarni saqlash
         </Button>

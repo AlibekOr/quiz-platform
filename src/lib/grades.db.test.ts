@@ -1,23 +1,18 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { db } from "@/lib/db";
 import { resetDatabase } from "@/test/db";
-import {
-  exemptBeforeTransfer,
-  getPeriodGrades,
-  getStudentGrades,
-} from "./grades-data";
+import { getSemesterGrades, getStudentSemesters } from "./grades-data";
 import { addDays, toDbDate, todayInTashkent } from "./time";
 
-// Sanalar bugungi kunga nisbatan: muddati o'tgan / o'tmagan itemlar
+// Sanalar bugungi kunga nisbatan: davom etayotgan va tugagan semestrlar
 const today = todayInTashkent();
 const day = (offset: number) => toDbDate(addDays(today, offset));
 
 let teacherId: string;
 let groupId: string;
 let otherGroupId: string;
-let periodId: string;
 
-async function student(fullName: string, gid: string) {
+async function student(fullName: string, gid: string, joinedDaysAgo = 60) {
   return (
     await db.user.create({
       data: {
@@ -28,7 +23,7 @@ async function student(fullName: string, gid: string) {
         memberships: {
           create: {
             groupId: gid,
-            joinedAt: new Date(`${addDays(today, -30)}T05:00:00Z`),
+            joinedAt: new Date(`${addDays(today, -joinedDaysAgo)}T05:00:00Z`),
           },
         },
       },
@@ -36,21 +31,58 @@ async function student(fullName: string, gid: string) {
   ).id;
 }
 
-async function finishedAttempt(userId: string, testId: string, score: number) {
-  const now = new Date();
-  await db.attempt.create({
-    data: {
-      userId,
-      testId,
-      isFirst: true,
-      status: "FINISHED",
-      score,
-      maxScore: 10,
-      durationSec: 60,
-      startedAt: now,
-      deadlineAt: new Date(now.getTime() + 600_000),
-      finishedAt: now,
-    },
+async function semester(gid: string, from: number, to: number, closed = false) {
+  return (
+    await db.semester.create({
+      data: {
+        groupId: gid,
+        name: `S${from}`,
+        startDate: day(from),
+        endDate: day(to),
+        closed,
+      },
+    })
+  ).id;
+}
+
+async function assignment(
+  semesterId: string,
+  category: "HOMEWORK" | "PRACTICAL" | "EXTRA" | "BONUS",
+  maxPoints = 1,
+) {
+  return (
+    await db.assignment.create({
+      data: {
+        semesterId,
+        category,
+        title: `${category}-${Math.random().toString(36).slice(2, 6)}`,
+        dueDate: day(-5),
+        maxPoints,
+        createdById: teacherId,
+      },
+    })
+  ).id;
+}
+
+async function grade(assignmentId: string, studentId: string, points: number) {
+  await db.assignmentGrade.create({
+    data: { assignmentId, studentId, points },
+  });
+}
+
+async function oral(
+  gid: string,
+  offset: number,
+  studentId: string,
+  points: number,
+) {
+  const lesson = await db.lesson.upsert({
+    where: { groupId_date: { groupId: gid, date: day(offset) } },
+    create: { groupId: gid, date: day(offset) },
+    update: {},
+  });
+  await db.oralScore.create({
+    data: { lessonId: lesson.id, studentId, points, createdById: teacherId },
   });
 }
 
@@ -68,165 +100,119 @@ beforeEach(async () => {
   ).id;
   groupId = (await db.group.create({ data: { name: "Frontend-1" } })).id;
   otherGroupId = (await db.group.create({ data: { name: "Frontend-2" } })).id;
-  periodId = (
-    await db.period.create({
-      data: {
-        groupId,
-        name: "Oktyabr",
-        startDate: day(-20),
-        endDate: day(20),
-        passPercent: 60,
-      },
-    })
-  ).id;
 });
 
-describe("getPeriodGrades", () => {
-  it("vazifa, test (foiz × bal), tuzatish va jami", async () => {
+describe("getSemesterGrades", () => {
+  it("kategoriyalar, og'zaki, tuzatish va chegaralar bilan jami", async () => {
+    const sid = await semester(groupId, -30, 30);
     const ali = await student("Ali", groupId);
-    const vali = await student("Vali", groupId);
-    const hw = await db.homework.create({
-      data: {
-        periodId,
-        title: "1-vazifa",
-        dueDate: day(-2),
-        maxPoints: 10,
-        createdById: teacherId,
-      },
-    });
-    const test = await db.test.create({
-      data: {
-        title: "1-test",
-        durationMin: 10,
-        createdById: teacherId,
-        dueDate: day(-1),
-        groups: { connect: { id: groupId } },
-        periods: { create: { periodId, points: 20 } },
-      },
-    });
-    await db.homeworkGrade.create({
-      data: { homeworkId: hw.id, studentId: ali, points: 8 },
-    });
-    await finishedAttempt(ali, test.id, 7);
+    const hw1 = await assignment(sid, "HOMEWORK");
+    const hw2 = await assignment(sid, "HOMEWORK");
+    const pr = await assignment(sid, "PRACTICAL", 25);
+    const bonus = await assignment(sid, "BONUS", 5);
+    await grade(hw1, ali, 1);
+    await grade(hw2, ali, 0.5);
+    await grade(pr, ali, 24); // chegara 20
+    await grade(bonus, ali, 3);
+    await oral(groupId, -3, ali, 1);
+    await oral(groupId, -2, ali, 0.5);
+    // Semestrdan tashqaridagi og'zaki ball hisobga kirmaydi
+    await oral(groupId, -40, ali, 1);
     await db.pointAdjustment.create({
       data: {
         studentId: ali,
-        periodId,
-        points: -2,
-        reason: "Intizom",
+        semesterId: sid,
+        points: 2.5,
+        reason: "Boshqa guruhdan",
         createdById: teacherId,
       },
     });
 
-    const data = await getPeriodGrades(periodId);
-    expect(data?.sheet.items.map((i) => i.title)).toEqual([
-      "1-vazifa",
-      "1-test",
-    ]);
-    const [a, v] = data!.sheet.students;
-    expect(a).toMatchObject({
-      fullName: "Ali",
-      earned: 22,
-      adjustment: -2,
-      total: 20,
-      max: 30,
-      percent: 67,
-      passed: true,
+    const data = await getSemesterGrades(sid);
+    const a = data!.students[0];
+    expect(a.result.categories.HOMEWORK.earned).toBe(1.5);
+    expect(a.result.categories.PRACTICAL).toEqual({
+      earned: 24,
+      cap: 20,
+      counted: 20,
     });
-    // Vali hech narsa qilmagan: ikkala item muddati o'tgan — 0
-    expect(v).toMatchObject({ id: vali, total: 0, max: 30, passed: false });
-    expect(v.cells.every((c) => c.kind === "points" && c.missing)).toBe(true);
+    expect(a.result.categories.ORAL.earned).toBe(1.5);
+    expect(a.result.categories.BONUS.earned).toBe(3);
+    expect(a.result.adjustments).toBe(2.5);
+    // 1.5 + 20 + 1.5 + 3 + 2.5
+    expect(a.result.total).toBe(28.5);
+    expect(a.result.status).toBe("IN_PROGRESS");
+    expect(a.oral).toHaveLength(2);
   });
 
-  it("boshqa guruhga ketgan o'quvchi belgi bilan qoladi", async () => {
-    const ali = await student("Ali", groupId);
-    const at = new Date(`${addDays(today, -5)}T00:00:00+05:00`);
-    await db.$transaction([
-      db.groupMembership.updateMany({
-        where: { studentId: ali, leftAt: null },
-        data: { leftAt: at },
-      }),
-      db.groupMembership.create({
-        data: { studentId: ali, groupId: otherGroupId, joinedAt: at },
-      }),
-      db.user.update({ where: { id: ali }, data: { groupId: otherGroupId } }),
-    ]);
-    const data = await getPeriodGrades(periodId);
-    expect(data?.sheet.students[0].departure).toMatchObject({
-      kind: "moved",
-      groupName: "Frontend-2",
-    });
-  });
-});
-
-describe("getStudentGrades", () => {
-  it("varaqda faqat o'quvchining o'zi bo'ladi", async () => {
-    const ali = await student("Ali", groupId);
-    await student("Vali", groupId);
-    const periods = await getStudentGrades(ali);
-    expect(periods).toHaveLength(1);
-    expect(periods[0].sheet.students.map((s) => s.id)).toEqual([ali]);
-  });
-});
-
-describe("exemptBeforeTransfer", () => {
-  it("o'tkazish kunidan oldin muddati tugaganlardan ozod qiladi, ishlangan testdan emas", async () => {
-    const ali = await student("Ali", otherGroupId);
-    const vali = await student("Vali", otherGroupId);
-    const oldHw = await db.homework.create({
-      data: {
-        periodId,
-        title: "Eski",
-        dueDate: day(-3),
-        maxPoints: 10,
-        createdById: teacherId,
-      },
-    });
-    await db.homework.create({
-      data: {
-        periodId,
-        title: "Yangi",
-        dueDate: day(3),
-        maxPoints: 10,
-        createdById: teacherId,
-      },
-    });
-    const oldTest = await db.test.create({
-      data: {
-        title: "Eski test",
-        durationMin: 10,
-        createdById: teacherId,
-        dueDate: day(-3),
-        groups: { connect: [{ id: groupId }, { id: otherGroupId }] },
-        periods: { create: { periodId, points: 10 } },
-      },
-    });
-    await finishedAttempt(vali, oldTest.id, 9);
-
-    const exempt = (studentIds: string[]) =>
-      db.$transaction((tx) =>
-        exemptBeforeTransfer(tx, {
-          studentIds,
-          groupId,
-          date: today,
-          reason: "O'tkazilgan",
-          createdById: teacherId,
-        }),
-      );
-
-    expect(await exempt([ali, vali])).toBe(3);
-    const rows = await db.gradeExemption.findMany({
-      select: { studentId: true, itemType: true, itemId: true },
-    });
-    expect(rows).toHaveLength(3);
-    expect(rows).toEqual(
-      expect.arrayContaining([
-        { studentId: ali, itemType: "HOMEWORK", itemId: oldHw.id },
-        { studentId: ali, itemType: "TEST", itemId: oldTest.id },
-        { studentId: vali, itemType: "HOMEWORK", itemId: oldHw.id },
-      ]),
+  it("tugagan semestr: holat va EXTRA ruxsati", async () => {
+    const sid = await semester(groupId, -60, -1);
+    await student("Ali", groupId, 90);
+    const vali = await student("Vali", groupId, 90);
+    const aliId = (
+      await db.user.findUniqueOrThrow({ where: { username: "ali" } })
+    ).id;
+    const hw = await Promise.all(
+      Array.from({ length: 12 }, () => assignment(sid, "HOMEWORK")),
     );
-    // Qayta chaqirilsa takror yozilmaydi
-    expect(await exempt([ali])).toBe(0);
+    // Ali: 12 ball (qo'shimcha imkoniyat), Vali: 9.5 (yiqildi)
+    for (const id of hw) await grade(id, aliId, 1);
+    for (const id of hw.slice(0, 9)) await grade(id, vali, 1);
+    await grade(hw[9], vali, 0.5);
+
+    const data = await getSemesterGrades(sid);
+    const byName = new Map(data!.students.map((s) => [s.fullName, s]));
+    expect(data!.semester.ended).toBe(true);
+    expect(byName.get("Ali")!.result).toMatchObject({
+      total: 12,
+      status: "EXTRA_CHANCE",
+      canReceiveExtra: true,
+    });
+    expect(byName.get("Vali")!.result).toMatchObject({
+      total: 9.5,
+      status: "FAILED",
+      canReceiveExtra: false,
+    });
+  });
+
+  it("yopilgan semestr muddatidan oldin ham tugagan hisoblanadi", async () => {
+    const sid = await semester(groupId, -30, 30, true);
+    await student("Ali", groupId);
+    const data = await getSemesterGrades(sid);
+    expect(data!.semester.ended).toBe(true);
+    expect(data!.students[0].result.status).toBe("FAILED");
+  });
+
+  it("faqat semestr davrida guruhda bo'lganlar; studentIds bilan filtr", async () => {
+    const sid = await semester(groupId, -30, 30);
+    const ali = await student("Ali", groupId);
+    await student("Boshqa", otherGroupId);
+    const all = await getSemesterGrades(sid);
+    expect(all!.students.map((s) => s.fullName)).toEqual(["Ali"]);
+    const filtered = await getSemesterGrades(sid, [ali, "begona-id"]);
+    expect(filtered!.students).toHaveLength(1);
+  });
+});
+
+describe("getStudentSemesters", () => {
+  it("o'quvchi faqat o'zini ko'radi", async () => {
+    const sid = await semester(groupId, -30, 30);
+    const ali = await student("Ali", groupId);
+    const vali = await student("Vali", groupId);
+    const hw = await assignment(sid, "HOMEWORK");
+    await grade(hw, ali, 1);
+    await grade(hw, vali, 0.5);
+
+    const mine = await getStudentSemesters(ali);
+    expect(mine).toHaveLength(1);
+    expect(mine[0].students.map((s) => s.id)).toEqual([ali]);
+    expect(Object.keys(mine[0].students[0].grades)).toEqual([hw]);
+    expect(mine[0].students[0].grades[hw].points).toBe(1);
+  });
+
+  it("boshqa guruh semestrlari ko'rinmaydi", async () => {
+    await semester(otherGroupId, -30, 30);
+    const ali = await student("Ali", groupId);
+    expect(await getStudentSemesters(ali)).toEqual([]);
   });
 });

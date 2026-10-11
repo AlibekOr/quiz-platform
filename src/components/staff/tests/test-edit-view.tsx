@@ -3,14 +3,12 @@ import { notFound } from "next/navigation";
 import { ArrowLeftIcon, TriangleAlertIcon } from "lucide-react";
 import { QuestionList } from "@/components/teacher/tests/question-list";
 import { TestHeaderActions } from "@/components/teacher/tests/test-header-actions";
-import { TestGradingForm } from "@/components/teacher/tests/test-grading-form";
 import { TestSettingsForm } from "@/components/teacher/tests/test-settings-form";
 import { Badge } from "@/components/ui/badge";
 import type { CurrentUser } from "@/lib/auth/guards";
 import { groupScopeWhere } from "@/lib/auth/scope";
 import { db } from "@/lib/db";
 import { getTestAccess, staffBase } from "@/lib/tests/access";
-import { fromDbDate } from "@/lib/time";
 
 /**
  * Test sahifasi. Menejer: tahrirlash faqat o'zi yaratgan va barcha guruhlari doirada
@@ -34,16 +32,8 @@ export async function TestEditView({
       include: {
         groups: {
           orderBy: { name: "asc" },
-          select: {
-            id: true,
-            name: true,
-            periods: {
-              orderBy: { startDate: "desc" },
-              select: { id: true, name: true },
-            },
-          },
+          select: { id: true, name: true },
         },
-        periods: { select: { periodId: true, points: true } },
         questions: {
           orderBy: { order: "asc" },
           include: { options: { orderBy: { order: "asc" } } },
@@ -127,29 +117,6 @@ export async function TestEditView({
           groupIds: test.groups.map((g) => g.id),
         }}
       />
-
-      {user.role === "TEACHER" ? (
-        <TestGradingForm
-          // Guruhlar o'zgarsa forma yangidan quriladi
-          key={test.groups.map((g) => g.id).join(",")}
-          testId={test.id}
-          dueDate={test.dueDate ? fromDbDate(test.dueDate) : null}
-          groups={test.groups.map((g) => ({
-            id: g.id,
-            name: g.name,
-            periods: g.periods.map((p) => ({
-              id: p.id,
-              name: p.name,
-              points:
-                test.periods.find((tp) => tp.periodId === p.id)?.points ?? null,
-            })),
-          }))}
-        />
-      ) : (
-        <p className="text-muted-foreground text-sm">
-          Testni baholash davrlariga o&apos;qituvchi biriktiradi.
-        </p>
-      )}
 
       <QuestionList
         testId={test.id}

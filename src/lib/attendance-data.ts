@@ -3,10 +3,7 @@ import { groupScopeWhere, type Scope } from "@/lib/auth/scope";
 import { db } from "@/lib/db";
 import { buildAttendanceReport, type AttendanceMark } from "@/lib/attendance";
 import { describeDeparture, toPeriod } from "@/lib/memberships";
-import {
-  memberOnWhere,
-  membershipOverlapWhere,
-} from "@/lib/memberships-data";
+import { memberOnWhere, membershipOverlapWhere } from "@/lib/memberships-data";
 import {
   fromDbDate,
   isValidMonthStr,
@@ -28,6 +25,8 @@ export type SheetRow = {
   parentPhone: string | null;
   /** O'sha kuni guruh a'zosi bo'lmagan yoki bloklangan, lekin shu darsda yozuvi bor */
   formerMember: boolean;
+  /** Og'zaki savol-javob bali (0 / 0.5 / 1), qo'yilmagan bo'lsa null */
+  oral: number | null;
 };
 
 /**
@@ -52,6 +51,7 @@ export async function getLessonSheet(groupId: string, date: DateStr) {
       select: {
         id: true,
         topic: true,
+        oralScores: { select: { studentId: true, points: true } },
         attendances: {
           where: { student: { archivedAt: null } },
           select: {
@@ -84,6 +84,9 @@ export async function getLessonSheet(groupId: string, date: DateStr) {
   ]);
   if (!group) return null;
   const memberIds = new Set(current.map((s) => s.id));
+  const oral = new Map(
+    (lesson?.oralScores ?? []).map((o) => [o.studentId, o.points]),
+  );
 
   const rows = new Map<string, SheetRow>();
   for (const a of lesson?.attendances ?? []) {
@@ -95,6 +98,7 @@ export async function getLessonSheet(groupId: string, date: DateStr) {
       parentName: a.student.profile?.parentName ?? null,
       parentPhone: a.student.profile?.parentPhone ?? null,
       formerMember: !memberIds.has(a.studentId),
+      oral: oral.get(a.studentId) ?? null,
     });
   }
   for (const s of current) {
@@ -107,6 +111,7 @@ export async function getLessonSheet(groupId: string, date: DateStr) {
       parentName: s.profile?.parentName ?? null,
       parentPhone: s.profile?.parentPhone ?? null,
       formerMember: false,
+      oral: null,
     });
   }
 

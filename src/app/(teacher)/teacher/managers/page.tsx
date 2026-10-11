@@ -98,8 +98,7 @@ export default async function ManagersPage() {
                   </TableCell>
                   <TableCell>{m.region?.name ?? "—"}</TableCell>
                   <TableCell className="hidden text-sm md:table-cell">
-                    {m.managedGroups.map((g) => g.group.name).join(", ") ||
-                      "—"}
+                    {m.managedGroups.map((g) => g.group.name).join(", ") || "—"}
                   </TableCell>
                   <TableCell>
                     {m.isActive ? (
@@ -128,7 +127,6 @@ export default async function ManagersPage() {
           </Table>
         </div>
       )}
-
     </>
   );
 }

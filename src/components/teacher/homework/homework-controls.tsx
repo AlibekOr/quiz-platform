@@ -1,14 +1,14 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Controller, useForm } from "react-hook-form";
+import { Controller, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { MoreHorizontalIcon, PlusIcon } from "lucide-react";
 import { toast } from "sonner";
 import {
-  createHomework,
-  deleteHomework,
-  updateHomework,
+  createAssignment,
+  deleteAssignment,
+  updateAssignment,
 } from "@/app/(teacher)/teacher/homework/actions";
 import { DatePicker } from "@/components/common/date-picker";
 import { ConfirmAction } from "@/components/common/confirm-action";
@@ -34,25 +34,36 @@ import {
   NativeSelectOption,
 } from "@/components/ui/native-select";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  ASSIGNMENT_CATEGORIES,
+  CATEGORY_LABEL,
+  type AssignmentCategory,
+} from "@/lib/grades";
 import type { DateStr } from "@/lib/time";
-import { homeworkSchema, type HomeworkInput } from "@/lib/validators/grades";
+import {
+  assignmentSchema,
+  type AssignmentInput,
+} from "@/lib/validators/grades";
 
-export type PeriodOption = { id: string; name: string };
+export type SemesterOption = { id: string; name: string };
 
 export type HomeworkRow = {
   id: string;
-  periodId: string;
+  semesterId: string;
+  category: AssignmentCategory;
   title: string;
   description: string | null;
   dueDate: DateStr;
   maxPoints: number;
+  /** Ball qo'yilgan o'quvchilar soni (o'chirishda ogohlantirish) */
+  gradedCount: number;
 };
 
 export function AddHomeworkButton({
   periods,
   defaultPeriodId,
 }: {
-  periods: PeriodOption[];
+  periods: SemesterOption[];
   defaultPeriodId?: string;
 }) {
   const [open, setOpen] = useState(false);
@@ -60,7 +71,7 @@ export function AddHomeworkButton({
     <>
       <Button onClick={() => setOpen(true)} disabled={periods.length === 0}>
         <PlusIcon />
-        Vazifa qo&apos;shish
+        Topshiriq qo&apos;shish
       </Button>
       <HomeworkDialog
         open={open}
@@ -78,7 +89,7 @@ export function HomeworkRowActions({
   periods,
 }: {
   homework: HomeworkRow;
-  periods: PeriodOption[];
+  periods: SemesterOption[];
 }) {
   const [dialog, setDialog] = useState<"edit" | "delete" | null>(null);
   const close = (open: boolean) => !open && setDialog(null);
@@ -117,11 +128,15 @@ export function HomeworkRowActions({
       <ConfirmAction
         open={dialog === "delete"}
         onOpenChange={close}
-        title="Vazifani o'chirish"
-        description={`"${homework.title}" va unga qo'yilgan barcha ballar o'chadi.`}
+        title="Topshiriqni o'chirish"
+        description={
+          homework.gradedCount > 0
+            ? `"${homework.title}" o'chadi. ${homework.gradedCount} ta o'quvchiga qo'yilgan ball ham o'chadi.`
+            : `"${homework.title}" o'chadi.`
+        }
         confirmLabel="O'chirish"
         destructive
-        action={() => deleteHomework(homework.id)}
+        action={() => deleteAssignment(homework.id)}
       />
     </>
   );
@@ -136,7 +151,7 @@ function HomeworkDialog({
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  periods: PeriodOption[];
+  periods: SemesterOption[];
   homework: HomeworkRow | null;
   defaultPeriodId?: string;
 }) {
@@ -145,7 +160,7 @@ function HomeworkDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>
-            {homework ? "Vazifani tahrirlash" : "Yangi uyga vazifa"}
+            {homework ? "Topshiriqni tahrirlash" : "Yangi topshiriq"}
           </DialogTitle>
         </DialogHeader>
         <HomeworkForm
@@ -165,38 +180,42 @@ function HomeworkForm({
   defaultPeriodId,
   onDone,
 }: {
-  periods: PeriodOption[];
+  periods: SemesterOption[];
   homework: HomeworkRow | null;
   defaultPeriodId?: string;
   onDone: () => void;
 }) {
   const [pending, startTransition] = useTransition();
-  const defaultValues: HomeworkInput = homework
+  const defaultValues: AssignmentInput = homework
     ? {
-        periodId: homework.periodId,
+        semesterId: homework.semesterId,
+        category: homework.category,
         title: homework.title,
         description: homework.description ?? "",
         dueDate: homework.dueDate,
         maxPoints: homework.maxPoints,
       }
     : {
-        periodId: defaultPeriodId ?? periods[0]?.id ?? "",
+        semesterId: defaultPeriodId ?? periods[0]?.id ?? "",
+        category: "HOMEWORK",
         title: "",
         description: "",
         dueDate: "",
-        maxPoints: 10,
+        maxPoints: 1,
       };
   const form = useForm({
-    resolver: zodResolver(homeworkSchema),
+    resolver: zodResolver(assignmentSchema),
     defaultValues,
   });
   const { errors } = form.formState;
+  const category = useWatch({ control: form.control, name: "category" });
+  const graded = (homework?.gradedCount ?? 0) > 0;
 
   const onSubmit = form.handleSubmit((values) =>
     startTransition(async () => {
       const result = homework
-        ? await updateHomework(homework.id, values)
-        : await createHomework(values);
+        ? await updateAssignment(homework.id, values)
+        : await createAssignment(values);
       if (result.ok) {
         toast.success(result.message);
         onDone();
@@ -208,14 +227,43 @@ function HomeworkForm({
 
   return (
     <form onSubmit={onSubmit} className="flex flex-col gap-4" noValidate>
-      <FormField id="hw-period" label="Davr" error={errors.periodId?.message}>
+      <FormField id="hw-category" label="Turi" error={errors.category?.message}>
+        <NativeSelect
+          id="hw-category"
+          disabled={graded}
+          aria-invalid={!!errors.category}
+          {...form.register("category", {
+            // Uyga vazifa doim 0 / 0.5 / 1
+            onChange: (e: React.ChangeEvent<HTMLSelectElement>) => {
+              if (e.target.value === "HOMEWORK") form.setValue("maxPoints", 1);
+            },
+          })}
+        >
+          {ASSIGNMENT_CATEGORIES.map((c) => (
+            <NativeSelectOption key={c} value={c}>
+              {CATEGORY_LABEL[c]}
+            </NativeSelectOption>
+          ))}
+        </NativeSelect>
+      </FormField>
+      {category === "EXTRA" && (
+        <p className="text-muted-foreground -mt-2 text-xs">
+          Qo&apos;shimcha ball semestr tugagach faqat &quot;Qo&apos;shimcha
+          imkoniyat&quot; holatidagi o&apos;quvchilarga qo&apos;yiladi.
+        </p>
+      )}
+      <FormField
+        id="hw-period"
+        label="Semestr"
+        error={errors.semesterId?.message}
+      >
         <NativeSelect
           id="hw-period"
-          aria-invalid={!!errors.periodId}
-          {...form.register("periodId")}
+          aria-invalid={!!errors.semesterId}
+          {...form.register("semesterId")}
         >
           <NativeSelectOption value="" disabled>
-            Davrni tanlang
+            Semestrni tanlang
           </NativeSelectOption>
           {periods.map((p) => (
             <NativeSelectOption key={p.id} value={p.id}>
@@ -259,25 +307,28 @@ function HomeworkForm({
             )}
           />
         </FormField>
-        <FormField
-          id="hw-max"
-          label="Maksimal ball"
-          error={errors.maxPoints?.message}
-        >
-          <Input
+        {category === "HOMEWORK" ? (
+          <div className="flex flex-col gap-2">
+            <span className="text-sm font-medium">Ball</span>
+            <span className="text-muted-foreground text-sm">0 / 0,5 / 1</span>
+          </div>
+        ) : (
+          <FormField
             id="hw-max"
-            type="number"
-            min={1}
-            max={1000}
-            aria-invalid={!!errors.maxPoints}
-            {...form.register("maxPoints", { valueAsNumber: true })}
-          />
-        </FormField>
+            label="Maksimal ball"
+            error={errors.maxPoints?.message}
+          >
+            <Input
+              id="hw-max"
+              type="number"
+              min={1}
+              max={100}
+              aria-invalid={!!errors.maxPoints}
+              {...form.register("maxPoints", { valueAsNumber: true })}
+            />
+          </FormField>
+        )}
       </div>
-      <p className="text-muted-foreground text-xs">
-        Muddat kuni tugagach ball qo&apos;yilmagan o&apos;quvchiga 0
-        hisoblanadi.
-      </p>
       <FormError message={errors.root?.server?.message} />
       <DialogFooter>
         <Button type="submit" disabled={pending}>

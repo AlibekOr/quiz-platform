@@ -1,70 +1,88 @@
 import { departureLabel, type Departure } from "@/lib/memberships";
 import type { DateStr } from "@/lib/time";
 
-// Baholar hisobi (PLAN.md, 12-bosqich). Sof funksiyalar — testlar bilan.
-// Davr varag'i: o'quvchilar × itemlar (uyga vazifalar va davrga biriktirilgan testlar)
+// Semestr bali (PLAN.md, 17-bosqich). Sof funksiyalar — testlar bilan.
+//
+//   base      = min(hw, homeworkCap) + min(practical, practicalCap) + min(oral, oralCap)
+//               + bonus + adjustments
+//   withExtra = base + min(extra, extraCap)
+//   capped    = min(withExtra, maxTotal)
+//   total     = max(0, capped − penalties)
+//   passScore = maxTotal * passPercent / 100   // 36
+//
+// Testlar semestr baliga kirmaydi.
 
-export type GradeItemType = "HOMEWORK" | "TEST";
+export type AssignmentCategory = "HOMEWORK" | "PRACTICAL" | "EXTRA" | "BONUS";
+export type PointCategory = AssignmentCategory | "ORAL";
 
-export type GradeItem = {
-  type: GradeItemType;
-  /** Homework.id yoki Test.id */
-  id: string;
-  title: string;
-  /** Vazifa: maxPoints; test: davrdagi bali (TestPeriod.points) */
-  maxPoints: number;
-  /** Muddat (Toshkent kuni). Shu kun tugagach baholanmagan item 0 hisoblanadi; null — muddatsiz */
-  dueDate: DateStr | null;
-};
-
-/** Item kaliti: "HOMEWORK:<id>" — xaritalar va ozod qilishlar uchun */
-export function itemKey(item: { type: GradeItemType; id: string }): string {
-  return `${item.type}:${item.id}`;
-}
-
-export type StudentGradeInput = {
-  id: string;
-  fullName: string;
-  departure: Departure | null;
-  /** Vazifa bali (homeworkId -> ball va izoh) */
-  homework: ReadonlyMap<string, { points: number; note: string | null }>;
-  /** Birinchi tugallangan urinish (testId -> score/maxScore) */
-  tests: ReadonlyMap<string, { score: number; maxScore: number }>;
-  /** Ozod qilingan itemlar (itemKey -> sabab) */
-  exemptions: ReadonlyMap<string, string>;
-  adjustments: readonly { points: number; reason: string }[];
-};
-
-export type GradeCell =
-  /** Hisobga kirgan ball (muddati o'tib baholanmagani ham — 0, missing) */
-  | { kind: "points"; points: number; note: string | null; missing: boolean }
-  /** Ozod qilingan: jami va maksimaldan chiqariladi */
-  | { kind: "exempt"; reason: string }
-  /** Muddati hali o'tmagan va baholanmagan: hisobga kirmaydi */
-  | { kind: "pending" };
-
-export type StudentGrades = {
-  id: string;
-  fullName: string;
-  departure: Departure | null;
-  cells: GradeCell[];
-  /** Itemlardan to'plangan ball */
-  earned: number;
-  adjustment: number;
-  adjustments: readonly { points: number; reason: string }[];
-  /** earned + adjustment, [0, max] oralig'ida */
-  total: number;
-  /** Hisobga kirgan itemlarning maksimal bali */
-  max: number;
-  /** total / max, butun foiz; max = 0 bo'lsa null */
-  percent: number | null;
-  passed: boolean | null;
-};
-
-export type GradeSheet = {
-  items: GradeItem[];
+export type SemesterRules = {
+  maxTotal: number;
   passPercent: number;
-  students: StudentGrades[];
+  failBelow: number;
+  homeworkCap: number;
+  practicalCap: number;
+  oralCap: number;
+  extraCap: number;
+};
+
+export const DEFAULT_RULES: SemesterRules = {
+  maxTotal: 60,
+  passPercent: 60,
+  failBelow: 10,
+  homeworkCap: 30,
+  practicalCap: 20,
+  oralCap: 10,
+  extraCap: 40,
+};
+
+/** Har kategoriya bo'yicha yig'ilgan xom ballar (chegarasiz) */
+export type PointSums = {
+  homework: number;
+  practical: number;
+  oral: number;
+  extra: number;
+  bonus: number;
+  /** Tuzatishlar yig'indisi (manfiy ham bo'lishi mumkin) */
+  adjustments: number;
+  /** Jarimalar yig'indisi (musbat son, ayiriladi) */
+  penalties: number;
+};
+
+export const EMPTY_SUMS: PointSums = {
+  homework: 0,
+  practical: 0,
+  oral: 0,
+  extra: 0,
+  bonus: 0,
+  adjustments: 0,
+  penalties: 0,
+};
+
+export type SemesterStatus =
+  "IN_PROGRESS" | "PASSED" | "EXTRA_CHANCE" | "FAILED";
+
+export type CategoryResult = {
+  /** Yig'ilgan xom ball */
+  earned: number;
+  /** Chegara (BONUS uchun null — chegarasiz) */
+  cap: number | null;
+  /** Jamiga kirgan qismi: min(earned, cap) */
+  counted: number;
+};
+
+export type SemesterResult = {
+  categories: Record<PointCategory, CategoryResult>;
+  adjustments: number;
+  penalties: number;
+  /** EXTRA'siz jami (jarimalardan keyin, [0, maxTotal]) — holat va EXTRA ruxsati shundan */
+  withoutExtra: number;
+  /** Yakuniy jami, [0, maxTotal] */
+  total: number;
+  maxTotal: number;
+  passScore: number;
+  status: SemesterStatus;
+  /** Shu o'quvchiga EXTRA ball qo'yish mumkinmi */
+  canReceiveExtra: boolean;
 };
 
 /** 0.1 gacha yaxlitlash */
@@ -72,105 +90,94 @@ export function round1(value: number): number {
   return Math.round(value * 10) / 10;
 }
 
-/** Test bali: birinchi urinish foizi × testning davrdagi bali */
-export function testPoints(
-  score: number,
-  maxScore: number,
-  points: number,
-): number {
-  return maxScore > 0 ? round1((score / maxScore) * points) : 0;
+/** O'tish bali: 60 * 60% = 36 */
+export function passScore(rules: SemesterRules): number {
+  return round1((rules.maxTotal * rules.passPercent) / 100);
 }
 
-/** Muddat kuni tugaganmi (bugun muddatdan keyingi kun yoki undan keyin) */
-export function isOverdue(dueDate: DateStr | null, today: DateStr): boolean {
-  return dueDate !== null && today > dueDate;
-}
-
-export function gradeCell(
-  item: GradeItem,
-  student: StudentGradeInput,
+/** Semestr tugaganmi: o'qituvchi yopgan yoki oxirgi kuni o'tgan (Toshkent kuni) */
+export function isSemesterEnded(
+  semester: { endDate: DateStr; closed: boolean },
   today: DateStr,
-): GradeCell {
-  const reason = student.exemptions.get(itemKey(item));
-  if (reason !== undefined) return { kind: "exempt", reason };
-
-  if (item.type === "HOMEWORK") {
-    const g = student.homework.get(item.id);
-    if (g)
-      return {
-        kind: "points",
-        points: Math.min(g.points, item.maxPoints),
-        note: g.note,
-        missing: false,
-      };
-  } else {
-    const a = student.tests.get(item.id);
-    if (a)
-      return {
-        kind: "points",
-        points: testPoints(a.score, a.maxScore, item.maxPoints),
-        note: null,
-        missing: false,
-      };
-  }
-  return isOverdue(item.dueDate, today)
-    ? { kind: "points", points: 0, note: null, missing: true }
-    : { kind: "pending" };
+): boolean {
+  return semester.closed || today > semester.endDate;
 }
 
-export function computeStudentGrades(
-  items: readonly GradeItem[],
-  student: StudentGradeInput,
-  passPercent: number,
-  today: DateStr,
-): StudentGrades {
-  const cells = items.map((item) => gradeCell(item, student, today));
-  let earned = 0;
-  let max = 0;
-  cells.forEach((c, i) => {
-    if (c.kind !== "points") return;
-    earned += c.points;
-    max += items[i].maxPoints;
-  });
-  earned = round1(earned);
-  const adjustment = student.adjustments.reduce((s, a) => s + a.points, 0);
-  const total = round1(Math.min(max, Math.max(0, earned + adjustment)));
-  const percent = max > 0 ? Math.round((total / max) * 100) : null;
+/** EXTRA faqat semestr tugagach va EXTRA'siz jami [failBelow, passScore) oralig'ida bo'lsa */
+export function canReceiveExtra(
+  rules: SemesterRules,
+  withoutExtra: number,
+  ended: boolean,
+): boolean {
+  return (
+    ended && withoutExtra >= rules.failBelow && withoutExtra < passScore(rules)
+  );
+}
+
+function category(earned: number, cap: number | null): CategoryResult {
+  const e = round1(earned);
+  return { earned: e, cap, counted: cap === null ? e : Math.min(e, cap) };
+}
+
+function finalTotal(sum: number, rules: SemesterRules, penalties: number) {
+  return round1(Math.max(0, Math.min(sum, rules.maxTotal) - penalties));
+}
+
+export function computeSemesterResult(
+  rules: SemesterRules,
+  sums: PointSums,
+  ended: boolean,
+): SemesterResult {
+  const categories: Record<PointCategory, CategoryResult> = {
+    HOMEWORK: category(sums.homework, rules.homeworkCap),
+    PRACTICAL: category(sums.practical, rules.practicalCap),
+    ORAL: category(sums.oral, rules.oralCap),
+    EXTRA: category(sums.extra, rules.extraCap),
+    BONUS: category(sums.bonus, null),
+  };
+  const adjustments = round1(sums.adjustments);
+  const penalties = round1(sums.penalties);
+  const base =
+    categories.HOMEWORK.counted +
+    categories.PRACTICAL.counted +
+    categories.ORAL.counted +
+    categories.BONUS.counted +
+    adjustments;
+
+  const withoutExtra = finalTotal(base, rules, penalties);
+  const total = finalTotal(base + categories.EXTRA.counted, rules, penalties);
+  const pass = passScore(rules);
+  const extraAllowed = canReceiveExtra(rules, withoutExtra, ended);
+
+  let status: SemesterStatus;
+  if (!ended) status = "IN_PROGRESS";
+  else if (total >= pass) status = "PASSED";
+  else if (extraAllowed) status = "EXTRA_CHANCE";
+  else status = "FAILED";
+
   return {
-    id: student.id,
-    fullName: student.fullName,
-    departure: student.departure,
-    cells,
-    earned,
-    adjustment,
-    adjustments: student.adjustments,
+    categories,
+    adjustments,
+    penalties,
+    withoutExtra,
     total,
-    max,
-    percent,
-    passed: percent === null ? null : percent >= passPercent,
+    maxTotal: rules.maxTotal,
+    passScore: pass,
+    status,
+    canReceiveExtra: extraAllowed,
   };
 }
 
-/** Itemlar muddati bo'yicha (muddatsizlar oxirida); o'quvchilar: avval hozirgi a'zolar, alifbo */
-export function buildGradeSheet(input: {
-  items: readonly GradeItem[];
-  students: readonly StudentGradeInput[];
-  passPercent: number;
-  today: DateStr;
-}): GradeSheet {
-  const items = [...input.items].sort(
-    (a, b) =>
-      (a.dueDate ?? "9999").localeCompare(b.dueDate ?? "9999") ||
-      a.title.localeCompare(b.title, "uz"),
-  );
-  const students = [...input.students]
-    .sort(
-      (a, b) =>
-        Number(a.departure !== null) - Number(b.departure !== null) ||
-        a.fullName.localeCompare(b.fullName, "uz"),
-    )
-    .map((s) => computeStudentGrades(items, s, input.passPercent, input.today));
-  return { items, passPercent: input.passPercent, students };
+/** Ball qadami: HOMEWORK va ORAL — 0 / 0.5 / 1; qolganlari 0..maxPoints, 0.5 qadam */
+export function isValidPoints(
+  category: PointCategory,
+  points: number,
+  maxPoints: number,
+): boolean {
+  if (!Number.isFinite(points) || points < 0) return false;
+  if (!Number.isInteger(points * 2)) return false;
+  const max = category === "HOMEWORK" || category === "ORAL" ? 1 : maxPoints;
+  return points <= max;
 }
 
 /** 12 -> "12", 12.5 -> "12,5" */
@@ -182,11 +189,11 @@ export function signedPoints(points: number): string {
   return points > 0 ? `+${formatPoints(points)}` : formatPoints(points);
 }
 
-/** Katak matni: ball, ozod "—", kutilmoqda bo'sh */
-export function cellText(cell: GradeCell): string {
-  if (cell.kind === "exempt") return "—";
-  if (cell.kind === "pending") return "";
-  return formatPoints(cell.points);
+/** "12,5 / 30" (BONUS uchun faqat ball) */
+export function categoryText(c: CategoryResult): string {
+  return c.cap === null
+    ? formatPoints(c.earned)
+    : `${formatPoints(c.earned)} / ${c.cap}`;
 }
 
 export function studentLabel(s: {
@@ -198,7 +205,25 @@ export function studentLabel(s: {
     : s.fullName;
 }
 
-export const ITEM_TYPE_LABEL: Record<GradeItemType, string> = {
-  HOMEWORK: "Vazifa",
-  TEST: "Test",
+export const CATEGORY_LABEL: Record<PointCategory, string> = {
+  HOMEWORK: "Uyga vazifa",
+  PRACTICAL: "Amaliy",
+  ORAL: "Og'zaki",
+  EXTRA: "Qo'shimcha",
+  BONUS: "Bonus",
 };
+
+export const STATUS_LABEL: Record<SemesterStatus, string> = {
+  IN_PROGRESS: "Jarayonda",
+  PASSED: "O'tdi",
+  EXTRA_CHANCE: "Qo'shimcha imkoniyat",
+  FAILED: "Yiqildi",
+};
+
+/** Topshiriq kategoriyalari tanlash ro'yxati uchun (ORAL — darsda, alohida) */
+export const ASSIGNMENT_CATEGORIES: readonly AssignmentCategory[] = [
+  "HOMEWORK",
+  "PRACTICAL",
+  "BONUS",
+  "EXTRA",
+];

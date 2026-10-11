@@ -3,129 +3,99 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeftIcon } from "lucide-react";
 import { GradeEntryForm } from "@/components/teacher/homework/grade-entry-form";
+import { Badge } from "@/components/ui/badge";
 import { requireTeacher } from "@/lib/auth/guards";
 import { db } from "@/lib/db";
-import { departureLabel, describeDeparture } from "@/lib/memberships";
-import { membershipOverlapWhere } from "@/lib/memberships-data";
+import { CATEGORY_LABEL, formatPoints, STATUS_LABEL } from "@/lib/grades";
+import { getSemesterGrades } from "@/lib/grades-data";
+import { departureLabel } from "@/lib/memberships";
 import { formatDate, fromDbDate } from "@/lib/time";
 
 export const metadata: Metadata = { title: "Ball qo'yish" };
 
-export default async function HomeworkGradesPage({
+export default async function AssignmentGradesPage({
   params,
 }: PageProps<"/teacher/homework/[id]">) {
   await requireTeacher();
   const { id } = await params;
 
-  const homework = await db.homework.findUnique({
+  const assignment = await db.assignment.findUnique({
     where: { id },
     select: {
       id: true,
+      category: true,
       title: true,
       description: true,
       dueDate: true,
       maxPoints: true,
-      period: {
-        select: {
-          name: true,
-          startDate: true,
-          endDate: true,
-          group: { select: { id: true, name: true } },
-        },
-      },
+      semesterId: true,
     },
   });
-  if (!homework) notFound();
-  const { period } = homework;
-  const groupId = period.group.id;
+  if (!assignment) notFound();
+  const sheet = await getSemesterGrades(assignment.semesterId);
+  if (!sheet) notFound();
+  const { semester } = sheet;
+  const isExtra = assignment.category === "EXTRA";
 
-  const students = await db.user.findMany({
-    where: {
-      role: "STUDENT",
-      archivedAt: null,
-      memberships: {
-        some: membershipOverlapWhere(
-          groupId,
-          fromDbDate(period.startDate),
-          fromDbDate(period.endDate),
-        ),
-      },
-    },
-    orderBy: { fullName: "asc" },
-    select: {
-      id: true,
-      fullName: true,
-      homeworkGrades: {
-        where: { homeworkId: id },
-        select: { points: true, note: true },
-      },
-      exemptions: {
-        where: { itemType: "HOMEWORK", itemId: id },
-        select: { reason: true },
-      },
-      memberships: {
-        select: {
-          groupId: true,
-          joinedAt: true,
-          leftAt: true,
-          group: { select: { name: true } },
-        },
-      },
-    },
-  });
-
-  const rows = students
-    .map((s) => {
-      const departure = describeDeparture(
-        groupId,
-        s.memberships.map((m) => ({
-          groupId: m.groupId,
-          groupName: m.group.name,
-          joinedAt: m.joinedAt,
-          leftAt: m.leftAt,
-        })),
-      );
-      return {
-        studentId: s.id,
-        fullName: s.fullName,
-        label: departure ? departureLabel(departure) : null,
-        points: s.homeworkGrades[0]?.points ?? null,
-        note: s.homeworkGrades[0]?.note ?? null,
-        exempt: s.exemptions[0]?.reason ?? null,
-      };
-    })
-    // Hozirgi a'zolar tepada
-    .sort((a, b) => Number(a.label !== null) - Number(b.label !== null));
+  const rows = sheet.students.map((s) => ({
+    studentId: s.id,
+    fullName: s.fullName,
+    label: s.departure ? departureLabel(s.departure) : null,
+    points: s.grades[assignment.id]?.points ?? null,
+    note: s.grades[assignment.id]?.note ?? null,
+    // Qo'shimcha ball faqat semestr tugagach va "Qo'shimcha imkoniyat"dagilarga
+    blocked:
+      isExtra && !s.result.canReceiveExtra
+        ? `${STATUS_LABEL[s.result.status]} · ${formatPoints(s.result.withoutExtra)} ball`
+        : null,
+  }));
 
   return (
     <>
       <div className="flex flex-col gap-2">
         <Link
-          href={`/teacher/homework?group=${groupId}`}
+          href={`/teacher/homework?group=${semester.group.id}`}
           className="text-muted-foreground hover:text-foreground flex items-center gap-1 text-sm"
         >
           <ArrowLeftIcon className="size-4" />
           Uyga vazifalar
         </Link>
-        <h1 className="text-2xl font-semibold break-words">{homework.title}</h1>
-        <p className="text-muted-foreground text-sm">
-          {period.group.name} · {period.name} · muddat{" "}
-          {formatDate(fromDbDate(homework.dueDate))} · maksimal{" "}
-          {homework.maxPoints} ball
+        <h1 className="text-2xl font-semibold break-words">
+          {assignment.title}
+        </h1>
+        <p className="text-muted-foreground flex flex-wrap items-center gap-x-1 text-sm">
+          <Badge variant="secondary">
+            {CATEGORY_LABEL[assignment.category]}
+          </Badge>
+          {semester.group.name} · {semester.name} · muddat{" "}
+          {formatDate(fromDbDate(assignment.dueDate))} ·{" "}
+          {assignment.category === "HOMEWORK"
+            ? "0 / 0,5 / 1 ball"
+            : `maksimal ${assignment.maxPoints} ball`}
         </p>
-        {homework.description && (
-          <p className="text-sm whitespace-pre-wrap">{homework.description}</p>
+        {assignment.description && (
+          <p className="text-sm whitespace-pre-wrap">
+            {assignment.description}
+          </p>
+        )}
+        {isExtra && !semester.ended && (
+          <p className="rounded-lg border border-amber-500/50 bg-amber-500/10 p-3 text-sm">
+            Qo&apos;shimcha ball semestr tugagandan keyin qo&apos;yiladi
+            (semestr {formatDate(semester.endDate)} da tugaydi yoki guruh
+            sahifasida yopiladi).
+          </p>
         )}
       </div>
 
       {rows.length === 0 ? (
         <p className="text-muted-foreground">
-          Bu davrda guruhda o&apos;quvchi bo&apos;lmagan.
+          Bu semestrda guruhda o&apos;quvchi bo&apos;lmagan.
         </p>
       ) : (
         <GradeEntryForm
-          homeworkId={homework.id}
-          maxPoints={homework.maxPoints}
+          assignmentId={assignment.id}
+          category={assignment.category}
+          maxPoints={assignment.maxPoints}
           rows={rows}
         />
       )}

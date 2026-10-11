@@ -90,19 +90,13 @@ export async function updateTestSettings(
     return { ok: false, error: "Guruhlardan biri topilmadi" };
 
   try {
-    // Guruhdan ajratilgan test o'sha guruh davrlaridan ham ajraladi
-    await db.$transaction([
-      db.test.update({
-        where: { id },
-        data: {
-          ...settings,
-          groups: { set: groupIds.map((gid) => ({ id: gid })) },
-        },
-      }),
-      db.testPeriod.deleteMany({
-        where: { testId: id, period: { groupId: { notIn: groupIds } } },
-      }),
-    ]);
+    await db.test.update({
+      where: { id },
+      data: {
+        ...settings,
+        groups: { set: groupIds.map((gid) => ({ id: gid })) },
+      },
+    });
   } catch (e) {
     if (isNotFound(e)) return { ok: false, error: "Test topilmadi" };
     throw e;
@@ -145,11 +139,8 @@ export async function deleteTest(testId: string): Promise<ActionResult> {
   if ("denied" in editable) return editable.denied;
 
   try {
-    // Savollar, urinishlar, javoblar va davr biriktirishlari cascade bilan o'chadi
-    await db.$transaction([
-      db.gradeExemption.deleteMany({ where: { itemType: "TEST", itemId: id } }),
-      db.test.delete({ where: { id } }),
-    ]);
+    // Savollar, urinishlar va javoblar cascade bilan o'chadi
+    await db.test.delete({ where: { id } });
   } catch (e) {
     if (isNotFound(e)) return { ok: false, error: "Test topilmadi" };
     throw e;

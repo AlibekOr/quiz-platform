@@ -2,6 +2,8 @@ import "server-only";
 import { computeStats } from "@/lib/attendance";
 import type { CurrentUser } from "@/lib/auth/guards";
 import { db } from "@/lib/db";
+import { getStudentSemesters } from "@/lib/grades-data";
+import { todayInTashkent } from "@/lib/time";
 
 // /profile ma'lumotlari: har kim faqat o'zinikini ko'radi (id sessiyadan, URL'dan emas)
 
@@ -18,6 +20,15 @@ const ownProfileSelect = {
 } as const;
 
 async function studentDetails(studentId: string) {
+  // Joriy semestr: bugunni o'z ichiga olgani, bo'lmasa eng yangisi
+  const today = todayInTashkent();
+  const semesters = await getStudentSemesters(studentId);
+  const semester =
+    semesters.find(
+      (s) => s.semester.startDate <= today && today <= s.semester.endDate,
+    ) ??
+    semesters[0] ??
+    null;
   const student = await db.user.findUniqueOrThrow({
     where: { id: studentId },
     select: {
@@ -29,6 +40,7 @@ async function studentDetails(studentId: string) {
   return {
     group: student.group?.name ?? null,
     contacts: student.profile,
+    semester,
     attendance: computeStats(student.attendances.map((a) => a.status)),
   };
 }

@@ -1,253 +1,170 @@
 import { describe, expect, it } from "vitest";
 import {
-  buildGradeSheet,
-  computeStudentGrades,
+  canReceiveExtra,
+  categoryText,
+  computeSemesterResult,
+  DEFAULT_RULES,
+  EMPTY_SUMS,
   formatPoints,
-  itemKey,
-  testPoints,
-  type GradeItem,
-  type StudentGradeInput,
+  isSemesterEnded,
+  isValidPoints,
+  passScore,
+  type PointSums,
 } from "./grades";
 
-const TODAY = "2026-10-20";
+const rules = DEFAULT_RULES;
+const sums = (s: Partial<PointSums>): PointSums => ({ ...EMPTY_SUMS, ...s });
+const ended = (s: Partial<PointSums>) =>
+  computeSemesterResult(rules, sums(s), true);
 
-const hw = (
-  id: string,
-  maxPoints: number,
-  dueDate: string | null,
-): GradeItem => ({
-  type: "HOMEWORK",
-  id,
-  title: id,
-  maxPoints,
-  dueDate,
-});
-const test = (
-  id: string,
-  maxPoints: number,
-  dueDate: string | null,
-): GradeItem => ({
-  type: "TEST",
-  id,
-  title: id,
-  maxPoints,
-  dueDate,
-});
-
-function student(over: Partial<StudentGradeInput> = {}): StudentGradeInput {
-  return {
-    id: "s1",
-    fullName: "Ali",
-    departure: null,
-    homework: new Map(),
-    tests: new Map(),
-    exemptions: new Map(),
-    adjustments: [],
-    ...over,
-  };
-}
-
-describe("testPoints", () => {
-  it("foiz × davr bali, 0.1 gacha", () => {
-    expect(testPoints(8, 10, 20)).toBe(16);
-    expect(testPoints(2, 3, 10)).toBe(6.7);
-    expect(testPoints(0, 0, 10)).toBe(0);
+describe("kategoriya chegaralari", () => {
+  it("30 / 20 / 10 / 40, bonus chegarasiz", () => {
+    const r = computeSemesterResult(
+      { ...rules, maxTotal: 1000 },
+      sums({ homework: 45, practical: 33, oral: 12.5, extra: 50, bonus: 7 }),
+      true,
+    );
+    expect(r.categories.HOMEWORK).toEqual({ earned: 45, cap: 30, counted: 30 });
+    expect(r.categories.PRACTICAL.counted).toBe(20);
+    expect(r.categories.ORAL.counted).toBe(10);
+    expect(r.categories.EXTRA.counted).toBe(40);
+    expect(r.categories.BONUS).toEqual({ earned: 7, cap: null, counted: 7 });
+    expect(r.total).toBe(30 + 20 + 10 + 40 + 7);
   });
 });
 
-describe("computeStudentGrades", () => {
-  const items = [hw("h1", 10, "2026-10-10"), test("t1", 20, "2026-10-15")];
-
-  it("baholangan va muddati o'tgan itemlar hisobga kiradi; foiz va chegara", () => {
-    const g = computeStudentGrades(
-      items,
-      student({
-        homework: new Map([["h1", { points: 8, note: null }]]),
-        tests: new Map([["t1", { score: 7, maxScore: 10 }]]),
-      }),
-      60,
-      TODAY,
-    );
-    expect(g.earned).toBe(22);
-    expect(g.max).toBe(30);
-    expect(g.total).toBe(22);
-    expect(g.percent).toBe(73);
-    expect(g.passed).toBe(true);
-  });
-
-  it("muddati o'tib baholanmagan = 0, muddati o'tmagani hisobga kirmaydi", () => {
-    const g = computeStudentGrades(
-      [...items, hw("h2", 10, "2026-10-25"), hw("h3", 5, null)],
-      student({ homework: new Map([["h1", { points: 10, note: null }]]) }),
-      60,
-      TODAY,
-    );
-    expect(g.cells[1]).toEqual({
-      kind: "points",
-      points: 0,
-      note: null,
-      missing: true,
+describe("jami 60 dan oshmaydi", () => {
+  it("hammasi to'liq va bonus, tuzatish bilan ham", () => {
+    const r = ended({
+      homework: 30,
+      practical: 20,
+      oral: 10,
+      bonus: 15,
+      adjustments: 5,
     });
-    expect(g.cells[2]).toEqual({ kind: "pending" });
-    expect(g.cells[3]).toEqual({ kind: "pending" });
-    expect(g.max).toBe(30);
-    expect(g.percent).toBe(33);
-    expect(g.passed).toBe(false);
+    expect(r.total).toBe(60);
+    expect(r.withoutExtra).toBe(60);
+    expect(r.status).toBe("PASSED");
   });
 
-  it("muddat kuni o'zida hali hisobga kirmaydi", () => {
-    const g = computeStudentGrades([hw("h1", 10, TODAY)], student(), 60, TODAY);
-    expect(g.cells[0]).toEqual({ kind: "pending" });
-    expect(g.max).toBe(0);
-    expect(g.percent).toBeNull();
-    expect(g.passed).toBeNull();
-  });
-
-  it("ozod qilish maksimal ball va chegarani qayta hisoblaydi", () => {
-    const base = student({
-      homework: new Map([["h1", { points: 9, note: null }]]),
-    });
-    const before = computeStudentGrades(items, base, 60, TODAY);
-    expect(before.max).toBe(30);
-    expect(before.passed).toBe(false);
-
-    const after = computeStudentGrades(
-      items,
-      { ...base, exemptions: new Map([[itemKey(items[1]), "O'tkazilgan"]]) },
-      60,
-      TODAY,
-    );
-    expect(after.cells[1]).toEqual({ kind: "exempt", reason: "O'tkazilgan" });
-    expect(after.max).toBe(10);
-    expect(after.total).toBe(9);
-    expect(after.percent).toBe(90);
-    expect(after.passed).toBe(true);
-  });
-
-  it("manfiy tuzatish jamidan ayiriladi, 0 dan pastga tushmaydi", () => {
-    const s = student({
-      homework: new Map([["h1", { points: 6, note: null }]]),
-      tests: new Map([["t1", { score: 5, maxScore: 10 }]]),
-    });
-    const g = computeStudentGrades(
-      items,
-      { ...s, adjustments: [{ points: -4, reason: "Intizom" }] },
-      60,
-      TODAY,
-    );
-    expect(g.earned).toBe(16);
-    expect(g.adjustment).toBe(-4);
-    expect(g.total).toBe(12);
-
-    const zero = computeStudentGrades(
-      items,
-      { ...s, adjustments: [{ points: -100, reason: "x" }] },
-      60,
-      TODAY,
-    );
-    expect(zero.total).toBe(0);
-  });
-
-  it("jami maksimaldan oshmaydi (musbat tuzatish va ortiqcha ball bilan ham)", () => {
-    const g = computeStudentGrades(
-      items,
-      student({
-        homework: new Map([["h1", { points: 15, note: null }]]),
-        tests: new Map([["t1", { score: 10, maxScore: 10 }]]),
-        adjustments: [{ points: 5, reason: "Olimpiada" }],
-      }),
-      60,
-      TODAY,
-    );
-    expect(g.cells[0]).toMatchObject({ points: 10 });
-    expect(g.total).toBe(30);
-    expect(g.percent).toBe(100);
+  it("EXTRA bilan ham 60 dan oshmaydi", () => {
+    expect(ended({ homework: 30, practical: 20, extra: 40 }).total).toBe(60);
   });
 });
 
-describe("buildGradeSheet", () => {
-  it("itemlar muddat bo'yicha, ketganlar oxirida", () => {
-    const sheet = buildGradeSheet({
-      items: [
-        hw("b", 5, null),
-        hw("a", 5, "2026-10-12"),
-        test("c", 5, "2026-10-01"),
-      ],
-      students: [
-        student({
-          id: "x",
-          fullName: "Bobur",
-          departure: { kind: "removed", date: "2026-10-05" },
-        }),
-        student({ id: "y", fullName: "Zafar" }),
-        student({ id: "z", fullName: "Anvar" }),
-      ],
-      passPercent: 60,
-      today: TODAY,
+describe("jarimalar", () => {
+  it("60 lik chegaradan keyin ayiriladi", () => {
+    // 30 + 20 + 10 + 10 bonus = 70 -> 60, keyin −5 = 55 (70 − 5 = 65 emas)
+    const r = ended({
+      homework: 30,
+      practical: 20,
+      oral: 10,
+      bonus: 10,
+      penalties: 5,
     });
-    expect(sheet.items.map((i) => i.id)).toEqual(["c", "a", "b"]);
-    expect(sheet.students.map((s) => s.fullName)).toEqual([
-      "Anvar",
-      "Zafar",
-      "Bobur",
-    ]);
+    expect(r.total).toBe(55);
+  });
+
+  it("jami 0 dan pastga tushmaydi", () => {
+    const r = ended({ homework: 3, penalties: 10 });
+    expect(r.total).toBe(0);
+    expect(r.status).toBe("FAILED");
+  });
+
+  it("manfiy tuzatish ham 0 dan pastga tushirmaydi", () => {
+    expect(ended({ homework: 2, adjustments: -5 }).total).toBe(0);
   });
 });
 
-describe("formatPoints", () => {
-  it("vergul bilan", () => {
-    expect(formatPoints(12)).toBe("12");
+describe("holat chegaralari", () => {
+  it("o'tish bali 36", () => {
+    expect(passScore(rules)).toBe(36);
+  });
+
+  it("9.5 → Yiqildi, EXTRA rad etiladi", () => {
+    const r = ended({ homework: 9.5 });
+    expect(r.status).toBe("FAILED");
+    expect(r.canReceiveExtra).toBe(false);
+  });
+
+  it("10 → Qo'shimcha imkoniyat", () => {
+    const r = ended({ homework: 10 });
+    expect(r.status).toBe("EXTRA_CHANCE");
+    expect(r.canReceiveExtra).toBe(true);
+  });
+
+  it("36 → O'tdi", () => {
+    const r = ended({ homework: 30, oral: 6 });
+    expect(r.total).toBe(36);
+    expect(r.status).toBe("PASSED");
+    expect(r.canReceiveExtra).toBe(false);
+  });
+
+  it("EXTRA'dan keyin qayta hisoblanadi; EXTRA'siz jami o'zgarmaydi", () => {
+    const r = ended({ homework: 20, extra: 16 });
+    expect(r.withoutExtra).toBe(20);
+    expect(r.total).toBe(36);
+    expect(r.status).toBe("PASSED");
+    // Qo'yilgan EXTRA'ni tahrirlash mumkin bo'lib qoladi
+    expect(r.canReceiveExtra).toBe(true);
+  });
+
+  it("EXTRA yetmasa — hali ham qo'shimcha imkoniyat", () => {
+    expect(ended({ homework: 20, extra: 5 }).status).toBe("EXTRA_CHANCE");
+  });
+
+  it("jarima EXTRA'siz jamini 10 dan pastga tushirsa — yiqildi", () => {
+    expect(ended({ homework: 12, penalties: 3 }).status).toBe("FAILED");
+  });
+});
+
+describe("EXTRA vaqti", () => {
+  it("semestr tugamaguncha EXTRA qo'yib bo'lmaydi", () => {
+    const r = computeSemesterResult(rules, sums({ homework: 15 }), false);
+    expect(r.status).toBe("IN_PROGRESS");
+    expect(r.canReceiveExtra).toBe(false);
+    expect(canReceiveExtra(rules, 15, false)).toBe(false);
+    expect(canReceiveExtra(rules, 15, true)).toBe(true);
+  });
+
+  it("semestr yopilsa yoki oxirgi kuni o'tsa tugagan", () => {
+    const s = { endDate: "2026-12-31", closed: false };
+    expect(isSemesterEnded(s, "2026-12-31")).toBe(false);
+    expect(isSemesterEnded(s, "2027-01-01")).toBe(true);
+    expect(isSemesterEnded({ ...s, closed: true }, "2026-10-01")).toBe(true);
+  });
+});
+
+describe("ball qiymatlari", () => {
+  it("uyga vazifa: faqat 0, 0.5 va 1", () => {
+    expect(isValidPoints("HOMEWORK", 0, 1)).toBe(true);
+    expect(isValidPoints("HOMEWORK", 0.5, 1)).toBe(true);
+    expect(isValidPoints("HOMEWORK", 1, 1)).toBe(true);
+    expect(isValidPoints("HOMEWORK", 0.7, 1)).toBe(false);
+    expect(isValidPoints("HOMEWORK", 2, 5)).toBe(false);
+    expect(isValidPoints("HOMEWORK", -0.5, 1)).toBe(false);
+    expect(isValidPoints("HOMEWORK", Number.NaN, 1)).toBe(false);
+  });
+
+  it("og'zaki: 0 / 0.5 / 1", () => {
+    expect(isValidPoints("ORAL", 1, 0)).toBe(true);
+    expect(isValidPoints("ORAL", 1.5, 0)).toBe(false);
+  });
+
+  it("amaliy: 0..maxPoints, 0.5 qadam", () => {
+    expect(isValidPoints("PRACTICAL", 4.5, 5)).toBe(true);
+    expect(isValidPoints("PRACTICAL", 5.5, 5)).toBe(false);
+    expect(isValidPoints("PRACTICAL", 2.25, 5)).toBe(false);
+  });
+});
+
+describe("formatlash", () => {
+  it("vergul bilan, yig'ilgan / chegara", () => {
+    expect(formatPoints(12.5)).toBe("12,5");
     expect(formatPoints(6.67)).toBe("6,7");
-  });
-});
-
-describe("buildGradesWorkbook", () => {
-  it('ozod katak "—" va izoh bilan, tuzatish alohida ustunda, foiz va holat', async () => {
-    const { default: ExcelJS } = await import("exceljs");
-    const { buildGradesWorkbook, GRADES_HEADER_ROW } =
-      await import("./grades-excel");
-    const items = [hw("h1", 10, "2026-10-10"), test("t1", 20, "2026-10-15")];
-    const sheet = buildGradeSheet({
-      items,
-      students: [
-        student({
-          homework: new Map([["h1", { points: 9, note: null }]]),
-          exemptions: new Map([[itemKey(items[1]), "O'tkazilgan"]]),
-          adjustments: [{ points: -1, reason: "Kechikish" }],
-        }),
-      ],
-      passPercent: 60,
-      today: TODAY,
-    });
-    const buffer = await buildGradesWorkbook(sheet, {
-      groupName: "Frontend-1",
-      periodName: "Oktyabr",
-      from: "2026-10-01",
-      to: "2026-10-31",
-    });
-    const workbook = new ExcelJS.Workbook();
-    await workbook.xlsx.load(buffer as unknown as ArrayBuffer);
-    const ws = workbook.worksheets[0];
-    const header = (ws.getRow(GRADES_HEADER_ROW).values as unknown[]).slice(1);
-    expect(header.slice(3)).toEqual([
-      "Tuzatish",
-      "Jami",
-      "Maks.",
-      "Foiz",
-      "Holat",
-    ]);
-    const row = ws.getRow(GRADES_HEADER_ROW + 1);
-    expect((row.values as unknown[]).slice(1)).toEqual([
-      "Ali",
-      9,
-      "—",
-      -1,
-      8,
-      10,
-      0.8,
-      "O'tdi",
-    ]);
-    expect(row.getCell(3).note).toBe("Ozod: O'tkazilgan");
-    expect(row.getCell(4).note).toBe("-1: Kechikish");
+    expect(categoryText({ earned: 12.5, cap: 30, counted: 12.5 })).toBe(
+      "12,5 / 30",
+    );
+    expect(categoryText({ earned: 3, cap: null, counted: 3 })).toBe("3");
   });
 });

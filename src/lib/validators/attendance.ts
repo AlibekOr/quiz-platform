@@ -73,6 +73,10 @@ export const attendanceFormSchema = z
             .max(200, "Izoh 200 belgidan oshmasin")
             .nullable()
             .transform((v) => v || null),
+          // Og'zaki savol-javob bali: bo'sh — qo'yilmagan (PLAN.md, 17-bosqich)
+          oral: z
+            .enum(["", "0", "0.5", "1"], { error: "0, 0.5 yoki 1" })
+            .transform((v) => (v === "" ? null : Number(v))),
         }),
       )
       .min(1, "Guruhda o'quvchi yo'q")
@@ -87,6 +91,14 @@ export const attendanceFormSchema = z
         message: `${unmarked} ta o'quvchi belgilanmagan`,
       });
     }
+    form.records.forEach((r, i) => {
+      if (r.status === "ABSENT" && r.oral !== null)
+        ctx.addIssue({
+          code: "custom",
+          path: ["records", i, "oral"],
+          message: "Kelmagan o'quvchiga og'zaki ball qo'yilmaydi",
+        });
+    });
   });
 
 export type AttendanceFormInput = z.input<typeof attendanceFormSchema>;

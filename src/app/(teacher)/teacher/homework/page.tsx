@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/table";
 import { requireTeacher } from "@/lib/auth/guards";
 import { db } from "@/lib/db";
+import { CATEGORY_LABEL } from "@/lib/grades";
 import { formatDate, fromDbDate, todayInTashkent } from "@/lib/time";
 
 export const metadata: Metadata = { title: "Uyga vazifalar" };
@@ -38,7 +39,7 @@ export default async function HomeworkPage({
     groups.find((g) => g.id === param(params.group))?.id ?? groups[0]?.id;
 
   const periods = groupId
-    ? await db.period.findMany({
+    ? await db.semester.findMany({
         where: { groupId },
         orderBy: { startDate: "desc" },
         select: {
@@ -46,11 +47,12 @@ export default async function HomeworkPage({
           name: true,
           startDate: true,
           endDate: true,
-          homeworks: {
+          assignments: {
             orderBy: [{ dueDate: "desc" }, { createdAt: "desc" }],
             select: {
               id: true,
-              periodId: true,
+              semesterId: true,
+              category: true,
               title: true,
               description: true,
               dueDate: true,
@@ -63,7 +65,7 @@ export default async function HomeworkPage({
     : [];
   const periodOptions = periods.map((p) => ({ id: p.id, name: p.name }));
   const today = todayInTashkent();
-  // Yangi vazifa uchun default: bugun ichiga tushadigan davr, bo'lmasa eng yangisi
+  // Yangi topshiriq uchun default: bugun ichiga tushadigan semestr, bo'lmasa eng yangisi
   const current = periods.find(
     (p) => fromDbDate(p.startDate) <= today && today <= fromDbDate(p.endDate),
   );
@@ -101,9 +103,9 @@ export default async function HomeworkPage({
 
           {periods.length === 0 ? (
             <p className="text-muted-foreground">
-              Bu guruhda baholash davri yo&apos;q.{" "}
+              Bu guruhda semestr yo&apos;q.{" "}
               <Link href={`/teacher/groups/${groupId}`} className="underline">
-                Guruh sahifasida davr qo&apos;shing
+                Guruh sahifasida semestr qo&apos;shing
               </Link>
               .
             </p>
@@ -117,16 +119,17 @@ export default async function HomeworkPage({
                     {formatDate(fromDbDate(p.endDate))}
                   </span>
                 </h2>
-                {p.homeworks.length === 0 ? (
+                {p.assignments.length === 0 ? (
                   <p className="text-muted-foreground text-sm">
-                    Vazifa yo&apos;q.
+                    Topshiriq yo&apos;q.
                   </p>
                 ) : (
                   <div className="rounded-lg border">
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Vazifa</TableHead>
+                          <TableHead>Topshiriq</TableHead>
+                          <TableHead>Turi</TableHead>
                           <TableHead>Muddat</TableHead>
                           <TableHead className="text-right">Maks.</TableHead>
                           <TableHead className="text-right">
@@ -138,7 +141,7 @@ export default async function HomeworkPage({
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {p.homeworks.map((h) => {
+                        {p.assignments.map((h) => {
                           const due = fromDbDate(h.dueDate);
                           return (
                             <TableRow key={h.id}>
@@ -149,6 +152,11 @@ export default async function HomeworkPage({
                                 >
                                   {h.title}
                                 </Link>
+                              </TableCell>
+                              <TableCell>
+                                <Badge variant="secondary">
+                                  {CATEGORY_LABEL[h.category]}
+                                </Badge>
                               </TableCell>
                               <TableCell className="whitespace-nowrap">
                                 {formatDate(due)}{" "}
@@ -169,11 +177,13 @@ export default async function HomeworkPage({
                                   periods={periodOptions}
                                   homework={{
                                     id: h.id,
-                                    periodId: h.periodId,
+                                    semesterId: h.semesterId,
+                                    category: h.category,
                                     title: h.title,
                                     description: h.description,
                                     dueDate: due,
                                     maxPoints: h.maxPoints,
+                                    gradedCount: h._count.grades,
                                   }}
                                 />
                               </TableCell>

@@ -4,11 +4,12 @@ import { notFound } from "next/navigation";
 import { ArrowLeftIcon, CalendarDaysIcon } from "lucide-react";
 import { RemoveFromGroupButton } from "@/components/teacher/groups/remove-from-group-button";
 import { ScheduleForm } from "@/components/teacher/groups/schedule-form";
-import { PeriodsSection } from "@/components/teacher/grades/periods-section";
+import { SemestersSection } from "@/components/teacher/grades/semesters-section";
 import { buttonVariants } from "@/components/ui/button";
 import { requireTeacher } from "@/lib/auth/guards";
+import { semesterInfo } from "@/lib/grades-data";
 import { db } from "@/lib/db";
-import { formatSchedule, fromDbDate } from "@/lib/time";
+import { formatSchedule } from "@/lib/time";
 
 export const metadata: Metadata = { title: "Guruh" };
 
@@ -32,15 +33,23 @@ export default async function GroupPage({
         orderBy: { fullName: "asc" },
         select: { id: true, fullName: true, username: true, isActive: true },
       },
-      periods: {
+      semesters: {
         orderBy: { startDate: "desc" },
         select: {
           id: true,
           name: true,
           startDate: true,
           endDate: true,
+          closed: true,
+          maxTotal: true,
           passPercent: true,
-          _count: { select: { homeworks: true, tests: true } },
+          failBelow: true,
+          homeworkCap: true,
+          practicalCap: true,
+          oralCap: true,
+          extraCap: true,
+          group: { select: { id: true, name: true } },
+          _count: { select: { assignments: true } },
         },
       },
     },
@@ -117,17 +126,21 @@ export default async function GroupPage({
         </section>
 
         <section className="rounded-lg border p-4 lg:col-span-2">
-          <PeriodsSection
+          <SemestersSection
             groupId={group.id}
-            periods={group.periods.map((p) => ({
-              id: p.id,
-              name: p.name,
-              startDate: fromDbDate(p.startDate),
-              endDate: fromDbDate(p.endDate),
-              passPercent: p.passPercent,
-              homeworkCount: p._count.homeworks,
-              testCount: p._count.tests,
-            }))}
+            semesters={group.semesters.map(({ _count, ...s }) => {
+              const info = semesterInfo(s);
+              return {
+                id: info.id,
+                name: info.name,
+                startDate: info.startDate,
+                endDate: info.endDate,
+                closed: info.closed,
+                ended: info.ended,
+                rules: info.rules,
+                assignmentCount: _count.assignments,
+              };
+            })}
           />
         </section>
       </div>

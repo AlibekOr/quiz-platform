@@ -9,15 +9,12 @@ import { isNotFound, isUniqueViolation } from "@/lib/prisma-errors";
 import { toDbDate } from "@/lib/time";
 import {
   adjustmentSchema,
-  exemptionSchema,
-  parseItemKey,
-  periodSchema,
-  testGradingSchema,
+  semesterSchema,
   type AdjustmentInput,
-  type ExemptionInput,
-  type PeriodInput,
-  type TestGradingInput,
+  type SemesterInput,
 } from "@/lib/validators/grades";
+
+// Semestrlar va ball tuzatishlari: faqat o'qituvchi (TASKS.md, "Huquqlar")
 
 const idSchema = z.string().min(1).max(64);
 
@@ -27,152 +24,121 @@ function revalidateGrades() {
   revalidatePath("/teacher/groups/[id]", "page");
   revalidatePath("/teacher/students/[id]", "page");
   revalidatePath("/grades");
+  revalidatePath("/profile");
 }
 
 const nameTaken: ActionResult = {
   ok: false,
   error: "Maydonlarni tekshiring",
-  fieldErrors: { name: ["Bu guruhda shunday nomli davr bor"] },
+  fieldErrors: { name: ["Bu guruhda shunday nomli semestr bor"] },
 };
 
-// ---------- Davrlar ----------
-
-export async function createPeriod(
+/** Bir guruhda semestrlar ustma-ust tushmasin ("joriy semestr" bitta bo'lishi uchun) */
+async function overlapError(
   groupId: string,
-  input: PeriodInput,
+  data: { startDate: string; endDate: string },
+  exceptId?: string,
+): Promise<ActionResult | null> {
+  const other = await db.semester.findFirst({
+    where: {
+      groupId,
+      ...(exceptId ? { id: { not: exceptId } } : {}),
+      startDate: { lte: toDbDate(data.endDate) },
+      endDate: { gte: toDbDate(data.startDate) },
+    },
+    select: { name: true },
+  });
+  if (!other) return null;
+  return {
+    ok: false,
+    error: "Maydonlarni tekshiring",
+    fieldErrors: {
+      startDate: [`"${other.name}" semestri bilan sanalar ustma-ust tushadi`],
+    },
+  };
+}
+
+function semesterData(input: z.output<typeof semesterSchema>) {
+  const { startDate, endDate, ...rest } = input;
+  return {
+    ...rest,
+    startDate: toDbDate(startDate),
+    endDate: toDbDate(endDate),
+  };
+}
+
+export async function createSemester(
+  groupId: string,
+  input: SemesterInput,
 ): Promise<ActionResult> {
   await requireTeacher();
   const gid = idSchema.parse(groupId);
-  const parsed = periodSchema.safeParse(input);
+  const parsed = semesterSchema.safeParse(input);
   if (!parsed.success) return validationFailed(parsed.error);
-  const { name, startDate, endDate, passPercent } = parsed.data;
 
   if ((await db.group.count({ where: { id: gid } })) === 0)
     return { ok: false, error: "Guruh topilmadi" };
+  const overlap = await overlapError(gid, parsed.data);
+  if (overlap) return overlap;
   try {
-    await db.period.create({
-      data: {
-        groupId: gid,
-        name,
-        startDate: toDbDate(startDate),
-        endDate: toDbDate(endDate),
-        passPercent,
-      },
+    await db.semester.create({
+      data: { groupId: gid, ...semesterData(parsed.data) },
     });
   } catch (e) {
     if (isUniqueViolation(e)) return nameTaken;
     throw e;
   }
   revalidateGrades();
-  return { ok: true, message: "Davr qo'shildi" };
+  return { ok: true, message: "Semestr qo'shildi" };
 }
 
-export async function updatePeriod(
-  periodId: string,
-  input: PeriodInput,
+export async function updateSemester(
+  semesterId: string,
+  input: SemesterInput,
 ): Promise<ActionResult> {
   await requireTeacher();
-  const id = idSchema.parse(periodId);
-  const parsed = periodSchema.safeParse(input);
+  const id = idSchema.parse(semesterId);
+  const parsed = semesterSchema.safeParse(input);
   if (!parsed.success) return validationFailed(parsed.error);
-  const { name, startDate, endDate, passPercent } = parsed.data;
 
-  try {
-    await db.period.update({
-      where: { id },
-      data: {
-        name,
-        startDate: toDbDate(startDate),
-        endDate: toDbDate(endDate),
-        passPercent,
-      },
-    });
-  } catch (e) {
-    if (isNotFound(e)) return { ok: false, error: "Davr topilmadi" };
-    if (isUniqueViolation(e)) return nameTaken;
-    throw e;
-  }
-  revalidateGrades();
-  return { ok: true, message: "Davr saqlandi" };
-}
-
-/** Davr bilan birga uning vazifalari, ballari, test biriktirishlari va tuzatishlari o'chadi */
-export async function deletePeriod(periodId: string): Promise<ActionResult> {
-  await requireTeacher();
-  const id = idSchema.parse(periodId);
-  try {
-    await db.period.delete({ where: { id } });
-  } catch (e) {
-    if (isNotFound(e)) return { ok: false, error: "Davr topilmadi" };
-    throw e;
-  }
-  revalidateGrades();
-  return { ok: true, message: "Davr o'chirildi" };
-}
-
-// ---------- Test: muddat va davrlarga biriktirish ----------
-
-/** Davr faqat test biriktirilgan guruhlardan biriga tegishli bo'lishi mumkin */
-export async function saveTestGrading(
-  testId: string,
-  input: TestGradingInput,
-): Promise<ActionResult> {
-  await requireTeacher();
-  const id = idSchema.parse(testId);
-  const parsed = testGradingSchema.safeParse(input);
-  if (!parsed.success) return validationFailed(parsed.error);
-  const { dueDate, links } = parsed.data;
-
-  const test = await db.test.findUnique({
+  const current = await db.semester.findUnique({
     where: { id },
-    select: { groups: { select: { id: true } } },
+    select: { groupId: true },
   });
-  if (!test) return { ok: false, error: "Test topilmadi" };
-  const allowed = await db.period.count({
-    where: {
-      id: { in: links.map((l) => l.periodId) },
-      groupId: { in: test.groups.map((g) => g.id) },
-    },
-  });
-  if (allowed !== links.length)
-    return {
-      ok: false,
-      error: "Davr topilmadi yoki test bu davr guruhiga biriktirilmagan",
-    };
-
-  await db.$transaction([
-    db.test.update({
+  if (!current) return { ok: false, error: "Semestr topilmadi" };
+  const overlap = await overlapError(current.groupId, parsed.data, id);
+  if (overlap) return overlap;
+  try {
+    await db.semester.update({
       where: { id },
-      data: { dueDate: dueDate ? toDbDate(dueDate) : null },
-    }),
-    db.testPeriod.deleteMany({
-      where: {
-        testId: id,
-        periodId: { notIn: links.map((l) => l.periodId) },
-      },
-    }),
-    ...links.map((l) =>
-      db.testPeriod.upsert({
-        where: { testId_periodId: { testId: id, periodId: l.periodId } },
-        create: { testId: id, periodId: l.periodId, points: l.points },
-        update: { points: l.points },
-      }),
-    ),
-  ]);
-  revalidatePath(`/teacher/tests/${id}`);
+      data: semesterData(parsed.data),
+    });
+  } catch (e) {
+    if (isNotFound(e)) return { ok: false, error: "Semestr topilmadi" };
+    if (isUniqueViolation(e)) return nameTaken;
+    throw e;
+  }
   revalidateGrades();
-  return { ok: true, message: "Baholash sozlamalari saqlandi" };
+  return { ok: true, message: "Semestr saqlandi" };
 }
 
-// ---------- O'quvchi: tuzatish va ozod qilish ----------
-
-async function studentExists(id: string): Promise<boolean> {
-  return (
-    (await db.user.count({
-      where: { id, role: "STUDENT", archivedAt: null },
-    })) > 0
-  );
+/** Semestr bilan birga uning topshiriqlari, ballari va tuzatishlari o'chadi */
+export async function deleteSemester(
+  semesterId: string,
+): Promise<ActionResult> {
+  await requireTeacher();
+  const id = idSchema.parse(semesterId);
+  try {
+    await db.semester.delete({ where: { id } });
+  } catch (e) {
+    if (isNotFound(e)) return { ok: false, error: "Semestr topilmadi" };
+    throw e;
+  }
+  revalidateGrades();
+  return { ok: true, message: "Semestr o'chirildi" };
 }
+
+// ---------- O'quvchi: ball tuzatish ----------
 
 export async function addPointAdjustment(
   studentId: string,
@@ -182,19 +148,27 @@ export async function addPointAdjustment(
   const sid = idSchema.parse(studentId);
   const parsed = adjustmentSchema.safeParse(input);
   if (!parsed.success) return validationFailed(parsed.error);
-  const { periodId, points, reason } = parsed.data;
+  const { semesterId, points, reason } = parsed.data;
 
-  if (!(await studentExists(sid)))
-    return { ok: false, error: "O'quvchi topilmadi" };
-  if ((await db.period.count({ where: { id: periodId } })) === 0)
+  const student = await db.user.count({
+    where: { id: sid, role: "STUDENT", archivedAt: null },
+  });
+  if (student === 0) return { ok: false, error: "O'quvchi topilmadi" };
+  if ((await db.semester.count({ where: { id: semesterId } })) === 0)
     return {
       ok: false,
       error: "Maydonlarni tekshiring",
-      fieldErrors: { periodId: ["Davr topilmadi"] },
+      fieldErrors: { semesterId: ["Semestr topilmadi"] },
     };
 
   await db.pointAdjustment.create({
-    data: { studentId: sid, periodId, points, reason, createdById: teacher.id },
+    data: {
+      studentId: sid,
+      semesterId,
+      points,
+      reason,
+      createdById: teacher.id,
+    },
   });
   revalidateGrades();
   return { ok: true, message: "Tuzatish qo'shildi" };
@@ -213,61 +187,4 @@ export async function deletePointAdjustment(
   }
   revalidateGrades();
   return { ok: true, message: "Tuzatish o'chirildi" };
-}
-
-export async function addExemption(
-  studentId: string,
-  input: ExemptionInput,
-): Promise<ActionResult> {
-  const teacher = await requireTeacher();
-  const sid = idSchema.parse(studentId);
-  const parsed = exemptionSchema.safeParse(input);
-  if (!parsed.success) return validationFailed(parsed.error);
-  const { itemType, itemId } = parseItemKey(parsed.data.item);
-
-  if (!(await studentExists(sid)))
-    return { ok: false, error: "O'quvchi topilmadi" };
-  const exists =
-    itemType === "HOMEWORK"
-      ? await db.homework.count({ where: { id: itemId } })
-      : await db.test.count({ where: { id: itemId } });
-  if (exists === 0)
-    return {
-      ok: false,
-      error: "Maydonlarni tekshiring",
-      fieldErrors: { item: ["Vazifa yoki test topilmadi"] },
-    };
-
-  try {
-    await db.gradeExemption.create({
-      data: {
-        studentId: sid,
-        itemType,
-        itemId,
-        reason: parsed.data.reason,
-        createdById: teacher.id,
-      },
-    });
-  } catch (e) {
-    if (isUniqueViolation(e))
-      return { ok: false, error: "O'quvchi bundan allaqachon ozod qilingan" };
-    throw e;
-  }
-  revalidateGrades();
-  return { ok: true, message: "Ozod qilindi" };
-}
-
-export async function deleteExemption(
-  exemptionId: string,
-): Promise<ActionResult> {
-  await requireTeacher();
-  const id = idSchema.parse(exemptionId);
-  try {
-    await db.gradeExemption.delete({ where: { id } });
-  } catch (e) {
-    if (isNotFound(e)) return { ok: false, error: "Topilmadi" };
-    throw e;
-  }
-  revalidateGrades();
-  return { ok: true, message: "Ozod qilish bekor qilindi" };
 }

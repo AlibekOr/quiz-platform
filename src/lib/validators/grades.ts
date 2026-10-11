@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { isValidDateStr } from "@/lib/time";
 
-// Uyga vazifalar va baholar (PLAN.md, 12-bosqich)
+// Semestr ball tizimi (PLAN.md, 17-bosqich)
 
 const idSchema = z.string().min(1).max(64);
 
@@ -30,7 +30,14 @@ const selectedId = (message: string) =>
     .max(64)
     .refine((v) => v !== "", message);
 
-export const periodSchema = z
+const intField = (min: number, max: number) =>
+  z
+    .number({ error: "Son kiriting" })
+    .int("Butun son bo'lsin")
+    .min(min, `Kamida ${min}`)
+    .max(max, `Ko'pi bilan ${max}`);
+
+export const semesterSchema = z
   .object({
     name: z
       .string()
@@ -39,20 +46,44 @@ export const periodSchema = z
       .max(60, "Nom 60 belgidan oshmasin"),
     startDate: dateSchema,
     endDate: dateSchema,
-    passPercent: z
-      .number({ error: "Son kiriting" })
-      .int("Butun son bo'lsin")
-      .min(1, "Kamida 1%")
-      .max(100, "Ko'pi bilan 100%"),
+    closed: z.boolean(),
+    maxTotal: intField(1, 1000),
+    passPercent: intField(1, 100),
+    failBelow: intField(0, 1000),
+    homeworkCap: intField(0, 1000),
+    practicalCap: intField(0, 1000),
+    oralCap: intField(0, 1000),
+    extraCap: intField(0, 1000),
   })
-  .refine((p) => p.endDate >= p.startDate, {
-    path: ["endDate"],
-    message: "Tugash sanasi boshlanishdan oldin bo'lmasin",
+  .superRefine((s, ctx) => {
+    if (s.endDate < s.startDate)
+      ctx.addIssue({
+        code: "custom",
+        path: ["endDate"],
+        message: "Tugash sanasi boshlanishdan oldin bo'lmasin",
+      });
+    if (s.failBelow > (s.maxTotal * s.passPercent) / 100)
+      ctx.addIssue({
+        code: "custom",
+        path: ["failBelow"],
+        message: "O'tish balidan katta bo'lmasin",
+      });
   });
-export type PeriodInput = z.input<typeof periodSchema>;
+export type SemesterInput = z.input<typeof semesterSchema>;
 
-export const homeworkSchema = z.object({
-  periodId: selectedId("Davrni tanlang"),
+export const ASSIGNMENT_CATEGORY_VALUES = [
+  "HOMEWORK",
+  "PRACTICAL",
+  "EXTRA",
+  "BONUS",
+] as const;
+
+/** HOMEWORK uchun maxPoints doim 1 — server o'zi qo'yadi */
+export const assignmentSchema = z.object({
+  semesterId: selectedId("Semestrni tanlang"),
+  category: z.enum(ASSIGNMENT_CATEGORY_VALUES, {
+    error: "Turini tanlang",
+  }),
   title: z
     .string()
     .trim()
@@ -60,78 +91,59 @@ export const homeworkSchema = z.object({
     .max(200, "Nom 200 belgidan oshmasin"),
   description: optionalText(2000),
   dueDate: dateSchema,
-  maxPoints: z
-    .number({ error: "Son kiriting" })
-    .int("Butun son bo'lsin")
-    .min(1, "Kamida 1")
-    .max(1000, "Ko'pi bilan 1000"),
+  maxPoints: intField(1, 100),
 });
-export type HomeworkInput = z.input<typeof homeworkSchema>;
+export type AssignmentInput = z.input<typeof assignmentSchema>;
 
-/** Ball qo'yish: bo'sh qator — baho o'chiriladi. Ball maxPoints bilan serverda solishtiriladi */
-export const homeworkGradesSchema = z.object({
+/**
+ * Ball matni: "" (baho o'chiriladi), "1", "0.5" yoki "0,5". Ruxsat etilgan qiymat
+ * (0 / 0.5 / 1 yoki 0..maxPoints) serverda kategoriya bo'yicha tekshiriladi
+ */
+const pointsText = z
+  .string()
+  .trim()
+  .refine(
+    (v) => v === "" || /^\d{1,3}([.,]5|[.,]0)?$/.test(v),
+    "Ball: butun son yoki .5",
+  )
+  .transform((v) => (v === "" ? null : Number(v.replace(",", "."))));
+
+export const assignmentGradesSchema = z.object({
   grades: z
     .array(
       z.object({
         studentId: idSchema,
-        points: z
-          .string()
-          .trim()
-          .refine((v) => v === "" || /^\d{1,4}$/.test(v), "Butun son kiriting"),
+        points: pointsText,
         note: optionalText(300),
       }),
     )
     .max(500),
 });
-export type HomeworkGradesInput = z.input<typeof homeworkGradesSchema>;
+export type AssignmentGradesInput = z.input<typeof assignmentGradesSchema>;
 
-/** Test muddati va guruh davrlariga biriktirish (har davrga bal bilan) */
-export const testGradingSchema = z.object({
-  dueDate: dateSchema.or(z.literal("")).transform((v) => v || null),
-  links: z
+/** Og'zaki ballar (dars sahifasida): bo'sh — o'chiriladi, aks holda 0 / 0.5 / 1 */
+export const oralScoresSchema = z.object({
+  scores: z
     .array(
       z.object({
-        periodId: idSchema,
+        studentId: idSchema,
         points: z
-          .number({ error: "Son kiriting" })
-          .int("Butun son bo'lsin")
-          .min(1, "Kamida 1")
-          .max(1000, "Ko'pi bilan 1000"),
+          .enum(["", "0", "0.5", "1"], { error: "0, 0.5 yoki 1" })
+          .transform((v) => (v === "" ? null : Number(v))),
       }),
     )
-    .max(100)
-    .refine(
-      (links) => new Set(links.map((l) => l.periodId)).size === links.length,
-      "Bir davr ikki marta tanlangan",
-    ),
+    .max(500),
 });
-export type TestGradingInput = z.input<typeof testGradingSchema>;
+export type OralScoresInput = z.input<typeof oralScoresSchema>;
 
 export const adjustmentSchema = z.object({
-  periodId: selectedId("Davrni tanlang"),
+  semesterId: selectedId("Semestrni tanlang"),
   points: z
     .number({ error: "Son kiriting" })
-    .int("Butun son bo'lsin")
     .min(-1000, "Kamida -1000")
     .max(1000, "Ko'pi bilan 1000")
+    .refine((v) => Number.isInteger(v * 2), "Butun son yoki .5")
     .refine((v) => v !== 0, "0 bo'lmasin"),
   reason: reasonSchema,
 });
 export type AdjustmentInput = z.input<typeof adjustmentSchema>;
-
-/** item: "HOMEWORK:<id>" yoki "TEST:<id>" (lib/grades.ts itemKey) */
-export const exemptionSchema = z.object({
-  item: z
-    .string()
-    .regex(/^(HOMEWORK|TEST):[^:]{1,64}$/, "Vazifa yoki testni tanlang"),
-  reason: reasonSchema,
-});
-export type ExemptionInput = z.input<typeof exemptionSchema>;
-
-export function parseItemKey(key: string): {
-  itemType: "HOMEWORK" | "TEST";
-  itemId: string;
-} {
-  const [itemType, itemId] = key.split(":") as ["HOMEWORK" | "TEST", string];
-  return { itemType, itemId };
-}

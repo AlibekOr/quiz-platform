@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { SemesterCard } from "@/components/grades/semester-card";
 import { ChangePasswordForm } from "@/components/profile/change-password-form";
 import { ContactsForm } from "@/components/profile/contacts-form";
 import { NameForm } from "@/components/profile/name-form";
@@ -51,8 +52,13 @@ function StudentSections({
 }) {
   const c = profile.contacts;
   const att = profile.attendance;
+  const me = profile.semester?.students[0];
   return (
     <>
+      {profile.semester && me && (
+        <SemesterCard data={profile.semester} student={me} />
+      )}
+
       <Section
         title="Aloqa"
         hint="Telefon +998XXXXXXXXX ko'rinishida saqlanadi. Bu ma'lumotni faqat o'qituvchi va menejer ko'radi."

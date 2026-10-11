@@ -18,7 +18,6 @@ import { db } from "@/lib/db";
 import { isNotFound, isUniqueViolation } from "@/lib/prisma-errors";
 import { getUploadedFile, readFirstSheet } from "@/lib/excel";
 import { latestMembershipDay } from "@/lib/memberships";
-import { exemptBeforeTransfer } from "@/lib/grades-data";
 import { moveStudent } from "@/lib/memberships-data";
 import {
   formatDate,
@@ -256,10 +255,10 @@ export async function removeStudentFromGroup(
 export async function transferStudents(
   input: TransferInput,
 ): Promise<ActionResult> {
-  const { user: actor, scope } = await requireStaffScope();
+  const { scope } = await requireStaffScope();
   const parsed = transferSchema.safeParse(input);
   if (!parsed.success) return validationFailed(parsed.error);
-  const { toGroupId, date, note, exemptPast } = parsed.data;
+  const { toGroupId, date, note } = parsed.data;
   const studentIds = [...new Set(parsed.data.studentIds)];
 
   if (!isValidDateStr(date)) {
@@ -334,33 +333,22 @@ export async function transferStudents(
   }
 
   const at = startOfDayInTashkent(date);
-  const exempted = await db.$transaction(async (tx) => {
+  await db.$transaction(async (tx) => {
     for (const s of students) {
       await moveStudent(tx, { studentId: s.id, toGroupId, at, note });
     }
-    return exemptPast
-      ? exemptBeforeTransfer(tx, {
-          studentIds: students.map((s) => s.id),
-          groupId: toGroupId,
-          date,
-          reason: `Boshqa guruhdan o'tkazilgan (${formatDate(date)})`,
-          createdById: actor.id,
-        })
-      : 0;
   });
 
   revalidate();
   revalidatePath("/teacher/attendance");
-  revalidatePath("/teacher/groups/[id]/attendance", "page");
+  revalidatePath("/teacher/attendance/report");
   revalidatePath("/teacher/grades");
-  const moved =
-    students.length === 1
-      ? `${students[0].fullName} "${group.name}" guruhiga o'tkazildi`
-      : `${students.length} ta o'quvchi "${group.name}" guruhiga o'tkazildi`;
   return {
     ok: true,
     message:
-      exempted > 0 ? `${moved}. Ozod qilingan itemlar: ${exempted}` : moved,
+      students.length === 1
+        ? `${students[0].fullName} "${group.name}" guruhiga o'tkazildi`
+        : `${students.length} ta o'quvchi "${group.name}" guruhiga o'tkazildi`,
   };
 }
 
@@ -434,7 +422,10 @@ async function validateAgainstDb(
       select: { username: true },
     }),
     // Menejer uchun doiradan tashqaridagi guruh "topilmadi" bo'ladi
-    db.group.findMany({ where: groupScopeWhere(scope), select: { name: true } }),
+    db.group.findMany({
+      where: groupScopeWhere(scope),
+      select: { name: true },
+    }),
   ]);
   return validateImportRows(rows, {
     existingUsernames: new Set(existing.map((u) => u.username)),

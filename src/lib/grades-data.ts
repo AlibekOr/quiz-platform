@@ -1,15 +1,15 @@
 import "server-only";
 import type { Prisma } from "@/generated/prisma/client";
-import { finalizeExpiredAttempts } from "@/lib/attempts";
 import { db } from "@/lib/db";
 import {
-  buildGradeSheet,
-  itemKey,
-  type GradeItem,
-  type GradeSheet,
-  type StudentGradeInput,
+  computeSemesterResult,
+  isSemesterEnded,
+  type AssignmentCategory,
+  type PointSums,
+  type SemesterResult,
+  type SemesterRules,
 } from "@/lib/grades";
-import { describeDeparture } from "@/lib/memberships";
+import { describeDeparture, type Departure } from "@/lib/memberships";
 import { membershipOverlapWhere } from "@/lib/memberships-data";
 import {
   fromDbDate,
@@ -18,28 +18,36 @@ import {
   type DateStr,
 } from "@/lib/time";
 
-// Baholar varag'i uchun ma'lumot yig'ish. O'quvchi uchun chaqirilganda varaqda faqat
-// o'zi bo'ladi (boshqalarning ballari yuborilmaydi); aloqa ma'lumotlari umuman olinmaydi
+// Semestr ballari uchun ma'lumot yig'ish. O'quvchi uchun chaqirilganda faqat o'zi bo'ladi
+// (boshqalarning ballari yuborilmaydi); aloqa ma'lumotlari umuman olinmaydi
 
-const periodSelect = {
+const semesterSelect = {
   id: true,
   name: true,
   startDate: true,
   endDate: true,
+  closed: true,
+  maxTotal: true,
   passPercent: true,
+  failBelow: true,
+  homeworkCap: true,
+  practicalCap: true,
+  oralCap: true,
+  extraCap: true,
   group: { select: { id: true, name: true } },
-  homeworks: {
-    select: { id: true, title: true, dueDate: true, maxPoints: true },
-  },
-  tests: {
+  assignments: {
+    orderBy: [{ dueDate: "asc" }, { createdAt: "asc" }],
     select: {
-      points: true,
-      test: { select: { id: true, title: true, dueDate: true } },
+      id: true,
+      category: true,
+      title: true,
+      dueDate: true,
+      maxPoints: true,
     },
   },
-} satisfies Prisma.PeriodSelect;
+} satisfies Prisma.SemesterSelect;
 
-type PeriodRow = Prisma.PeriodGetPayload<{ select: typeof periodSelect }>;
+type SemesterRow = Prisma.SemesterGetPayload<{ select: typeof semesterSelect }>;
 
 const historySelect = {
   groupId: true,
@@ -56,173 +64,208 @@ type SheetStudent = {
   }>[];
 };
 
-export type PeriodInfo = {
+export type SemesterInfo = {
   id: string;
   name: string;
   startDate: DateStr;
   endDate: DateStr;
-  passPercent: number;
+  closed: boolean;
+  /** Yopilgan yoki oxirgi kuni o'tgan — EXTRA shundan keyin */
+  ended: boolean;
+  rules: SemesterRules;
   group: { id: string; name: string };
 };
 
-export type PeriodGrades = { period: PeriodInfo; sheet: GradeSheet };
+export type AssignmentInfo = {
+  id: string;
+  category: AssignmentCategory;
+  title: string;
+  dueDate: DateStr;
+  maxPoints: number;
+};
 
-function periodItems(p: PeriodRow): GradeItem[] {
-  return [
-    ...p.homeworks.map((h): GradeItem => ({
-      type: "HOMEWORK",
-      id: h.id,
-      title: h.title,
-      maxPoints: h.maxPoints,
-      dueDate: fromDbDate(h.dueDate),
-    })),
-    ...p.tests.map((t): GradeItem => ({
-      type: "TEST",
-      id: t.test.id,
-      title: t.test.title,
-      maxPoints: t.points,
-      dueDate: t.test.dueDate ? fromDbDate(t.test.dueDate) : null,
-    })),
-  ];
-}
+export type StudentSemester = {
+  id: string;
+  fullName: string;
+  departure: Departure | null;
+  /** assignmentId -> ball va izoh (faqat baholanganlar) */
+  grades: Record<string, { points: number; note: string | null }>;
+  oral: { date: DateStr; points: number; note: string | null }[];
+  adjustments: { id: string; points: number; reason: string }[];
+  result: SemesterResult;
+};
 
-function periodInfo(p: PeriodRow): PeriodInfo {
+export type SemesterGrades = {
+  semester: SemesterInfo;
+  assignments: AssignmentInfo[];
+  students: StudentSemester[];
+};
+
+export function semesterInfo(
+  s: Omit<SemesterRow, "assignments">,
+  today: DateStr = todayInTashkent(),
+): SemesterInfo {
+  const endDate = fromDbDate(s.endDate);
   return {
-    id: p.id,
-    name: p.name,
-    startDate: fromDbDate(p.startDate),
-    endDate: fromDbDate(p.endDate),
-    passPercent: p.passPercent,
-    group: p.group,
+    id: s.id,
+    name: s.name,
+    startDate: fromDbDate(s.startDate),
+    endDate,
+    closed: s.closed,
+    ended: isSemesterEnded({ endDate, closed: s.closed }, today),
+    rules: {
+      maxTotal: s.maxTotal,
+      passPercent: s.passPercent,
+      failBelow: s.failBelow,
+      homeworkCap: s.homeworkCap,
+      practicalCap: s.practicalCap,
+      oralCap: s.oralCap,
+      extraCap: s.extraCap,
+    },
+    group: s.group,
   };
 }
 
-/** Berilgan o'quvchilar uchun davr varag'i (o'quvchilarni chaqiruvchi tanlaydi) */
-async function buildSheet(
-  p: PeriodRow,
+const SUM_KEY: Record<AssignmentCategory, keyof PointSums> = {
+  HOMEWORK: "homework",
+  PRACTICAL: "practical",
+  EXTRA: "extra",
+  BONUS: "bonus",
+};
+
+/** Berilgan o'quvchilar uchun semestr natijalari (o'quvchilarni chaqiruvchi tanlaydi) */
+async function buildSemester(
+  s: SemesterRow,
   students: readonly SheetStudent[],
-): Promise<GradeSheet> {
-  const studentIds = students.map((s) => s.id);
-  const homeworkIds = p.homeworks.map((h) => h.id);
-  const testIds = p.tests.map((t) => t.test.id);
+): Promise<SemesterGrades> {
+  const semester = semesterInfo(s);
+  const assignments: AssignmentInfo[] = s.assignments.map((a) => ({
+    ...a,
+    dueDate: fromDbDate(a.dueDate),
+  }));
+  const studentIds = students.map((st) => st.id);
   const none = studentIds.length === 0;
 
-  const [grades, attempts, exemptions, adjustments] = await Promise.all([
-    none || homeworkIds.length === 0
+  const [grades, oral, adjustments] = await Promise.all([
+    none || assignments.length === 0
       ? []
-      : db.homeworkGrade.findMany({
+      : db.assignmentGrade.findMany({
           where: {
-            homeworkId: { in: homeworkIds },
+            assignmentId: { in: assignments.map((a) => a.id) },
             studentId: { in: studentIds },
           },
           select: {
-            homeworkId: true,
+            assignmentId: true,
             studentId: true,
             points: true,
             note: true,
           },
         }),
-    none || testIds.length === 0
-      ? []
-      : db.attempt.findMany({
-          where: {
-            testId: { in: testIds },
-            userId: { in: studentIds },
-            isFirst: true,
-            status: { in: ["FINISHED", "EXPIRED"] },
-          },
-          select: { testId: true, userId: true, score: true, maxScore: true },
-        }),
     none
       ? []
-      : db.gradeExemption.findMany({
+      : db.oralScore.findMany({
           where: {
             studentId: { in: studentIds },
-            OR: [
-              { itemType: "HOMEWORK", itemId: { in: homeworkIds } },
-              { itemType: "TEST", itemId: { in: testIds } },
-            ],
+            lesson: {
+              groupId: semester.group.id,
+              date: {
+                gte: toDbDate(semester.startDate),
+                lte: toDbDate(semester.endDate),
+              },
+            },
           },
+          orderBy: { lesson: { date: "asc" } },
           select: {
             studentId: true,
-            itemType: true,
-            itemId: true,
-            reason: true,
+            points: true,
+            note: true,
+            lesson: { select: { date: true } },
           },
         }),
     none
       ? []
       : db.pointAdjustment.findMany({
-          where: { periodId: p.id, studentId: { in: studentIds } },
+          where: { semesterId: s.id, studentId: { in: studentIds } },
           orderBy: { createdAt: "asc" },
-          select: { studentId: true, points: true, reason: true },
+          select: { id: true, studentId: true, points: true, reason: true },
         }),
   ]);
 
-  const inputs: StudentGradeInput[] = students.map((s) => ({
-    id: s.id,
-    fullName: s.fullName,
-    departure: describeDeparture(
-      p.group.id,
-      s.memberships.map((m) => ({
-        groupId: m.groupId,
-        groupName: m.group.name,
-        joinedAt: m.joinedAt,
-        leftAt: m.leftAt,
-      })),
-    ),
-    homework: new Map(
-      grades
-        .filter((g) => g.studentId === s.id)
-        .map((g) => [g.homeworkId, { points: g.points, note: g.note }]),
-    ),
-    tests: new Map(
-      attempts
-        .filter((a) => a.userId === s.id)
-        .map((a) => [
-          a.testId,
-          { score: a.score ?? 0, maxScore: a.maxScore ?? 0 },
-        ]),
-    ),
-    exemptions: new Map(
-      exemptions
-        .filter((e) => e.studentId === s.id)
-        .map((e) => [itemKey({ type: e.itemType, id: e.itemId }), e.reason]),
-    ),
-    adjustments: adjustments
-      .filter((a) => a.studentId === s.id)
-      .map((a) => ({ points: a.points, reason: a.reason })),
-  }));
+  const categoryOf = new Map(assignments.map((a) => [a.id, a.category]));
 
-  return buildGradeSheet({
-    items: periodItems(p),
-    students: inputs,
-    passPercent: p.passPercent,
-    today: todayInTashkent(),
+  const rows = students.map((st): StudentSemester => {
+    const own = grades.filter((g) => g.studentId === st.id);
+    const ownOral = oral.filter((o) => o.studentId === st.id);
+    const ownAdj = adjustments.filter((a) => a.studentId === st.id);
+
+    const sums: PointSums = {
+      homework: 0,
+      practical: 0,
+      oral: ownOral.reduce((sum, o) => sum + o.points, 0),
+      extra: 0,
+      bonus: 0,
+      adjustments: ownAdj.reduce((sum, a) => sum + a.points, 0),
+      // Jarimalar 19-bosqichda
+      penalties: 0,
+    };
+    for (const g of own) {
+      const category = categoryOf.get(g.assignmentId);
+      if (category) sums[SUM_KEY[category]] += g.points;
+    }
+
+    return {
+      id: st.id,
+      fullName: st.fullName,
+      departure: describeDeparture(
+        semester.group.id,
+        st.memberships.map((m) => ({
+          groupId: m.groupId,
+          groupName: m.group.name,
+          joinedAt: m.joinedAt,
+          leftAt: m.leftAt,
+        })),
+      ),
+      grades: Object.fromEntries(
+        own.map((g) => [g.assignmentId, { points: g.points, note: g.note }]),
+      ),
+      oral: ownOral.map((o) => ({
+        date: fromDbDate(o.lesson.date),
+        points: o.points,
+        note: o.note,
+      })),
+      adjustments: ownAdj.map(({ id, points, reason }) => ({
+        id,
+        points,
+        reason,
+      })),
+      result: computeSemesterResult(semester.rules, sums, semester.ended),
+    };
   });
+
+  // Avval hozirgi a'zolar, keyin ketganlar; alifbo bo'yicha
+  rows.sort(
+    (a, b) =>
+      Number(a.departure !== null) - Number(b.departure !== null) ||
+      a.fullName.localeCompare(b.fullName, "uz"),
+  );
+  return { semester, assignments, students: rows };
 }
 
-/** O'qituvchi uchun: davr ichida kamida bir kun guruhda bo'lgan barcha o'quvchilar */
-export async function getPeriodGrades(
-  periodId: string,
-): Promise<PeriodGrades | null> {
-  const p = await db.period.findUnique({
-    where: { id: periodId },
-    select: periodSelect,
-  });
-  if (!p) return null;
-  for (const t of p.tests) await finalizeExpiredAttempts({ testId: t.test.id });
-
-  const info = periodInfo(p);
-  const students = await db.user.findMany({
+/** Semestr ichida kamida bir kun guruhda bo'lgan (arxivlanmagan) o'quvchilar */
+async function semesterStudents(
+  semester: SemesterInfo,
+  studentIds?: readonly string[],
+): Promise<SheetStudent[]> {
+  return db.user.findMany({
     where: {
       role: "STUDENT",
       archivedAt: null,
+      ...(studentIds ? { id: { in: [...studentIds] } } : {}),
       memberships: {
         some: membershipOverlapWhere(
-          info.group.id,
-          info.startDate,
-          info.endDate,
+          semester.group.id,
+          semester.startDate,
+          semester.endDate,
         ),
       },
     },
@@ -232,16 +275,32 @@ export async function getPeriodGrades(
       memberships: { select: historySelect },
     },
   });
-  return { period: info, sheet: await buildSheet(p, students) };
 }
 
 /**
- * Bitta o'quvchining baholari: u a'zo bo'lgan guruhlarning a'zolik davri bilan kesishgan
- * davrlari, yangilari birinchi. Varaqda faqat shu o'quvchi bo'ladi.
+ * O'qituvchi uchun: semestrdagi barcha o'quvchilar. studentIds berilsa — faqat ulardan
+ * semestrga tegishlilari (ball qo'yishda tekshirish uchun)
  */
-export async function getStudentGrades(
+export async function getSemesterGrades(
+  semesterId: string,
+  studentIds?: readonly string[],
+): Promise<SemesterGrades | null> {
+  const s = await db.semester.findUnique({
+    where: { id: semesterId },
+    select: semesterSelect,
+  });
+  if (!s) return null;
+  const students = await semesterStudents(semesterInfo(s), studentIds);
+  return buildSemester(s, students);
+}
+
+/**
+ * Bitta o'quvchining semestrlari: u a'zo bo'lgan guruhlarning a'zolik davri bilan kesishgan
+ * semestrlar, yangilari birinchi. Natijada faqat shu o'quvchi bo'ladi.
+ */
+export async function getStudentSemesters(
   studentId: string,
-): Promise<PeriodGrades[]> {
+): Promise<SemesterGrades[]> {
   const student = await db.user.findFirst({
     where: { id: studentId, role: "STUDENT" },
     select: {
@@ -251,10 +310,9 @@ export async function getStudentGrades(
     },
   });
   if (!student || student.memberships.length === 0) return [];
-  await finalizeExpiredAttempts({ userId: student.id });
 
-  // A'zolik [joinedAt kuni, leftAt kuni) — davr shu oraliq bilan kesishsa
-  const periods = await db.period.findMany({
+  // A'zolik [joinedAt kuni, leftAt kuni) — semestr shu oraliq bilan kesishsa
+  const semesters = await db.semester.findMany({
     where: {
       OR: student.memberships.map((m) => ({
         groupId: m.groupId,
@@ -265,77 +323,25 @@ export async function getStudentGrades(
       })),
     },
     orderBy: [{ startDate: "desc" }, { name: "asc" }],
-    select: periodSelect,
+    select: semesterSelect,
   });
 
-  return Promise.all(
-    periods.map(async (p) => ({
-      period: periodInfo(p),
-      sheet: await buildSheet(p, [student]),
-    })),
-  );
+  return Promise.all(semesters.map((s) => buildSemester(s, [student])));
 }
 
-/**
- * O'tkazishda: yangi guruhning muddati o'tkazish kunidan oldin tugagan vazifa va testlaridan
- * ozod qilish. O'quvchi allaqachon ishlagan test ozod qilinmaydi (bali saqlanadi).
- * Doim o'tkazish tranzaksiyasi ichida chaqiriladi.
- */
-export async function exemptBeforeTransfer(
-  tx: Prisma.TransactionClient,
-  input: {
-    studentIds: string[];
-    groupId: string;
-    date: DateStr;
-    reason: string;
-    createdById: string;
-  },
-): Promise<number> {
-  const { studentIds, groupId, date, reason, createdById } = input;
-  const before = { lt: toDbDate(date) };
-  const [homeworks, tests] = await Promise.all([
-    tx.homework.findMany({
-      where: { period: { groupId }, dueDate: before },
-      select: { id: true },
-    }),
-    tx.test.findMany({
-      where: { periods: { some: { period: { groupId } } }, dueDate: before },
-      select: {
-        id: true,
-        attempts: {
-          where: {
-            userId: { in: studentIds },
-            isFirst: true,
-            status: { in: ["FINISHED", "EXPIRED"] },
-          },
-          select: { userId: true },
-        },
-      },
-    }),
-  ]);
-
-  const data = studentIds.flatMap((studentId) => [
-    ...homeworks.map((h) => ({
-      studentId,
-      itemType: "HOMEWORK" as const,
-      itemId: h.id,
-      reason,
-      createdById,
-    })),
-    ...tests
-      .filter((t) => !t.attempts.some((a) => a.userId === studentId))
-      .map((t) => ({
-        studentId,
-        itemType: "TEST" as const,
-        itemId: t.id,
-        reason,
-        createdById,
-      })),
-  ]);
-  if (data.length === 0) return 0;
-  const { count } = await tx.gradeExemption.createMany({
-    data,
-    skipDuplicates: true,
+/** Guruhning bugungi kunni o'z ichiga olgan semestri (bo'lmasa null) */
+export async function currentSemesterId(
+  groupId: string,
+  today: DateStr = todayInTashkent(),
+): Promise<string | null> {
+  const s = await db.semester.findFirst({
+    where: {
+      groupId,
+      startDate: { lte: toDbDate(today) },
+      endDate: { gte: toDbDate(today) },
+    },
+    orderBy: { startDate: "desc" },
+    select: { id: true },
   });
-  return count;
+  return s?.id ?? null;
 }

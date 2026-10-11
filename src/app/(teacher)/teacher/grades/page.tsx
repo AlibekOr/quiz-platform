@@ -6,7 +6,8 @@ import { GradeSheetTable } from "@/components/teacher/grades/grade-sheet-table";
 import { buttonVariants } from "@/components/ui/button";
 import { requireTeacher } from "@/lib/auth/guards";
 import { db } from "@/lib/db";
-import { getPeriodGrades } from "@/lib/grades-data";
+import { passScore } from "@/lib/grades";
+import { getSemesterGrades } from "@/lib/grades-data";
 import { formatDate, fromDbDate, todayInTashkent } from "@/lib/time";
 
 export const metadata: Metadata = { title: "Baholar" };
@@ -28,13 +29,13 @@ export default async function GradesPage({
   const groupId =
     groups.find((g) => g.id === param(params.group))?.id ?? groups[0]?.id;
   const periods = groupId
-    ? await db.period.findMany({
+    ? await db.semester.findMany({
         where: { groupId },
         orderBy: { startDate: "desc" },
         select: { id: true, name: true, startDate: true, endDate: true },
       })
     : [];
-  // Default: bugun ichiga tushadigan davr, bo'lmasa eng yangisi
+  // Default: bugun ichiga tushadigan semestr, bo'lmasa eng yangisi
   const today = todayInTashkent();
   const periodId =
     periods.find((p) => p.id === param(params.period))?.id ??
@@ -42,7 +43,7 @@ export default async function GradesPage({
       (p) => fromDbDate(p.startDate) <= today && today <= fromDbDate(p.endDate),
     )?.id ??
     periods[0]?.id;
-  const data = periodId ? await getPeriodGrades(periodId) : null;
+  const data = periodId ? await getSemesterGrades(periodId) : null;
 
   return (
     <>
@@ -50,7 +51,7 @@ export default async function GradesPage({
         <h1 className="text-2xl font-semibold">Baholar</h1>
         {data && (
           <a
-            href={`/api/grades/export?periodId=${encodeURIComponent(data.period.id)}`}
+            href={`/api/grades/export?periodId=${encodeURIComponent(data.semester.id)}`}
             className={buttonVariants({ variant: "outline" })}
           >
             <DownloadIcon />
@@ -75,7 +76,7 @@ export default async function GradesPage({
               <ParamSelect
                 name="period"
                 value={periodId ?? ""}
-                label="Davr"
+                label="Semestr"
                 options={periods.map((p) => ({ value: p.id, label: p.name }))}
               />
             )}
@@ -83,42 +84,38 @@ export default async function GradesPage({
 
           {!data ? (
             <p className="text-muted-foreground">
-              Bu guruhda baholash davri yo&apos;q.{" "}
+              Bu guruhda semestr yo&apos;q.{" "}
               <Link href={`/teacher/groups/${groupId}`} className="underline">
-                Guruh sahifasida davr qo&apos;shing
+                Guruh sahifasida semestr qo&apos;shing
               </Link>
               .
             </p>
           ) : (
             <>
               <p className="text-muted-foreground text-sm">
-                {formatDate(data.period.startDate)} –{" "}
-                {formatDate(data.period.endDate)} · o&apos;tish chegarasi{" "}
-                {data.period.passPercent}% · {data.sheet.items.length} ta item
+                {formatDate(data.semester.startDate)} –{" "}
+                {formatDate(data.semester.endDate)} · jami{" "}
+                {data.semester.rules.maxTotal}, o&apos;tish{" "}
+                {passScore(data.semester.rules)} ·{" "}
+                {data.semester.closed
+                  ? "yopilgan"
+                  : data.semester.ended
+                    ? "tugagan"
+                    : "davom etmoqda"}{" "}
+                · {data.assignments.length} ta topshiriq
               </p>
-              {data.sheet.items.length === 0 ? (
+              {data.students.length === 0 ? (
                 <p className="text-muted-foreground">
-                  Davrda hali vazifa yoki test yo&apos;q.{" "}
-                  <Link
-                    href={`/teacher/homework?group=${groupId}`}
-                    className="underline"
-                  >
-                    Vazifa qo&apos;shing
-                  </Link>{" "}
-                  yoki test sozlamalarida testni davrga biriktiring.
-                </p>
-              ) : data.sheet.students.length === 0 ? (
-                <p className="text-muted-foreground">
-                  Bu davrda guruhda o&apos;quvchi bo&apos;lmagan.
+                  Bu semestrda guruhda o&apos;quvchi bo&apos;lmagan.
                 </p>
               ) : (
                 <>
-                  <GradeSheetTable sheet={data.sheet} />
+                  <GradeSheetTable students={data.students} />
                   <p className="text-muted-foreground text-xs">
-                    — ozod qilingan · qizil 0 — muddati o&apos;tib baholanmagan
-                    · bo&apos;sh — muddati hali o&apos;tmagan (hisobga kirmaydi)
-                    · * izoh bor (ustiga olib boring). Jami maksimalga faqat
-                    hisobga kirgan itemlar qo&apos;shiladi.
+                    Har katakda: yig&apos;ilgan / chegara. Jami{" "}
+                    {data.semester.rules.maxTotal} dan oshmaydi, jarimalar
+                    chegaradan keyin ayiriladi. Holat semestr tugagach chiqadi.
+                    Testlar semestr baliga kirmaydi.
                   </p>
                 </>
               )}

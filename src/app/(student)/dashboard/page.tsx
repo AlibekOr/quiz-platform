@@ -6,6 +6,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { finalizeExpiredAttempts } from "@/lib/attempts";
 import { requireStudent } from "@/lib/auth/guards";
 import { db } from "@/lib/db";
+import { CATEGORY_LABEL } from "@/lib/grades";
 import {
   formatDate,
   formatDateTime,
@@ -56,17 +57,18 @@ export default async function DashboardPage() {
         test: { select: { title: true } },
       },
     }),
-    // Muddati hali o'tmagan uyga vazifalar (faqat hozirgi guruh)
+    // Muddati hali o'tmagan topshiriqlar (faqat hozirgi guruh)
     student.groupId
-      ? db.homework.findMany({
+      ? db.assignment.findMany({
           where: {
-            period: { groupId: student.groupId },
+            semester: { groupId: student.groupId },
             dueDate: { gte: toDbDate(today) },
           },
           orderBy: { dueDate: "asc" },
           take: 5,
           select: {
             id: true,
+            category: true,
             title: true,
             description: true,
             dueDate: true,
@@ -105,7 +107,8 @@ export default async function DashboardPage() {
                     )}
                   </div>
                   <p className="text-muted-foreground text-sm">
-                    {h.maxPoints} ball
+                    {CATEGORY_LABEL[h.category]} ·{" "}
+                    {h.category === "HOMEWORK" ? 1 : h.maxPoints} ball
                     {h.description && ` · ${h.description}`}
                   </p>
                 </li>

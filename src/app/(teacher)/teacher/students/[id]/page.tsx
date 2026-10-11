@@ -18,8 +18,7 @@ import { computeStats } from "@/lib/attendance";
 import { finalizeExpiredAttempts } from "@/lib/attempts";
 import { requireTeacher } from "@/lib/auth/guards";
 import { db } from "@/lib/db";
-import { ITEM_TYPE_LABEL, itemKey } from "@/lib/grades";
-import { getStudentGrades } from "@/lib/grades-data";
+import { getStudentSemesters } from "@/lib/grades-data";
 import { percent } from "@/lib/format";
 import { formatPhone } from "@/lib/students/format";
 import { teacherProfileSelect } from "@/lib/students/profile-select";
@@ -86,32 +85,7 @@ export default async function StudentCardPage({
   ]);
   if (!student) notFound();
 
-  const [gradePeriods, adjustments, exemptions] = await Promise.all([
-    getStudentGrades(student.id),
-    db.pointAdjustment.findMany({
-      where: { studentId: student.id },
-      orderBy: { createdAt: "desc" },
-      select: {
-        id: true,
-        points: true,
-        reason: true,
-        period: { select: { name: true } },
-      },
-    }),
-    db.gradeExemption.findMany({
-      where: { studentId: student.id },
-      orderBy: { createdAt: "desc" },
-      select: { id: true, itemType: true, itemId: true, reason: true },
-    }),
-  ]);
-  // Ozod qilish uchun itemlar: o'quvchi davrlaridagi vazifa va testlar
-  const itemOptions = gradePeriods.flatMap(({ period, sheet }) =>
-    sheet.items.map((i) => ({
-      value: itemKey(i),
-      label: `${period.name} · ${ITEM_TYPE_LABEL[i.type]}: ${i.title}`,
-    })),
-  );
-  const itemLabels = new Map(itemOptions.map((o) => [o.value, o.label]));
+  const semesters = await getStudentSemesters(student.id);
 
   const { profile } = student;
   const row = {
@@ -242,7 +216,9 @@ export default async function StudentCardPage({
           )}
         </div>
         {student.memberships.length === 0 ? (
-          <p className="text-muted-foreground">Hech qaysi guruhda bo&apos;lmagan.</p>
+          <p className="text-muted-foreground">
+            Hech qaysi guruhda bo&apos;lmagan.
+          </p>
         ) : (
           <div className="rounded-lg border">
             <Table>
@@ -294,37 +270,22 @@ export default async function StudentCardPage({
       <StudentGradesSection
         studentId={student.id}
         archived={student.archivedAt !== null}
-        periods={gradePeriods.map(({ period, sheet }) => {
-          const g = sheet.students[0];
-          return {
-            id: period.id,
-            name: period.name,
-            groupName: period.group.name,
-            total: g?.total ?? 0,
-            max: g?.max ?? 0,
-            percent: g?.percent ?? null,
-            passed: g?.passed ?? null,
-          };
+        semesters={semesters.flatMap(({ semester, students }) => {
+          const me = students[0];
+          return me
+            ? [
+                {
+                  id: semester.id,
+                  name: semester.name,
+                  groupName: semester.group.name,
+                  total: me.result.total,
+                  maxTotal: me.result.maxTotal,
+                  status: me.result.status,
+                  adjustments: me.adjustments,
+                },
+              ]
+            : [];
         })}
-        items={itemOptions.filter(
-          (o) =>
-            !exemptions.some(
-              (e) => itemKey({ type: e.itemType, id: e.itemId }) === o.value,
-            ),
-        )}
-        adjustments={adjustments.map((a) => ({
-          id: a.id,
-          points: a.points,
-          reason: a.reason,
-          periodName: a.period.name,
-        }))}
-        exemptions={exemptions.map((e) => ({
-          id: e.id,
-          reason: e.reason,
-          label:
-            itemLabels.get(itemKey({ type: e.itemType, id: e.itemId })) ??
-            `${ITEM_TYPE_LABEL[e.itemType]} (boshqa davr)`,
-        }))}
       />
 
       <section className="flex flex-col gap-3">
