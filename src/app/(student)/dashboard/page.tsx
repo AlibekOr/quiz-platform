@@ -58,12 +58,16 @@ export default async function DashboardPage() {
         test: { select: { title: true } },
       },
     }),
-    // Joriy semestr (bugunni o'z ichiga olgani) — bosh sahifada faqat shu
+    // Bosh sahifada bitta semestr jadvali
     getStudentSemesters(student.id).then(
       (list) =>
+        // Joriy, bo'lmasa eng yaqin boshlanadigan, bo'lmasa oxirgi (ro'yxat yangisi birinchi)
         list.find(
           (s) => s.semester.startDate <= today && today <= s.semester.endDate,
-        ) ?? null,
+        ) ??
+        list.findLast((s) => s.semester.startDate > today) ??
+        list[0] ??
+        null,
     ),
   ]);
   const me = current?.students[0] ?? null;
