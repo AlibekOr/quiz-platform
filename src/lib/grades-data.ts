@@ -2,6 +2,7 @@ import "server-only";
 import type { Prisma } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
 import {
+  autoPenalties,
   computeSemesterResult,
   isSemesterEnded,
   type AssignmentCategory,
@@ -92,13 +93,17 @@ export type StudentSemester = {
   grades: Record<string, { points: number; note: string | null }>;
   oral: { date: DateStr; points: number; note: string | null }[];
   adjustments: { id: string; points: number; reason: string }[];
-  /** Jarimalar (yangilari birinchi) — sababi bilan, o'quvchiga ham ko'rinadi */
+  /**
+   * Jarimalar (yangilari birinchi) — sababi bilan, o'quvchiga ham ko'rinadi.
+   * auto — avtomatik (uyga vazifaga 0, sababsiz kelmagan): bazada yo'q, o'chirilmaydi
+   */
   penalties: {
     id: string;
     points: number;
     name: string;
     note: string | null;
     date: DateStr;
+    auto: boolean;
   }[];
   result: SemesterResult;
 };
@@ -154,7 +159,14 @@ async function buildSemester(
   const studentIds = students.map((st) => st.id);
   const none = studentIds.length === 0;
 
-  const [grades, oral, adjustments, penalties] = await Promise.all([
+  const lessonInSemester = {
+    groupId: semester.group.id,
+    date: {
+      gte: toDbDate(semester.startDate),
+      lte: toDbDate(semester.endDate),
+    },
+  };
+  const [grades, oral, adjustments, penalties, absences] = await Promise.all([
     none || assignments.length === 0
       ? []
       : db.assignmentGrade.findMany({
@@ -174,13 +186,7 @@ async function buildSemester(
       : db.oralScore.findMany({
           where: {
             studentId: { in: studentIds },
-            lesson: {
-              groupId: semester.group.id,
-              date: {
-                gte: toDbDate(semester.startDate),
-                lte: toDbDate(semester.endDate),
-              },
-            },
+            lesson: lessonInSemester,
           },
           orderBy: { lesson: { date: "asc" } },
           select: {
@@ -211,15 +217,57 @@ async function buildSemester(
             type: { select: { name: true } },
           },
         }),
+    // Sababsiz kelmaganlar — avtomatik jarima (sababli EXCUSED — jarimasiz)
+    none
+      ? []
+      : db.attendance.findMany({
+          where: {
+            studentId: { in: studentIds },
+            status: "ABSENT",
+            lesson: lessonInSemester,
+          },
+          select: {
+            studentId: true,
+            lessonId: true,
+            lesson: { select: { date: true } },
+          },
+        }),
   ]);
 
   const categoryOf = new Map(assignments.map((a) => [a.id, a.category]));
+  const assignmentById = new Map(assignments.map((a) => [a.id, a]));
 
   const rows = students.map((st): StudentSemester => {
     const own = grades.filter((g) => g.studentId === st.id);
     const ownOral = oral.filter((o) => o.studentId === st.id);
     const ownAdj = adjustments.filter((a) => a.studentId === st.id);
-    const ownPen = penalties.filter((p) => p.studentId === st.id);
+    const ownAuto = autoPenalties({
+      zeroHomework: own.flatMap((g) => {
+        const a = assignmentById.get(g.assignmentId);
+        return a && a.category === "HOMEWORK" && g.points === 0
+          ? [{ assignmentId: a.id, title: a.title, dueDate: a.dueDate }]
+          : [];
+      }),
+      absences: absences
+        .filter((a) => a.studentId === st.id)
+        .map((a) => ({
+          lessonId: a.lessonId,
+          date: fromDbDate(a.lesson.date),
+        })),
+    });
+    const ownPen = [
+      ...penalties
+        .filter((p) => p.studentId === st.id)
+        .map((p) => ({
+          id: p.id,
+          points: p.points,
+          name: p.type.name,
+          note: p.note,
+          date: fromDbDate(p.date),
+          auto: false,
+        })),
+      ...ownAuto.map((p) => ({ ...p, auto: true })),
+    ].sort((a, b) => b.date.localeCompare(a.date));
 
     const sums: PointSums = {
       homework: 0,
@@ -260,13 +308,7 @@ async function buildSemester(
         points,
         reason,
       })),
-      penalties: ownPen.map((p) => ({
-        id: p.id,
-        points: p.points,
-        name: p.type.name,
-        note: p.note,
-        date: fromDbDate(p.date),
-      })),
+      penalties: ownPen,
       result: computeSemesterResult(semester.rules, sums, semester.ended),
     };
   });

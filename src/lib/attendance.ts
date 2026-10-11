@@ -10,24 +10,26 @@ import { formatDayMonth, monthRange, type DateStr } from "@/lib/time";
 
 // Davomat hisobi va Excel eksport (PLAN.md, "Davomat"). Sof funksiyalar — testlar bilan
 
-export type AttendanceMark = "PRESENT" | "ABSENT" | "LATE";
+export type AttendanceMark = "PRESENT" | "ABSENT" | "LATE" | "EXCUSED";
 
-/** Excel va jadval belgilari: + keldi, − kelmadi, K kechikdi */
+/** Excel va jadval belgilari: + keldi, − kelmadi, K kechikdi, S sababli */
 export const MARK_SYMBOL: Record<AttendanceMark, string> = {
   PRESENT: "+",
   ABSENT: "−",
   LATE: "K",
+  EXCUSED: "S",
 };
 
 export const MARK_LABEL: Record<AttendanceMark, string> = {
   PRESENT: "Keldi",
   ABSENT: "Kelmadi",
   LATE: "Kechikdi",
+  EXCUSED: "Sababli",
 };
 
-/** Hisobotda LATE "keldi" deb hisoblanadi; sababli qolgan ham ABSENT */
+/** Hisobotda LATE "keldi" deb hisoblanadi; sababli (EXCUSED) — kelmagan, lekin jarimasiz */
 export function isPresent(mark: AttendanceMark): boolean {
-  return mark !== "ABSENT";
+  return mark === "PRESENT" || mark === "LATE";
 }
 
 export type AttendanceStats = {
@@ -185,6 +187,7 @@ const MUTED_FONT = { color: { argb: "FF6B7280" }, italic: true };
 const FILL: Partial<Record<AttendanceMark, string>> = {
   ABSENT: "FFFFC7CE",
   LATE: "FFFFEB9C",
+  EXCUSED: "FFDBEAFE",
 };
 
 export async function buildAttendanceWorkbook(

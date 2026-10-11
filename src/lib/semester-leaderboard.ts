@@ -1,21 +1,24 @@
 import "server-only";
 import { db } from "@/lib/db";
-import { rankByTotal } from "@/lib/grades";
+import { isFinalStretch, rankByTotal } from "@/lib/grades";
 import { currentSemesterId, getSemesterGrades } from "@/lib/grades-data";
 import { LEADERBOARD_LIMIT } from "@/lib/leaderboard";
 import { todayInTashkent } from "@/lib/time";
 
 // Bosh reyting (TASKS.md, 6-bo'lim): joriy semestrdagi jami ball (testlar kirmaydi).
 // Har guruh o'zining joriy semestri bo'yicha; faqat hozirgi a'zolar, faol va arxivlanmaganlar.
-// Boshqa o'quvchilarning kategoriyalari va jarimalari yuborilmaydi — faqat jami
+// Boshqa o'quvchilarning kategoriyalari va jarimalari yuborilmaydi — faqat jami.
+// Semestrning oxirgi 2 haftasida o'tish balidan past bo'lganlar (belowNorm) ro'yxat oxirida
 
 export type SemesterLeaderboardEntry = {
   userId: string;
   fullName: string;
   groupName: string;
   rank: number;
+  /** Jarimalardan keyingi jami */
   total: number;
-  maxTotal: number;
+  /** Semestr oxirgi 2 haftasi va jami o'tish balidan past — qizil, ro'yxat oxirida */
+  belowNorm: boolean;
 };
 
 export type SemesterLeaderboard = {
@@ -61,14 +64,16 @@ export async function getSemesterLeaderboard(
     groups.map(async (g) => {
       const semesterId = await currentSemesterId(g.id, today);
       const data = semesterId ? await getSemesterGrades(semesterId) : null;
-      return (data?.students ?? [])
+      if (!data) return [];
+      const finalStretch = isFinalStretch(data.semester, today);
+      return data.students
         .filter((s) => s.departure === null)
         .map((s) => ({
           userId: s.id,
           fullName: s.fullName,
           groupName: g.name,
           total: s.result.total,
-          maxTotal: s.result.maxTotal,
+          belowNorm: finalStretch && s.result.total < s.result.passScore,
         }));
     }),
   );

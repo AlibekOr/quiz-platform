@@ -51,6 +51,8 @@ export type StudentSemesterSummary = {
     name: string;
     note: string | null;
     date: DateStr;
+    /** Avtomatik (uyga vazifaga 0, sababsiz kelmagan) — bekor qilinmaydi */
+    auto: boolean;
   }[];
 };
 
@@ -181,9 +183,10 @@ export function StudentGradesSection({
                     <span className="text-muted-foreground block text-xs">
                       {formatDate(p.date)} · {p.semesterName}
                       {p.note && ` · ${p.note}`}
+                      {p.auto && " · avtomatik"}
                     </span>
                   </span>
-                  {!archived && (
+                  {!archived && !p.auto && (
                     <Button
                       size="icon-sm"
                       variant="ghost"

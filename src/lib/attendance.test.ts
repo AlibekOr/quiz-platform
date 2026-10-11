@@ -66,7 +66,12 @@ const input: ReportInput = {
       records: [
         { studentId: "a", studentName: "Anvar", status: "LATE", note: null },
         { studentId: "b", studentName: "Bobur", status: "ABSENT", note: null },
-        { studentId: "x", studentName: "Xurshid", status: "ABSENT", note: null },
+        {
+          studentId: "x",
+          studentName: "Xurshid",
+          status: "ABSENT",
+          note: null,
+        },
         // A'zolik tarixi yo'q (eski yozuv): baribir ko'rsatiladi
         { studentId: "z", studentName: "Zafar", status: "PRESENT", note: null },
       ],
@@ -191,6 +196,16 @@ describe("buildAttendanceWorkbook", () => {
       state: "frozen",
       xSplit: 1,
       ySplit: HEADER_ROW,
+    });
+  });
+});
+
+describe("sababli (EXCUSED)", () => {
+  it("kelmagan deb hisoblanadi", () => {
+    expect(computeStats(["PRESENT", "EXCUSED"])).toMatchObject({
+      present: 1,
+      absent: 1,
+      percent: 50,
     });
   });
 });

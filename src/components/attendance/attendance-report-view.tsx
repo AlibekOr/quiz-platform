@@ -15,6 +15,7 @@ const CELL_CLASS = {
   PRESENT: "",
   ABSENT: "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-200",
   LATE: "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-200",
+  EXCUSED: "bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-200",
 } as const;
 
 /**
@@ -183,8 +184,8 @@ export function AttendanceReportView({
             </table>
           </div>
           <p className="text-muted-foreground text-xs">
-            + keldi · − kelmadi · K kechikdi (keldi hisoblanadi) · * izoh bor
-            (ustiga olib boring)
+            + keldi · − kelmadi · K kechikdi (keldi hisoblanadi) · S sababli
+            (kelmagan, jarimasiz) · * izoh bor (ustiga olib boring)
             {hasOutside &&
               " · kulrang — o'quvchi o'sha kuni bu guruhda bo'lmagan"}
           </p>

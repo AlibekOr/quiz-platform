@@ -102,9 +102,8 @@ export function LeaderboardView({
           entries={data.board.entries}
           me={data.board.me}
           valueHeaders={["Jami"]}
-          values={(e: SemesterLeaderboardEntry) => [
-            `${formatPoints(e.total)} / ${e.maxTotal}`,
-          ]}
+          values={(e: SemesterLeaderboardEntry) => [formatPoints(e.total)]}
+          danger={(e: SemesterLeaderboardEntry) => e.belowNorm}
         />
       )}
       <p className="text-muted-foreground text-xs">
@@ -112,7 +111,10 @@ export function LeaderboardView({
           ? "Faqat birinchi urinish hisobga olinadi. Teng ball bo'lsa, kamroq vaqt sarflagan yuqorida."
           : data.kind === "tests"
             ? "Barcha testlardagi birinchi urinish ballari yig'indisi. Teng bo'lsa, umumiy vaqt kamrog'i yuqorida."
-            : "Har guruh o'zining joriy semestri bo'yicha: uyga vazifa, amaliy, og'zaki, bonus, tuzatish va jarimalardan keyingi jami. Testlar kirmaydi."}
+            : "Har guruh o'zining joriy semestri bo'yicha: uyga vazifa, amaliy, og'zaki, bonus va tuzatishlar yig'indisidan jarimalar ayirilgan jami. Testlar kirmaydi."}
+        {data.kind === "semester" &&
+          [...data.board.entries, data.board.me].some((e) => e?.belowNorm) &&
+          " Semestrning oxirgi 2 haftasida o'tish balidan past bo'lganlar qizil va ro'yxat oxirida."}
         {data.board.total > 0 && ` Jami: ${data.board.total} ta o'quvchi.`}
       </p>
     </div>
@@ -132,12 +134,15 @@ function BoardTable<E extends BaseEntry>({
   showGroup,
   valueHeaders,
   values,
+  danger,
 }: {
   entries: E[];
   me: E | null;
   showGroup: boolean;
   valueHeaders: string[];
   values: (entry: E) => string[];
+  /** Qizil qator (normativdan past) */
+  danger?: (entry: E) => boolean;
 }) {
   const meOutside = me && !entries.some((e) => e.userId === me.userId);
   const columns = 2 + (showGroup ? 1 : 0) + valueHeaders.length;
@@ -168,6 +173,7 @@ function BoardTable<E extends BaseEntry>({
               me={e.userId === me?.userId}
               showGroup={showGroup}
               values={values(e)}
+              danger={danger?.(e) ?? false}
             />
           ))}
         </tbody>
@@ -186,6 +192,7 @@ function BoardTable<E extends BaseEntry>({
               me
               showGroup={showGroup}
               values={values(me)}
+              danger={danger?.(me) ?? false}
               prefix="Siz: "
             />
           </tfoot>
@@ -200,12 +207,14 @@ function Row({
   me,
   showGroup,
   values,
+  danger,
   prefix,
 }: {
   entry: BaseEntry;
   me: boolean;
   showGroup: boolean;
   values: string[];
+  danger: boolean;
   prefix?: string;
 }) {
   return (
@@ -214,11 +223,13 @@ function Row({
       className={cn(
         "border-b last:border-0",
         me && "bg-primary/10 font-semibold",
+        danger && "bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-300",
+        danger && me && "bg-red-100 dark:bg-red-950/70",
       )}
     >
       <td className="px-3 py-2 whitespace-nowrap tabular-nums">
         {prefix}
-        {entry.rank <= 3 ? (
+        {entry.rank <= 3 && !danger ? (
           <span>
             <span aria-hidden>{MEDALS[entry.rank - 1]}</span> {entry.rank}
           </span>

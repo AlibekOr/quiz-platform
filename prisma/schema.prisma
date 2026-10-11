@@ -29,6 +29,7 @@ enum AttendanceStatus {
   PRESENT
   ABSENT
   LATE
+  EXCUSED
 }
 
 enum ParentRelation {

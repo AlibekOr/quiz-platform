@@ -52,7 +52,12 @@ export const scheduleRowSchema = z.object({
   endTime: timeSchema,
 });
 
-export const ATTENDANCE_STATUSES = ["PRESENT", "ABSENT", "LATE"] as const;
+export const ATTENDANCE_STATUSES = [
+  "PRESENT",
+  "ABSENT",
+  "LATE",
+  "EXCUSED",
+] as const;
 
 export const attendanceFormSchema = z
   .object({
@@ -92,7 +97,7 @@ export const attendanceFormSchema = z
       });
     }
     form.records.forEach((r, i) => {
-      if (r.status === "ABSENT" && r.oral !== null)
+      if ((r.status === "ABSENT" || r.status === "EXCUSED") && r.oral !== null)
         ctx.addIssue({
           code: "custom",
           path: ["records", i, "oral"],

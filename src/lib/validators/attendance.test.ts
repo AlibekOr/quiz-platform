@@ -78,6 +78,18 @@ describe("attendanceFormSchema", () => {
     expect(absent.success).toBe(false);
     expect(absent.error!.issues[0].path).toEqual(["records", 0, "oral"]);
 
+    const excused = attendanceFormSchema.safeParse({
+      topic: "",
+      records: [{ studentId: "a", status: "EXCUSED", note: "", oral: "1" }],
+    });
+    expect(excused.success).toBe(false);
+    expect(
+      attendanceFormSchema.safeParse({
+        topic: "",
+        records: [{ studentId: "a", status: "EXCUSED", note: "", oral: "" }],
+      }).success,
+    ).toBe(true);
+
     const bad = attendanceFormSchema.safeParse({
       topic: "",
       records: [{ studentId: "a", status: "PRESENT", note: "", oral: "2" }],

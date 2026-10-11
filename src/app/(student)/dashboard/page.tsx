@@ -103,14 +103,25 @@ export default async function DashboardPage() {
               To&apos;liq reyting
             </Link>
           </div>
-          <p className="text-sm">
+          <p
+            className={cn(
+              "text-sm",
+              board.me.belowNorm && "text-red-700 dark:text-red-300",
+            )}
+          >
             Guruhda{" "}
             <b className="text-lg tabular-nums">{board.me.rank}-o&apos;rin</b>{" "}
-            <span className="text-muted-foreground">
-              / {board.total} · {formatPoints(board.me.total)} /{" "}
-              {board.me.maxTotal} ball
+            <span
+              className={cn(!board.me.belowNorm && "text-muted-foreground")}
+            >
+              / {board.total} · {formatPoints(board.me.total)} ball
             </span>
           </p>
+          {board.me.belowNorm && (
+            <p className="text-sm text-red-700 dark:text-red-300">
+              Semestr tugashiga oz qoldi, ballingiz o&apos;tish balidan past.
+            </p>
+          )}
           <ol className="flex flex-col gap-1 text-sm">
             {board.entries.slice(0, 3).map((e) => (
               <li
@@ -118,6 +129,7 @@ export default async function DashboardPage() {
                 className={cn(
                   "flex justify-between gap-2",
                   e.userId === student.id && "font-semibold",
+                  e.belowNorm && "text-red-700 dark:text-red-300",
                 )}
               >
                 <span>

@@ -1,5 +1,5 @@
 import { departureLabel, type Departure } from "@/lib/memberships";
-import type { DateStr } from "@/lib/time";
+import { addDays, type DateStr } from "@/lib/time";
 
 // Semestr bali (PLAN.md, 17-bosqich). Sof funksiyalar — testlar bilan.
 //
@@ -229,18 +229,76 @@ export const ASSIGNMENT_CATEGORIES: readonly AssignmentCategory[] = [
 ];
 
 /**
- * Semestr reytingi tartibi: jami ball kamayish bo'yicha, teng ballga bir xil o'rin
- * (RANK: 1, 1, 3), teng bo'lsa alifbo bo'yicha
+ * Semestr reytingi tartibi: avval normativdan o'tganlar, keyin normativdan pastlar
+ * (belowNorm); har biri ichida jami ball kamayish bo'yicha, teng ballga bir xil o'rin
+ * (RANK: 1, 1, 3), teng bo'lsa alifbo bo'yicha. O'rinlar uzluksiz davom etadi
  */
-export function rankByTotal<T extends { total: number; fullName: string }>(
-  rows: readonly T[],
-): (T & { rank: number })[] {
+export function rankByTotal<
+  T extends { total: number; fullName: string; belowNorm?: boolean },
+>(rows: readonly T[]): (T & { rank: number })[] {
+  const below = (r: T) => Number(r.belowNorm ?? false);
   const sorted = [...rows].sort(
-    (a, b) => b.total - a.total || a.fullName.localeCompare(b.fullName, "uz"),
+    (a, b) =>
+      below(a) - below(b) ||
+      b.total - a.total ||
+      a.fullName.localeCompare(b.fullName, "uz"),
   );
   let rank = 0;
   return sorted.map((r, i) => {
-    if (i === 0 || r.total !== sorted[i - 1].total) rank = i + 1;
+    const prev = sorted[i - 1];
+    if (i === 0 || r.total !== prev.total || below(r) !== below(prev))
+      rank = i + 1;
     return { ...r, rank };
   });
+}
+
+/** Semestr oxirgi 2 haftasi (oxirgi 14 kun, endDate ham kiradi) — normativdan pastlar ajratiladi */
+export const FINAL_STRETCH_DAYS = 14;
+
+export function isFinalStretch(
+  semester: { endDate: DateStr },
+  today: DateStr,
+): boolean {
+  return (
+    today >= addDays(semester.endDate, -(FINAL_STRETCH_DAYS - 1)) &&
+    today <= semester.endDate
+  );
+}
+
+/** Avtomatik jarima: uyga vazifaga 0 qo'yilgan yoki darsga sababsiz kelmagan — har biri −1 */
+export const AUTO_PENALTY_POINTS = 1;
+
+export type AutoPenalty = {
+  id: string;
+  points: number;
+  name: string;
+  note: string | null;
+  date: DateStr;
+};
+
+/** Avtomatik jarimalar (bazaga yozilmaydi, har safar hisoblanadi); yangilari birinchi */
+export function autoPenalties(input: {
+  zeroHomework: readonly {
+    assignmentId: string;
+    title: string;
+    dueDate: DateStr;
+  }[];
+  absences: readonly { lessonId: string; date: DateStr }[];
+}): AutoPenalty[] {
+  return [
+    ...input.zeroHomework.map((h) => ({
+      id: `auto:hw:${h.assignmentId}`,
+      points: AUTO_PENALTY_POINTS,
+      name: "Uyga vazifa bajarilmagan",
+      note: h.title,
+      date: h.dueDate,
+    })),
+    ...input.absences.map((a) => ({
+      id: `auto:abs:${a.lessonId}`,
+      points: AUTO_PENALTY_POINTS,
+      name: "Darsga sababsiz kelmadi",
+      note: null,
+      date: a.date,
+    })),
+  ].sort((a, b) => b.date.localeCompare(a.date));
 }

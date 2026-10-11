@@ -82,7 +82,8 @@ export async function saveAttendance(
       select: { id: true },
     });
     for (const r of records) {
-      const status = r.status as "PRESENT" | "ABSENT" | "LATE";
+      // "" (belgilanmagan) validatorda rad etilgan
+      const status = r.status as Exclude<typeof r.status, "">;
       await tx.attendance.upsert({
         where: {
           lessonId_studentId: { lessonId: lesson.id, studentId: r.studentId },

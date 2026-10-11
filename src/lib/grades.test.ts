@@ -6,6 +6,8 @@ import {
   DEFAULT_RULES,
   EMPTY_SUMS,
   formatPoints,
+  autoPenalties,
+  isFinalStretch,
   isSemesterEnded,
   isValidPoints,
   passScore,
@@ -188,5 +190,45 @@ describe("rankByTotal", () => {
 
   it("bo'sh ro'yxat", () => {
     expect(rankByTotal([])).toEqual([]);
+  });
+});
+
+describe("normativ va avtomatik jarimalar", () => {
+  it("normativdan pastlar oxirida, o'rinlar uzluksiz", () => {
+    const ranked = rankByTotal([
+      { fullName: "Ali", total: 20, belowNorm: true },
+      { fullName: "Bek", total: 40, belowNorm: false },
+      { fullName: "Dil", total: 30, belowNorm: true },
+      { fullName: "Eva", total: 36, belowNorm: false },
+      { fullName: "Fot", total: 20, belowNorm: true },
+    ]);
+    expect(ranked.map((r) => [r.rank, r.fullName])).toEqual([
+      [1, "Bek"],
+      [2, "Eva"],
+      [3, "Dil"],
+      [4, "Ali"],
+      [4, "Fot"],
+    ]);
+  });
+
+  it("semestrning oxirgi 14 kuni (endDate kiradi)", () => {
+    const s = { endDate: "2026-12-31" };
+    expect(isFinalStretch(s, "2026-12-17")).toBe(false);
+    expect(isFinalStretch(s, "2026-12-18")).toBe(true);
+    expect(isFinalStretch(s, "2026-12-31")).toBe(true);
+    expect(isFinalStretch(s, "2027-01-01")).toBe(false);
+  });
+
+  it("uyga vazifaga 0 va sababsiz kelmaslik — har biri −1, yangilari birinchi", () => {
+    const list = autoPenalties({
+      zeroHomework: [
+        { assignmentId: "h1", title: "CSS", dueDate: "2026-10-05" },
+      ],
+      absences: [{ lessonId: "l1", date: "2026-10-08" }],
+    });
+    expect(list.map((p) => [p.id, p.points, p.name, p.note])).toEqual([
+      ["auto:abs:l1", 1, "Darsga sababsiz kelmadi", null],
+      ["auto:hw:h1", 1, "Uyga vazifa bajarilmagan", "CSS"],
+    ]);
   });
 });

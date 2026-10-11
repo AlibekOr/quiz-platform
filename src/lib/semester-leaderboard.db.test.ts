@@ -99,7 +99,7 @@ describe("getSemesterLeaderboard", () => {
 
     const all = await getSemesterLeaderboard({ groupId: null });
     expect(names(all.entries)).toEqual(["1:Bek", "2:Ali", "2:Dil", "4:Eva"]);
-    expect(all.entries[0]).toMatchObject({ groupName: "G2", maxTotal: 60 });
+    expect(all.entries[0]).toMatchObject({ groupName: "G2", belowNorm: false });
 
     const one = await getSemesterLeaderboard({ groupId: g1 });
     expect(names(one.entries)).toEqual(["1:Ali", "1:Dil", "3:Eva"]);
@@ -166,5 +166,25 @@ describe("resolveLeaderboard (semestr)", () => {
     expect(r.group?.id).toBe(g1);
     expect(names(r.board.entries)).toEqual(["1:Ali"]);
     expect(r.board.me?.userId).toBe(ali);
+  });
+});
+
+describe("normativdan pastlar (oxirgi 2 hafta)", () => {
+  it("o'tish balidan (36) pastlar qizil va oxirida", async () => {
+    const g = await group("Oxiri", { from: -60, to: 10 });
+    await student("Ali", g, 20);
+    await student("Bek", g, 40);
+    await student("Dil", g, 36);
+    const board = await getSemesterLeaderboard({ groupId: g });
+    expect(names(board.entries)).toEqual(["1:Bek", "2:Dil", "3:Ali"]);
+    expect(board.entries.map((e) => e.belowNorm)).toEqual([false, false, true]);
+  });
+
+  it("oxirgi 2 haftadan oldin oddiy tartib", async () => {
+    await student("Ali", g1, 20);
+    await student("Bek", g1, 10);
+    const board = await getSemesterLeaderboard({ groupId: g1 });
+    expect(names(board.entries)).toEqual(["1:Ali", "2:Bek"]);
+    expect(board.entries.every((e) => !e.belowNorm)).toBe(true);
   });
 });

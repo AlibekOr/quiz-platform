@@ -55,6 +55,10 @@ const MARKS: { value: AttendanceMark; active: string }[] = [
     value: "LATE",
     active: "border-amber-500 bg-amber-500 text-white hover:bg-amber-500/90",
   },
+  {
+    value: "EXCUSED",
+    active: "border-blue-600 bg-blue-600 text-white hover:bg-blue-600/90",
+  },
 ];
 
 export function AttendanceSheet({
@@ -96,8 +100,8 @@ export function AttendanceSheet({
 
   function mark(index: number, status: AttendanceMark) {
     form.setValue(`records.${index}.status`, status, { shouldDirty: true });
-    // Kelmagan o'quvchiga og'zaki ball qo'yilmaydi
-    if (status === "ABSENT")
+    // Kelmagan (sababli ham) o'quvchiga og'zaki ball qo'yilmaydi
+    if (status === "ABSENT" || status === "EXCUSED")
       form.setValue(`records.${index}.oral`, "", { shouldDirty: true });
     // "N ta belgilanmagan" — ro'yxat darajasidagi xato, shuning uchun butun forma qayta tekshiriladi
     if (form.formState.isSubmitted) void form.trigger();
@@ -183,7 +187,7 @@ export function AttendanceSheet({
               <div
                 role="radiogroup"
                 aria-label={`${s.fullName}: davomat`}
-                className="grid grid-cols-3 gap-2"
+                className="grid grid-cols-4 gap-1.5"
               >
                 {MARKS.map((m) => (
                   <button
@@ -193,7 +197,7 @@ export function AttendanceSheet({
                     aria-checked={status === m.value}
                     onClick={() => mark(i, m.value)}
                     className={cn(
-                      "hover:bg-muted h-11 rounded-md border text-sm font-medium transition-colors",
+                      "hover:bg-muted h-11 rounded-md border px-1 text-sm font-medium transition-colors",
                       status === m.value && m.active,
                     )}
                   >
@@ -201,7 +205,7 @@ export function AttendanceSheet({
                   </button>
                 ))}
               </div>
-              {status !== "ABSENT" && (
+              {status !== "ABSENT" && status !== "EXCUSED" && (
                 <div className="flex items-center gap-2">
                   <span className="text-muted-foreground text-sm">
                     Og&apos;zaki:
@@ -269,6 +273,11 @@ export function AttendanceSheet({
             </span>
             {" · "}
             <span className="text-destructive">Kelmadi {count("ABSENT")}</span>
+            {count("EXCUSED") > 0 && (
+              <span className="text-blue-700 dark:text-blue-400">
+                {" · "}Sababli {count("EXCUSED")}
+              </span>
+            )}
             {unmarked > 0 && (
               <span className="text-muted-foreground">
                 {" "}
