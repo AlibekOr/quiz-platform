@@ -146,6 +146,7 @@ export function StudentRowActions({
             onOpenChange={close}
             students={[student]}
             groups={groups}
+            canCarryPoints={teacher}
           />
           {!teacher && (
             <RequestDeletionDialog

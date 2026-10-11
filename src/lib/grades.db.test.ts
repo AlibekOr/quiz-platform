@@ -1,7 +1,11 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { db } from "@/lib/db";
 import { resetDatabase } from "@/test/db";
-import { getSemesterGrades, getStudentSemesters } from "./grades-data";
+import {
+  getSemesterGrades,
+  getStudentSemesters,
+  planPointCarryOver,
+} from "./grades-data";
 import { addDays, toDbDate, todayInTashkent } from "./time";
 
 // Sanalar bugungi kunga nisbatan: davom etayotgan va tugagan semestrlar
@@ -250,5 +254,46 @@ describe("getStudentSemesters", () => {
     await semester(otherGroupId, -30, 30);
     const ali = await student("Ali", groupId);
     expect(await getStudentSemesters(ali)).toEqual([]);
+  });
+});
+
+describe("planPointCarryOver", () => {
+  it("eski semestr jami yangi guruh semestriga, nol ball va guruhsiz — o'tkazilmaydi", async () => {
+    const from = await semester(groupId, -30, 30);
+    const to = await semester(otherGroupId, -10, 50);
+    const ali = await student("Ali", groupId);
+    const bek = await student("Bek", groupId);
+    const bonus = await assignment(from, "BONUS", 10);
+    await grade(bonus, ali, 7.5);
+
+    const plan = await planPointCarryOver(
+      [
+        { id: ali, groupId },
+        { id: bek, groupId },
+        { id: "guruhsiz", groupId: null },
+      ],
+      otherGroupId,
+      today,
+    );
+    expect(plan.noTarget).toBe(false);
+    expect(plan.items).toEqual([
+      {
+        studentId: ali,
+        semesterId: to,
+        points: 7.5,
+        reason: `"Frontend-1" guruhidan ko'chirildi (S-30)`,
+      },
+    ]);
+  });
+
+  it("yangi guruhda shu sanada semestr bo'lmasa — noTarget", async () => {
+    await semester(groupId, -30, 30);
+    const ali = await student("Ali", groupId);
+    const plan = await planPointCarryOver(
+      [{ id: ali, groupId }],
+      otherGroupId,
+      todayInTashkent(),
+    );
+    expect(plan).toEqual({ items: [], noTarget: true });
   });
 });

@@ -70,6 +70,8 @@ export const transferSchema = z.object({
     .max(300, "Izoh 300 belgidan oshmasin")
     .nullish()
     .transform((v) => v || null),
+  /** Eski guruh semestridagi jamini yangi guruh semestriga ko'chirish (faqat o'qituvchi) */
+  carryPoints: z.boolean().default(false),
 });
 export type TransferInput = z.input<typeof transferSchema>;
 

@@ -26,6 +26,7 @@ export function TransferButton({
         onOpenChange={setOpen}
         students={[student]}
         groups={groups}
+        canCarryPoints
       />
     </>
   );

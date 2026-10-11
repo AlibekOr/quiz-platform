@@ -39,11 +39,14 @@ export function TransferDialog({
   students,
   groups,
   onDone,
+  canCarryPoints = false,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   students: TransferStudent[];
   groups: GroupOption[];
+  /** "Ballarni ko'chirish" belgisi (faqat o'qituvchi) */
+  canCarryPoints?: boolean;
   /** Muvaffaqiyatli o'tkazilgandan keyin (masalan, tanlovni tozalash) */
   onDone?: () => void;
 }) {
@@ -68,6 +71,7 @@ export function TransferDialog({
           students={students}
           groups={groups}
           submitLabel={allGroupless ? "Qo'shish" : "O'tkazish"}
+          canCarryPoints={canCarryPoints && !allGroupless}
           onDone={() => {
             onOpenChange(false);
             onDone?.();
@@ -83,11 +87,13 @@ function TransferForm({
   groups,
   submitLabel,
   onDone,
+  canCarryPoints,
 }: {
   students: TransferStudent[];
   groups: GroupOption[];
   submitLabel: string;
   onDone: () => void;
+  canCarryPoints: boolean;
 }) {
   const [pending, startTransition] = useTransition();
   const today = todayInTashkent();
@@ -103,6 +109,7 @@ function TransferForm({
       toGroupId: "",
       date: today,
       note: "",
+      carryPoints: canCarryPoints,
     },
   });
   const { errors } = form.formState;
@@ -169,6 +176,22 @@ function TransferForm({
           {...form.register("note")}
         />
       </FormField>
+      {canCarryPoints && (
+        <label className="flex items-start gap-2 text-sm">
+          <input
+            type="checkbox"
+            className="accent-primary mt-0.5 size-4"
+            {...form.register("carryPoints")}
+          />
+          <span>
+            Ballarni ko&apos;chirish
+            <span className="text-muted-foreground block text-xs">
+              Eski guruh semestridagi jami (jarimalardan keyin) yangi guruh
+              semestriga tuzatish bo&apos;lib qo&apos;shiladi
+            </span>
+          </span>
+        </label>
+      )}
       <FormError
         message={errors.studentIds?.message ?? errors.root?.server?.message}
       />

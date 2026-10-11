@@ -18,6 +18,7 @@ import { db } from "@/lib/db";
 import { isNotFound, isUniqueViolation } from "@/lib/prisma-errors";
 import { getUploadedFile, readFirstSheet } from "@/lib/excel";
 import { latestMembershipDay } from "@/lib/memberships";
+import { planPointCarryOver } from "@/lib/grades-data";
 import { moveStudent } from "@/lib/memberships-data";
 import {
   formatDate,
@@ -255,10 +256,12 @@ export async function removeStudentFromGroup(
 export async function transferStudents(
   input: TransferInput,
 ): Promise<ActionResult> {
-  const { scope } = await requireStaffScope();
+  const { user, scope } = await requireStaffScope();
   const parsed = transferSchema.safeParse(input);
   if (!parsed.success) return validationFailed(parsed.error);
   const { toGroupId, date, note } = parsed.data;
+  // Ballar faqat o'qituvchida (menejerga baholar yopiq)
+  const carryPoints = parsed.data.carryPoints && user.role === "TEACHER";
   const studentIds = [...new Set(parsed.data.studentIds)];
 
   if (!isValidDateStr(date)) {
@@ -332,23 +335,40 @@ export async function transferStudents(
     }
   }
 
+  // Ballar o'tkazishdan oldin hisoblanadi (o'quvchi hali eski guruhda)
+  const carry = carryPoints
+    ? await planPointCarryOver(students, toGroupId, date)
+    : null;
+
   const at = startOfDayInTashkent(date);
   await db.$transaction(async (tx) => {
     for (const s of students) {
       await moveStudent(tx, { studentId: s.id, toGroupId, at, note });
     }
+    if (carry && carry.items.length > 0)
+      await tx.pointAdjustment.createMany({
+        data: carry.items.map((c) => ({ ...c, createdById: user.id })),
+      });
   });
 
   revalidate();
   revalidatePath("/teacher/attendance");
   revalidatePath("/teacher/attendance/report");
   revalidatePath("/teacher/grades");
+  revalidatePath("/leaderboard");
+  const moved =
+    students.length === 1
+      ? `${students[0].fullName} "${group.name}" guruhiga o'tkazildi`
+      : `${students.length} ta o'quvchi "${group.name}" guruhiga o'tkazildi`;
   return {
     ok: true,
-    message:
-      students.length === 1
-        ? `${students[0].fullName} "${group.name}" guruhiga o'tkazildi`
-        : `${students.length} ta o'quvchi "${group.name}" guruhiga o'tkazildi`,
+    message: !carry
+      ? moved
+      : carry.noTarget
+        ? `${moved}. Yangi guruhda shu sanada semestr yo'q — ballar ko'chirilmadi`
+        : carry.items.length === 0
+          ? `${moved}. Ko'chiriladigan ball yo'q`
+          : `${moved}. Ballar ko'chirildi: ${carry.items.length} ta o'quvchi`,
   };
 }
 

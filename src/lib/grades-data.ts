@@ -416,3 +416,50 @@ export async function currentSemesterId(
   });
   return s?.id ?? null;
 }
+
+export type PointCarryOver = {
+  studentId: string;
+  /** Yangi guruhning o'tkazish sanasidagi semestri */
+  semesterId: string;
+  points: number;
+  reason: string;
+};
+
+/**
+ * Guruhga o'tkazishda ballarni ko'chirish (TASKS.md, 7-bosqich): eski guruhning o'tkazish
+ * sanasidagi semestridagi jami (jarimalardan keyin) yangi guruh semestriga PointAdjustment
+ * bo'lib yoziladi. O'tkazishdan OLDIN chaqiriladi (o'quvchi hali eski guruhda).
+ * Yangi guruhda shu sanada semestr bo'lmasa — noTarget, hech narsa ko'chirilmaydi
+ */
+export async function planPointCarryOver(
+  students: readonly { id: string; groupId: string | null }[],
+  toGroupId: string,
+  date: DateStr,
+): Promise<{ items: PointCarryOver[]; noTarget: boolean }> {
+  const target = await currentSemesterId(toGroupId, date);
+  if (!target) return { items: [], noTarget: true };
+
+  const byGroup = new Map<string, string[]>();
+  for (const s of students) {
+    if (!s.groupId) continue;
+    byGroup.set(s.groupId, [...(byGroup.get(s.groupId) ?? []), s.id]);
+  }
+
+  const items: PointCarryOver[] = [];
+  for (const [groupId, ids] of byGroup) {
+    const source = await currentSemesterId(groupId, date);
+    if (!source) continue;
+    const data = await getSemesterGrades(source, ids);
+    if (!data) continue;
+    for (const st of data.students) {
+      if (st.result.total <= 0) continue;
+      items.push({
+        studentId: st.id,
+        semesterId: target,
+        points: st.result.total,
+        reason: `"${data.semester.group.name}" guruhidan ko'chirildi (${data.semester.name})`,
+      });
+    }
+  }
+  return { items, noTarget: false };
+}

@@ -174,6 +174,7 @@ export function StudentsTable({
           students={chosen}
           groups={groups}
           onDone={() => setSelected(new Set())}
+          canCarryPoints={variant === "teacher"}
         />
       )}
     </>
