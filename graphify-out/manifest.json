@@ -155,12 +155,6 @@
     "ast_hash": "9fb2d47b72682e9df1d8c3cb9702b59e",
     "semantic_hash": ""
   },
-  "src/components/auth/logout-button.tsx": {
-    "mtime": 1791106019.5994072,
-    "seen": 1791106133.287285,
-    "ast_hash": "ddd38edb7644d08c3d2bd466d4d96a97",
-    "semantic_hash": ""
-  },
   "src/components/ui/card.tsx": {
     "mtime": 1791106038.6539316,
     "seen": 1791106133.287301,
@@ -267,18 +261,6 @@
     "mtime": 1791183779.2724745,
     "seen": 1791183782.6190238,
     "ast_hash": "521d339a41b88e79950d0d481f01db9b",
-    "semantic_hash": ""
-  },
-  "src/components/teacher/mobile-nav.tsx": {
-    "mtime": 1791529427.106256,
-    "seen": 1791530091.915544,
-    "ast_hash": "3cf973150ccc6ee36ad2253eafd65e00",
-    "semantic_hash": ""
-  },
-  "src/components/teacher/nav-links.tsx": {
-    "mtime": 1791530563.9254427,
-    "seen": 1791530746.935164,
-    "ast_hash": "02a74e673e81762015c93b8697a37ff6",
     "semantic_hash": ""
   },
   "src/components/teacher/students/add-student-button.tsx": {
@@ -480,9 +462,9 @@
     "semantic_hash": ""
   },
   "src/app/(student)/layout.tsx": {
-    "mtime": 1791530563.9253445,
-    "seen": 1791530746.93359,
-    "ast_hash": "c3ff2d7cd10787420f6f5059e05c21b7",
+    "mtime": 1791715245.4752038,
+    "seen": 1791715372.4862761,
+    "ast_hash": "410b7eed4f7608f60f8ca7505b1dce55",
     "semantic_hash": ""
   },
   "src/app/(student)/result/[attemptId]/page.tsx": {
@@ -582,9 +564,9 @@
     "semantic_hash": ""
   },
   "src/app/(teacher)/teacher/layout.tsx": {
-    "mtime": 1791529427.1109736,
-    "seen": 1791530091.914696,
-    "ast_hash": "9f8bf935926c900b42edabc9d378ab29",
+    "mtime": 1791715245.4722302,
+    "seen": 1791715372.486293,
+    "ast_hash": "91985e14b61bdb9009e61e8b78bf656d",
     "semantic_hash": ""
   },
   "src/app/(teacher)/teacher/page.tsx": {
@@ -744,9 +726,9 @@
     "semantic_hash": ""
   },
   "src/app/(teacher)/teacher/attendance/actions.ts": {
-    "mtime": 1791439324.520021,
-    "seen": 1791525186.6852422,
-    "ast_hash": "5d638b7101d40e95f19df6ba22383a46",
+    "mtime": 1791715301.1435683,
+    "seen": 1791715372.486284,
+    "ast_hash": "b9585e05d762620338b02f2b9336b714",
     "semantic_hash": ""
   },
   "src/app/(teacher)/teacher/attendance/page.tsx": {
@@ -756,15 +738,15 @@
     "semantic_hash": ""
   },
   "src/app/(teacher)/teacher/groups/[id]/attendance/page.tsx": {
-    "mtime": 1791529565.198108,
-    "seen": 1791530091.914604,
-    "ast_hash": "9b36a9eaa506e51e80bfacf86a75a3dc",
+    "mtime": 1791715301.1407504,
+    "seen": 1791715372.4862878,
+    "ast_hash": "7de29da09315f0755a0614d4b5d6b242",
     "semantic_hash": ""
   },
   "src/app/(teacher)/teacher/groups/[id]/page.tsx": {
-    "mtime": 1791527301.0760915,
-    "seen": 1791528216.480928,
-    "ast_hash": "a5c74461439b70bb99d8371fe44eb239",
+    "mtime": 1791715301.1421032,
+    "seen": 1791715372.4862888,
+    "ast_hash": "de920c3d4001307813dfe1060ef16e4c",
     "semantic_hash": ""
   },
   "src/app/api/attendance/export/route.ts": {
@@ -791,12 +773,6 @@
     "ast_hash": "c2ffba9abea8066e9ae4cb1c399d4c8d",
     "semantic_hash": ""
   },
-  "src/components/teacher/attendance/month-picker.tsx": {
-    "mtime": 1791529584.9621499,
-    "seen": 1791530091.9153721,
-    "ast_hash": "e487e6bc300d532503c644f9d3e58ea3",
-    "semantic_hash": ""
-  },
   "src/components/teacher/groups/schedule-form.tsx": {
     "mtime": 1791110033.6046689,
     "seen": 1791110229.506016,
@@ -804,9 +780,9 @@
     "semantic_hash": ""
   },
   "src/lib/attendance-data.ts": {
-    "mtime": 1791439324.5197792,
-    "seen": 1791525186.686283,
-    "ast_hash": "8b9c540c265cd1544bc811deba4c3a5f",
+    "mtime": 1791715270.04024,
+    "seen": 1791715372.48636,
+    "ast_hash": "5f6c9d170fdd561ccb2883412f607975",
     "semantic_hash": ""
   },
   "src/lib/attendance.test.ts": {
@@ -1284,9 +1260,9 @@
     "semantic_hash": ""
   },
   "src/app/(manager)/manager/attendance/page.tsx": {
-    "mtime": 1791529606.572778,
-    "seen": 1791530091.9141738,
-    "ast_hash": "94934e0598e2d5e9a7fe6a7d228c63ba",
+    "mtime": 1791715301.1394866,
+    "seen": 1791715372.486263,
+    "ast_hash": "d98199e7a8fae122e6c8d1611e42935b",
     "semantic_hash": ""
   },
   "src/app/(manager)/manager/error.tsx": {
@@ -1296,9 +1272,9 @@
     "semantic_hash": ""
   },
   "src/app/(manager)/manager/layout.tsx": {
-    "mtime": 1791529427.113637,
-    "seen": 1791530091.914176,
-    "ast_hash": "826ee8613a9769fdcd810c262c205381",
+    "mtime": 1791715245.4738138,
+    "seen": 1791715372.486264,
+    "ast_hash": "fc2b616f66d09b47b92ce3a4ffc9bec8",
     "semantic_hash": ""
   },
   "src/app/(manager)/manager/loading.tsx": {
@@ -1344,15 +1320,15 @@
     "semantic_hash": ""
   },
   "src/app/(teacher)/teacher/managers/actions.ts": {
-    "mtime": 1791529362.531937,
-    "seen": 1791530091.914714,
-    "ast_hash": "3b8496f64340cb7dc8c129bf64fcd70b",
+    "mtime": 1791715320.952778,
+    "seen": 1791715372.486294,
+    "ast_hash": "ffee5c37edcb6aaedce33a661407cdb7",
     "semantic_hash": ""
   },
   "src/app/(teacher)/teacher/managers/page.tsx": {
-    "mtime": 1791529802.6638014,
-    "seen": 1791530091.9147148,
-    "ast_hash": "5fc3fc3f1e10996473b865f4c0715db6",
+    "mtime": 1791715320.952583,
+    "seen": 1791715372.486294,
+    "ast_hash": "8d7d13a6467150e12af122dd9809ca92",
     "semantic_hash": ""
   },
   "src/app/(teacher)/teacher/requests/actions.ts": {
@@ -1379,12 +1355,6 @@
     "ast_hash": "3d96740bf40a5768c60b8bd03f9485c2",
     "semantic_hash": ""
   },
-  "src/components/teacher/attendance/attendance-report-view.tsx": {
-    "mtime": 1791529554.0580673,
-    "seen": 1791530091.915311,
-    "ast_hash": "dfa38baf0d9372c392df08ee5627107f",
-    "semantic_hash": ""
-  },
   "src/components/teacher/groups/group-region-select.tsx": {
     "mtime": 1791529314.8455899,
     "seen": 1791530091.9154391,
@@ -1398,21 +1368,15 @@
     "semantic_hash": ""
   },
   "src/components/teacher/managers/regions-section.tsx": {
-    "mtime": 1791529802.4202368,
-    "seen": 1791530091.915543,
-    "ast_hash": "077a171a27b2d11f66d59c55efdd7911",
+    "mtime": 1791715320.9522681,
+    "seen": 1791715372.486336,
+    "ast_hash": "0098954a541d9dd64467ac6ee9831959",
     "semantic_hash": ""
   },
   "src/components/teacher/requests/request-decision.tsx": {
     "mtime": 1791529688.3158965,
     "seen": 1791530091.915545,
     "ast_hash": "2f2e43de6c6d9fa9221849a3adde954f",
-    "semantic_hash": ""
-  },
-  "src/components/teacher/staff-shell.tsx": {
-    "mtime": 1791529427.1093962,
-    "seen": 1791530091.915599,
-    "ast_hash": "f3def8a07173683a7ddf85c0642d596d",
     "semantic_hash": ""
   },
   "src/lib/auth/routes.test.ts": {
@@ -1533,6 +1497,72 @@
     "mtime": 1791528991.2318313,
     "seen": 1791531626.859293,
     "ast_hash": "f7a78d66918b2b2569bab3f31ea28afc",
+    "semantic_hash": ""
+  },
+  "src/app/(teacher)/teacher/attendance/report/page.tsx": {
+    "mtime": 1791715301.1381264,
+    "seen": 1791715372.4862862,
+    "ast_hash": "b84a6638a4335c9e6d00af2506758cea",
+    "semantic_hash": ""
+  },
+  "src/app/(teacher)/teacher/regions/page.tsx": {
+    "mtime": 1791715320.9574394,
+    "seen": 1791715372.4862962,
+    "ast_hash": "dcd0d20094644843d05ab245b51ae1a0",
+    "semantic_hash": ""
+  },
+  "src/components/attendance/attendance-report-page.tsx": {
+    "mtime": 1791715286.9545481,
+    "seen": 1791715372.48631,
+    "ast_hash": "f15aed9bf5d87b5a4f930d06963aabca",
+    "semantic_hash": ""
+  },
+  "src/components/attendance/attendance-report-view.tsx": {
+    "mtime": 1791715258.5518847,
+    "seen": 1791715372.48631,
+    "ast_hash": "0debc7aa6a02bc678e1e0c9bf102a55f",
+    "semantic_hash": ""
+  },
+  "src/components/attendance/month-picker.tsx": {
+    "mtime": 1791529584.9621499,
+    "seen": 1791715372.486311,
+    "ast_hash": "e487e6bc300d532503c644f9d3e58ea3",
+    "semantic_hash": ""
+  },
+  "src/components/nav/app-shell.tsx": {
+    "mtime": 1791715238.403545,
+    "seen": 1791715372.486318,
+    "ast_hash": "d33a9964cb8156600fc577e39dc24d52",
+    "semantic_hash": ""
+  },
+  "src/components/nav/mobile-nav.tsx": {
+    "mtime": 1791715238.5759935,
+    "seen": 1791715372.486319,
+    "ast_hash": "5d6339addceb5cb546c38e4590f35f54",
+    "semantic_hash": ""
+  },
+  "src/components/nav/nav-menu.tsx": {
+    "mtime": 1791715204.44633,
+    "seen": 1791715372.486319,
+    "ast_hash": "484cc6fc2151cbc5bf333f5a294e9e2e",
+    "semantic_hash": ""
+  },
+  "src/lib/nav.test.ts": {
+    "mtime": 1791715140.9917336,
+    "seen": 1791715372.486379,
+    "ast_hash": "0db2a479c03eaffb44b54e5305739dba",
+    "semantic_hash": ""
+  },
+  "src/lib/nav.ts": {
+    "mtime": 1791715140.8283944,
+    "seen": 1791715372.486379,
+    "ast_hash": "377ff8c1435cdfb227a3f2423b78ca87",
+    "semantic_hash": ""
+  },
+  "TASKS.md": {
+    "mtime": 1791713901.0576217,
+    "seen": 1791715372.4864051,
+    "ast_hash": "77997118b51250979d7aae0b0992c044",
     "semantic_hash": ""
   }
 }
