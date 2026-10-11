@@ -298,8 +298,15 @@ model GroupMembership {
 | `/dashboard` | student | Mavjud testlar, o'z natijalari |
 | `/test/[id]` | student | Test ishlash (taymer, savollar navigatsiyasi, avtosaqlash) |
 | `/result/[attemptId]` | student (faqat o'zinikini) | Ball, o'rin, (ruxsat bo'lsa) to'g'ri javoblar |
-| `/leaderboard` | student, teacher | Umumiy reyting: tablar "Mening guruhim" / "Umumiy" |
-| `/test/[id]/leaderboard` | student, teacher | Test reytingi, xuddi shu tablar |
+| `/leaderboard` | student, teacher, manager | Semestr reytingi: To'plagan / Jarima / Jami; tablar "Mening guruhim" / "Umumiy" |
+| `/test/[id]/leaderboard` | student | Bitta test reytingi (xodim o'z bo'limiga yo'naltiriladi) |
+| `/tests/leaderboard` | student | Barcha testlar reytingi (birinchi urinishlar yig'indisi) |
+| `/teacher/tests/leaderboard`, `/manager/tests/leaderboard` | teacher, manager | Barcha testlar reytingi |
+| `/teacher/tests/[id]/leaderboard`, `/manager/tests/[id]/leaderboard` | teacher, manager | Bitta test reytingi |
+| `/profile` | hamma | O'z profili: aloqa ma'lumotlari, parol |
+| `/homework` | student | Uyga vazifalarim |
+| `/teacher/attendance/report` | teacher | Davomat hisoboti (guruh, oy), Excel |
+| `/teacher/penalties` | teacher | Jarima shablonlari |
 | `/teacher` | teacher | Umumiy ko'rinish (testlar, o'quvchilar soni, oxirgi natijalar) |
 | `/teacher/groups` | teacher | Guruhlar CRUD |
 | `/teacher/groups/[id]` | teacher | Guruh tafsilotlari: o'quvchilar (guruhdan chiqarish), dars jadvali |
@@ -310,7 +317,7 @@ model GroupMembership {
 | `/teacher/students/[id]` | teacher | O'quvchi kartochkasi: shaxsiy va aloqa ma'lumotlari, guruhi va guruhlar tarixi, boshqa guruhga o'tkazish, baholar (ball tuzatish, ozod qilish), test natijalari, davomat foizi |
 | `/teacher/homework` | teacher | Guruh davrlari bo'yicha uyga vazifalar: yaratish, tahrirlash, o'chirish |
 | `/teacher/homework/[id]` | teacher | Vazifaga ball qo'yish |
-| `/teacher/grades` | teacher | Guruh + davr baholar jadvali, Excel eksport |
+| `/teacher/grades` | teacher | Guruh + semestr ballari jadvali (kategoriyalar, jarima, jami, holat), Excel eksport |
 | `/teacher/managers` | teacher | Menejerlar va regionlar |
 | `/teacher/requests` | teacher | Menejerlarning o'chirish so'rovlari: tasdiqlash (arxivlash) yoki rad etish |
 | `/manager` | manager | Doiradagi guruhlar, bugungi darslar |
@@ -318,7 +325,7 @@ model GroupMembership {
 | `/manager/attendance` | manager | Doiradagi guruhlar davomat hisoboti va Excel (faqat ko'rish) |
 | `/manager/requests` | manager | O'z so'rovlari va holati |
 | `/manager/tests` | manager | Doiradagi testlar: yaratish, savollar, import, natijalar (faqat doiradagi o'quvchilar); boshqalarniki faqat ko'rish |
-| `/grades` | student | Baholarim: davr bo'yicha vazifa va test ballari, jami, holat |
+| `/grades` | student | Baholarim: semestr bo'yicha kategoriyalar, jarimalar, jami, holat |
 | `/teacher/tests` | teacher | Testlar ro'yxati, yaratish |
 | `/teacher/tests/[id]` | teacher | Tahrirlash: savollar, sozlamalar, guruhlar, import |
 | `/teacher/tests/[id]/results` | teacher | Natijalar jadvali, savollar bo'yicha statistika |
@@ -438,6 +445,8 @@ Har bosqichdan keyin to'xta va hisobot ber. `lint`, `typecheck`, `test` o'tishi 
 **Tayyor:** o'quvchi o'tkazilgandan keyin eski sessiyasi bilan ham yangi guruh testlarini ko'radi; eski guruh davomat hisobotida "o'tkazilgan: ..." belgisi bilan qoladi, yangi guruhda faqat o'tkazish sanasidan boshlab hisoblanadi.
 
 ### 12-bosqich: uyga vazifalar va baholar
+> 17-bosqichda semestr ball tizimi bilan almashtirilgan (davr → semestr, test ballari va ozod qilish olib tashlangan). Quyidagi tavsif tarix uchun.
+
 Kelishilgan: davr har guruhga alohida; uyga vazifaga faqat o'qituvchi ball qo'yadi (javob platformaga yuborilmaydi); test bali = birinchi urinish foizi × testning davrdagi bali; o'quvchi o'z baholarini ko'radi.
 
 Prisma:
@@ -495,6 +504,19 @@ Kelishilgan: menejer o'z doirasidagi o'quvchilarga qo'shish, tahrirlash, parolni
 - Vitest (DB): o'z testi tahrirlanadi, aralash guruhli — faqat ko'rish, boshqa region testi ko'rinmaydi, boshqa region guruhiga biriktirib bo'lmaydi, natijalar va statistika faqat doiradagi o'quvchilar, reyting doirasi va 403
 
 **Tayyor:** menejer o'z guruhlari uchun test yaratadi, savol qo'shadi, faollashtiradi; aralash guruhli testni faqat ko'radi, lekin o'z guruhlari natijalarini ko'radi; boshqa region natijalari va reytingi unga ko'rinmaydi.
+
+### 15–21-bosqichlar: semestr ball tizimi (TASKS.md)
+Batafsil talablar `TASKS.md` da. Qisqacha nima qilingan:
+
+- **15 — navigatsiya va davomat hisoboti:** guruhlangan yon panel (`lib/nav.ts`), umumiy davomat hisoboti (o'qituvchi va menejer)
+- **16 — profil:** `/profile` barcha rollar uchun (aloqa ma'lumotlari, parol almashtirish eski sessiyalarni yopadi)
+- **17 — semestr:** `Period` → `Semester` (`@@map("Period")`, jadval nomi o'zgarmagan). Kategoriyalar: uyga vazifa (≤30, har biri 0 / 0,5 / 1), amaliy (≤20), og'zaki (≤10, davomat varag'ida 0 / 0,5 / 1), qo'shimcha EXTRA (≤40, faqat semestr tugagach va 10 ≤ jami < 36), bonus (chegarasiz), tuzatish. `jami = max(0, min(yig'indi, 60) − jarimalar)`; o'tish bali 36. Testlar semestr baliga kirmaydi. `TestPeriod`, `Test.dueDate`, `GradeExemption` olib tashlangan, ma'lumotlari `backup` sxemasiga ko'chirilgan
+- **18 — topshiriqlar:** `Homework` → `Assignment` (`@@map("Homework")`), `lessonId` (qaysi darsda berilgan), o'quvchida `/homework`. O'quvchi saytga hech narsa yubormaydi — o'qituvchi darsda baholaydi
+- **19 — jarimalar:** `PenaltyType` (shablonlar), `Penalty`. Avtomatik jarima (bazaga yozilmaydi, `getSemesterGrades` da hisoblanadi): uyga vazifaga 0 — −1, darsga sababsiz kelmaslik (`ABSENT`) — −1. Davomatda `EXCUSED` ("Sababli") — jarimasiz, foizda kelmagan
+- **20 — reyting:** `/leaderboard` — joriy semestr (bugunni o'z ichiga olgan) bo'yicha To'plagan / Jarima / Jami (jami reytingda manfiy bo'lishi mumkin). Semestrning oxirgi 14 kunida jami o'tish balidan past bo'lganlar qizil va ro'yxat oxirida (`rankByTotal`, `isFinalStretch`). Test reytinglari Testlar bo'limida. Ko'p varaqli Excel eksport
+- **21 — guruhga o'tkazish:** o'qituvchi "Ballarni ko'chirish" ni tanlasa, eski guruhning o'tkazish sanasidagi semestri jami yangi guruh semestriga `PointAdjustment` bo'lib yoziladi (`planPointCarryOver`). Yangi guruhda shu sanada semestr bo'lmasa, ko'chirilmaydi. Menejer o'tkazadi, lekin ballarni ko'chira olmaydi
+
+Ruxsatlar: ball, jarima, topshiriq va semestr sozlamalari faqat `requireTeacher()`. Menejer reytingni (faqat yig'indilar, doira ichida) va davomat hisobotini ko'radi; baholar, topshiriqlar va jarimalar unga yopiq.
 
 ---
 

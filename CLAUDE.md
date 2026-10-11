@@ -1,8 +1,8 @@
 # Test platformasi: loyiha qoidalari
 
-O'quv markaz o'quvchilari uchun onlayn test platformasi. O'qituvchi test yaratadi, o'quvchilar akkauntini ochadi, guruhlar dars jadvali va davomatini yuritadi. O'quvchilar login/parol bilan kirib test ishlaydi va reytingni ko'radi. Menejerlar o'z doirasidagi (region + biriktirilgan guruhlar) o'quvchilarni boshqaradi.
+O'quv markaz o'quvchilari uchun onlayn test platformasi. O'qituvchi test yaratadi, o'quvchilar akkauntini ochadi, guruhlar dars jadvali va davomatini yuritadi, semestr ballarini (uyga vazifa, amaliy, og'zaki, bonus, jarimalar) qo'yadi. O'quvchilar login/parol bilan kirib test ishlaydi va reytingni ko'radi. Menejerlar o'z doirasidagi (region + biriktirilgan guruhlar) o'quvchilarni boshqaradi.
 
-Batafsil reja va bosqichlar `PLAN.md` faylida. Har doim joriy bosqichni o'sha yerdan o'qi.
+Batafsil reja va bosqichlar `PLAN.md` faylida (15–21-bosqichlar talablari `TASKS.md` da). Har doim joriy bosqichni o'sha yerdan o'qi.
 
 ## Stack (o'zgartirma, avval so'ra)
 
@@ -24,9 +24,10 @@ Batafsil reja va bosqichlar `PLAN.md` faylida. Har doim joriy bosqichni o'sha ye
 src/
   app/
     (auth)/login/
-    (student)/dashboard/  test/[id]/  result/[attemptId]/  leaderboard/  grades/
-    (teacher)/teacher/tests/  teacher/students/  teacher/groups/  teacher/attendance/
-    (teacher)/teacher/homework/  teacher/grades/  teacher/managers/  teacher/requests/
+    (account)/profile/  # barcha rollar
+    (student)/dashboard/  test/[id]/  result/[attemptId]/  leaderboard/  grades/  homework/  tests/leaderboard/
+    (teacher)/teacher/tests/  teacher/students/  teacher/groups/  teacher/attendance/  teacher/attendance/report/
+    (teacher)/teacher/homework/  teacher/grades/  teacher/penalties/  teacher/managers/  teacher/requests/
     (manager)/manager/  manager/students/  manager/attendance/  manager/requests/  manager/tests/
     api/leaderboard/route.ts
     api/attendance/export/route.ts
@@ -40,8 +41,10 @@ src/
     grading.ts          # baholash logikasi
     attendance.ts       # davomat hisobi va Excel eksport
     time.ts             # Asia/Tashkent vaqt yordamchilari
-    leaderboard.ts      # reyting so'rovlari
-    grades.ts           # baholar hisobi (sof funksiyalar); grades-data.ts, grades-excel.ts
+    leaderboard.ts      # test reytinglari; semester-leaderboard.ts — semestr reytingi; leaderboard-access.ts
+    grades.ts           # semestr bali hisobi (sof funksiyalar, avtomatik jarimalar); grades-data.ts, grades-excel.ts
+    homework.ts         # topshiriqlar; homework-data.ts. penalties.ts — jarima shablonlari
+    nav.ts              # yon panel mantig'i; clock.ts — soat siferblati (vaqt tanlash)
     memberships.ts      # guruh a'zoligi davrlari; memberships-data.ts
     validators/         # Zod sxemalar
   proxy.ts
@@ -63,7 +66,8 @@ prisma/
 9. Vaqt zonasi har doim `Asia/Tashkent` (davomat, "bugun", sanalar). Sana va vaqt hisoblari `lib/time.ts` orqali.
 10. **O'quvchilarning shaxsiy ma'lumotlari** (`StudentProfile`: telefonlar, Telegram, ota-ona) faqat o'qituvchiga va menejerga (faqat o'z doirasidagi o'quvchilar) ko'rinadi. O'quvchi sahifalari, reyting va o'quvchi uchun API javoblarida bu ma'lumotlar hech qachon `select` qilinmaydi. Ular logga ham yozilmaydi.
 11. Sirlar faqat `.env` da: `DATABASE_URL`, `DIRECT_URL` (ixtiyoriy, migratsiya uchun), `JWT_SECRET`, `SEED_TEACHER_USERNAME`, `SEED_TEACHER_PASSWORD`. `.env.example` yangilab bor.
-12. **Menejer doirasi** (`lib/auth/scope.ts`): `getAccessibleGroupIds(user)` = menejer regionidagi guruhlar ∪ `ManagerGroup` orqali biriktirilganlar (o'qituvchi uchun hammasi). Menejer uchun BARCHA so'rovlar (o'quvchilar, davomat, eksport, import) shu ro'yxat bilan filtrlanadi: `studentScopeWhere`, `groupScopeWhere`, `canAccessGroup`, `canAccessStudent`. Guruhsiz o'quvchini menejer faqat o'zi qo'shgan bo'lsa (`createdById`) ko'radi. Doiradan tashqaridagi id bilan kelgan so'rov rad etiladi: action'da `FORBIDDEN`, API'da 403. Menejer o'quvchini arxivlay yoki o'chira olmaydi — faqat `DeletionRequest` yuboradi. Testlar: `lib/tests/access.ts` (`getTestAccess`) — menejer faqat o'zi yaratgan va barcha guruhlari doirada bo'lgan testni tahrirlaydi; natijalar, statistika va reyting faqat doiradagi o'quvchilar bo'yicha. Davrga biriktirish, uyga vazifa va baholar faqat o'qituvchida.
+12. **Menejer doirasi** (`lib/auth/scope.ts`): `getAccessibleGroupIds(user)` = menejer regionidagi guruhlar ∪ `ManagerGroup` orqali biriktirilganlar (o'qituvchi uchun hammasi). Menejer uchun BARCHA so'rovlar (o'quvchilar, davomat, eksport, import) shu ro'yxat bilan filtrlanadi: `studentScopeWhere`, `groupScopeWhere`, `canAccessGroup`, `canAccessStudent`. Guruhsiz o'quvchini menejer faqat o'zi qo'shgan bo'lsa (`createdById`) ko'radi. Doiradan tashqaridagi id bilan kelgan so'rov rad etiladi: action'da `FORBIDDEN`, API'da 403. Menejer o'quvchini arxivlay yoki o'chira olmaydi — faqat `DeletionRequest` yuboradi. Testlar: `lib/tests/access.ts` (`getTestAccess`) — menejer faqat o'zi yaratgan va barcha guruhlari doirada bo'lgan testni tahrirlaydi; natijalar, statistika va reyting faqat doiradagi o'quvchilar bo'yicha. Uyga vazifa, baholar va jarimalar faqat o'qituvchida.
+13. **Semestr bali** (`lib/grades.ts`, `lib/grades-data.ts`): `jami = max(0, min(yig'indi, 60) − jarimalar)`, testlar kirmaydi. Kategoriya chegaralari, EXTRA qoidalari va avtomatik jarimalar (uyga vazifaga 0, sababsiz kelmaslik — har biri −1, bazaga yozilmaydi) faqat shu yerda hisoblanadi. Ball qo'yish, jarima, topshiriq va semestr sozlamalari — faqat `requireTeacher()`. Menejer reytingda faqat yig'indilarni (to'plagan, jarima, jami) ko'radi — kategoriyalar va jarima sabablari unga yopiq.
 
 ## Ish tartibi
 
