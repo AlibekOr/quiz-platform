@@ -11,6 +11,8 @@ function under(pathname: string, prefix: string): boolean {
 export function allowedRoles(pathname: string): readonly Role[] | null {
   if (under(pathname, "/teacher")) return ["TEACHER"];
   if (under(pathname, "/manager")) return ["MANAGER"];
+  // O'z profili: hamma rol (har kim faqat o'zinikini ko'radi)
+  if (under(pathname, "/profile")) return ["TEACHER", "MANAGER", "STUDENT"];
   // Reyting: hamma rol (menejer faqat o'z doirasini ko'radi — leaderboard-access.ts)
   if (
     under(pathname, "/leaderboard") ||

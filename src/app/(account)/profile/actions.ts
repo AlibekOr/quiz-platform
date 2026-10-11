@@ -2,8 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { validationFailed, type ActionResult } from "@/lib/action-result";
-import { requireTeacher } from "@/lib/auth/guards";
-import { hashPassword, verifyPassword } from "@/lib/auth/password";
+import { changePassword, saveOwnContacts } from "@/lib/auth/account";
+import { requireStudent, requireTeacher, requireUser } from "@/lib/auth/guards";
 import {
   clearLoginFailures,
   isLoginLocked,
@@ -13,12 +13,17 @@ import { createSession } from "@/lib/auth/session";
 import { db } from "@/lib/db";
 import {
   changePasswordSchema,
+  ownContactsSchema,
   updateProfileSchema,
   type ChangePasswordInput,
+  type OwnContactsInput,
   type UpdateProfileInput,
 } from "@/lib/validators/auth";
 
-/** O'qituvchi o'z ism-familiyasini o'zgartiradi */
+// O'z profili (/profile). Har bir action foydalanuvchini sessiyadan oladi — boshqa
+// odamning id'si qabul qilinmaydi
+
+/** O'qituvchi o'z ism-familiyasini o'zgartiradi (o'quvchi va menejer ismini o'qituvchi o'zgartiradi) */
 export async function updateOwnProfile(
   input: UpdateProfileInput,
 ): Promise<ActionResult> {
@@ -31,23 +36,36 @@ export async function updateOwnProfile(
     data: { fullName: parsed.data.fullName },
   });
   // Sarlavhadagi ism ham yangilansin
-  revalidatePath("/teacher", "layout");
+  revalidatePath("/", "layout");
   return { ok: true, message: "Ism-familiya saqlandi" };
 }
 
+/** O'quvchi o'z telefoni va Telegramini saqlaydi (+998XXXXXXXXX, @username) */
+export async function updateOwnContacts(
+  input: OwnContactsInput,
+): Promise<ActionResult> {
+  const student = await requireStudent();
+  const parsed = ownContactsSchema.safeParse(input);
+  if (!parsed.success) return validationFailed(parsed.error);
+
+  await saveOwnContacts(student.id, parsed.data);
+  revalidatePath("/profile");
+  return { ok: true, message: "Aloqa ma'lumotlari saqlandi" };
+}
+
 /**
- * O'qituvchi o'z parolini o'zgartiradi. Joriy parol tekshiriladi (xato urinishlar login
+ * Har qanday rol o'z parolini o'zgartiradi. Joriy parol tekshiriladi (xato urinishlar login
  * bilan bir xil cheklovga tushadi). sessionVersion oshadi: boshqa qurilmalardagi sessiyalar
  * tugaydi, joriy qurilmaga yangi sessiya beriladi.
  */
 export async function changeOwnPassword(
   input: ChangePasswordInput,
 ): Promise<ActionResult> {
-  const teacher = await requireTeacher();
+  const user = await requireUser();
   const parsed = changePasswordSchema.safeParse(input);
   if (!parsed.success) return validationFailed(parsed.error);
   const { currentPassword, newPassword } = parsed.data;
-  const limitKey = teacher.username.toLowerCase();
+  const limitKey = user.username.toLowerCase();
 
   if (await isLoginLocked(limitKey)) {
     return {
@@ -57,11 +75,8 @@ export async function changeOwnPassword(
     };
   }
 
-  const user = await db.user.findUnique({
-    where: { id: teacher.id },
-    select: { passwordHash: true },
-  });
-  if (!user || !(await verifyPassword(currentPassword, user.passwordHash))) {
+  const result = await changePassword(user.id, currentPassword, newPassword);
+  if (!result.ok) {
     await recordLoginFailure(limitKey);
     return {
       ok: false,
@@ -69,20 +84,11 @@ export async function changeOwnPassword(
       fieldErrors: { currentPassword: ["Joriy parol noto'g'ri"] },
     };
   }
-
-  const updated = await db.user.update({
-    where: { id: teacher.id },
-    data: {
-      passwordHash: await hashPassword(newPassword),
-      sessionVersion: { increment: 1 },
-    },
-    select: { role: true, sessionVersion: true },
-  });
   await clearLoginFailures(limitKey);
   await createSession({
-    userId: teacher.id,
-    role: updated.role,
-    sessionVersion: updated.sessionVersion,
+    userId: user.id,
+    role: result.role,
+    sessionVersion: result.sessionVersion,
   });
   return {
     ok: true,

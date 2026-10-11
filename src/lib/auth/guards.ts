@@ -2,6 +2,7 @@ import "server-only";
 import { cache } from "react";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
+import { isSessionValid } from "./account";
 import { homePathFor, type Role } from "./jwt";
 import { readSession } from "./session";
 
@@ -39,9 +40,8 @@ export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
       sessionVersion: true,
     },
   });
-  if (!user || !user.isActive || user.archivedAt) return null;
-  // Parol tiklangandan keyin eski sessiyalar ishlamaydi
-  if (user.sessionVersion !== session.sessionVersion) return null;
+  // Bloklangan, arxivlangan yoki parol almashtirilgandan keyingi eski sessiya — yaroqsiz
+  if (!user || !isSessionValid(user, session.sessionVersion)) return null;
 
   return {
     id: user.id,

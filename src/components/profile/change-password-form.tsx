@@ -4,7 +4,7 @@ import { useTransition } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
-import { changeOwnPassword } from "@/app/(teacher)/teacher/account/actions";
+import { changeOwnPassword } from "@/app/(account)/profile/actions";
 import { applyServerErrors } from "@/components/common/form-errors";
 import { FormError, FormField } from "@/components/common/form-field";
 import { Button } from "@/components/ui/button";

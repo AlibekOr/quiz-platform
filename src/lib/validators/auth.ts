@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { optionalPhoneSchema, optionalTelegramSchema } from "./contact";
 import { fullNameSchema } from "./student";
 
 // Bu yerda maxsus format qoidalari yo'q: noto'g'ri login ham umumiy xabar bilan rad etiladi
@@ -16,7 +17,7 @@ export const loginSchema = z.object({
 
 export type LoginInput = z.input<typeof loginSchema>;
 
-/** O'qituvchi o'z parolini o'zgartiradi (/teacher/account) */
+/** Har qanday rol o'z parolini o'zgartiradi (/profile) */
 export const changePasswordSchema = z
   .object({
     currentPassword: z
@@ -46,7 +47,16 @@ export const changePasswordSchema = z
 
 export type ChangePasswordInput = z.input<typeof changePasswordSchema>;
 
-/** O'qituvchi o'z ism-familiyasini o'zgartiradi (/teacher/account) */
+/** O'qituvchi o'z ism-familiyasini o'zgartiradi (/profile) */
 export const updateProfileSchema = z.object({ fullName: fullNameSchema });
 
 export type UpdateProfileInput = z.input<typeof updateProfileSchema>;
+
+/** O'quvchi o'z telefoni va Telegramini tahrirlaydi (/profile). Format: +998XXXXXXXXX, @username */
+export const ownContactsSchema = z.object({
+  phone: optionalPhoneSchema,
+  telegram: optionalTelegramSchema,
+});
+
+export type OwnContactsInput = z.input<typeof ownContactsSchema>;
+export type OwnContactsData = z.output<typeof ownContactsSchema>;

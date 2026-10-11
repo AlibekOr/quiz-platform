@@ -52,8 +52,7 @@ export async function decodeSession(
     });
     // Eski tokenlardagi groupId e'tiborsiz qoldiriladi
     const { sub, role, sv } = payload;
-    if (typeof sub !== "string" || !isRole(role))
-      return null;
+    if (typeof sub !== "string" || !isRole(role)) return null;
     return {
       userId: sub,
       role,

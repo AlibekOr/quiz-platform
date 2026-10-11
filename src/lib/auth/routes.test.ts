@@ -25,6 +25,11 @@ describe("allowedRoles", () => {
     ]);
   });
 
+  it("profil hamma rolga", () => {
+    expect(allowedRoles("/profile")).toEqual(["TEACHER", "MANAGER", "STUDENT"]);
+    expect(allowedRoles("/profiles")).toBeNull();
+  });
+
   it("o'xshash prefikslar va ochiq sahifalar", () => {
     expect(allowedRoles("/teachers")).toBeNull();
     expect(allowedRoles("/managerial")).toBeNull();

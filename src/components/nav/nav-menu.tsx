@@ -45,6 +45,8 @@ type MenuItem = MenuLink | MenuGroup;
 
 export type NavVariant = "teacher" | "manager" | "student";
 
+const PROFILE: MenuLink = { href: "/profile", label: "Profil", icon: UserIcon };
+
 // Ikonkalar server'dan prop sifatida o'tkazilmaydi — ro'yxatlar shu yerda
 const MENUS: Record<NavVariant, { main: MenuItem[]; footer: MenuLink[] }> = {
   teacher: {
@@ -107,7 +109,7 @@ const MENUS: Record<NavVariant, { main: MenuItem[]; footer: MenuLink[] }> = {
         ],
       },
     ],
-    footer: [{ href: "/teacher/account", label: "Profil", icon: UserIcon }],
+    footer: [PROFILE],
   },
   manager: {
     main: [
@@ -127,7 +129,7 @@ const MENUS: Record<NavVariant, { main: MenuItem[]; footer: MenuLink[] }> = {
       { href: "/leaderboard", label: "Reyting", icon: TrophyIcon },
       { href: "/manager/requests", label: "So'rovlarim", icon: InboxIcon },
     ],
-    footer: [],
+    footer: [PROFILE],
   },
   student: {
     main: [
@@ -140,7 +142,7 @@ const MENUS: Record<NavVariant, { main: MenuItem[]; footer: MenuLink[] }> = {
       { href: "/grades", label: "Baholarim", icon: GraduationCapIcon },
       { href: "/leaderboard", label: "Reyting", icon: TrophyIcon },
     ],
-    footer: [],
+    footer: [PROFILE],
   },
 };
 

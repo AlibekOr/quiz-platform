@@ -4,7 +4,7 @@ import { useTransition } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
-import { updateOwnProfile } from "@/app/(teacher)/teacher/account/actions";
+import { updateOwnProfile } from "@/app/(account)/profile/actions";
 import { applyServerErrors } from "@/components/common/form-errors";
 import { FormError, FormField } from "@/components/common/form-field";
 import { Button } from "@/components/ui/button";
@@ -14,7 +14,7 @@ import {
   type UpdateProfileInput,
 } from "@/lib/validators/auth";
 
-export function ProfileForm({ fullName }: { fullName: string }) {
+export function NameForm({ fullName }: { fullName: string }) {
   const [pending, startTransition] = useTransition();
   const form = useForm<UpdateProfileInput>({
     resolver: zodResolver(updateProfileSchema),
