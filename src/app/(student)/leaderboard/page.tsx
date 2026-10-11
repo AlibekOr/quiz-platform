@@ -38,8 +38,8 @@ export default async function LeaderboardPage({
       <div>
         <h1 className="text-2xl font-semibold">Reyting</h1>
         <p className="text-muted-foreground text-sm">
-          Joriy semestr bali bo&apos;yicha. Test reytingi — har bir test
-          sahifasida.
+          Joriy semestrda to&apos;plangan ballar bo&apos;yicha o&apos;quvchilar
+          o&apos;rni.
         </p>
       </div>
       <LeaderboardView

@@ -73,7 +73,7 @@ export function LeaderboardView({
       ) : data.board.entries.length === 0 ? (
         <p className="text-muted-foreground">
           {data.kind === "semester"
-            ? "Joriy semestr yo'q yoki hali ballar yo'q."
+            ? "Bu guruhda joriy semestr yo'q yoki hali ball qo'yilmagan."
             : "Hali natijalar yo'q."}
         </p>
       ) : data.kind !== "semester" ? (
@@ -116,7 +116,7 @@ export function LeaderboardView({
           ? "Faqat birinchi urinish hisobga olinadi. Teng ball bo'lsa, kamroq vaqt sarflagan yuqorida."
           : data.kind === "tests"
             ? "Barcha testlardagi birinchi urinish ballari yig'indisi. Teng bo'lsa, umumiy vaqt kamrog'i yuqorida."
-            : "Har guruh o'zining joriy semestri bo'yicha. To'plagan — uyga vazifa, amaliy, og'zaki, bonus va tuzatishlar; Jami — to'plagandan jarimalar ayirilgani. Testlar kirmaydi."}
+            : "To'plagan — uyga vazifa, amaliy, og'zaki va bonus ballari; Jarima — qo'yilgan jarimalar (uyga vazifa bajarilmagan, darsga sababsiz kelmagan va boshqalar); Jami — to'plagandan jarima ayirilgani. Har guruh o'zining joriy semestri bo'yicha."}
         {data.kind === "semester" &&
           [...data.board.entries, data.board.me].some((e) => e?.belowNorm) &&
           " Semestrning oxirgi 2 haftasida o'tish balidan past bo'lganlar qizil va ro'yxat oxirida."}
