@@ -149,6 +149,24 @@ describe("getSemesterLeaderboard", () => {
 });
 
 describe("resolveLeaderboard (semestr)", () => {
+  it("xodim guruh tanlamasa — joriy semestri bor birinchi guruh ochiladi", async () => {
+    // "A-..." alifboda birinchi, lekin joriy semestri yo'q
+    await group("A-semestrsiz", null);
+    await student("Ali", g1, 10);
+    const teacher: CurrentUser = {
+      id: teacherId,
+      username: "teacher",
+      fullName: "O'qituvchi",
+      role: "TEACHER",
+      groupId: null,
+      regionId: null,
+    };
+    const r = await resolveLeaderboard(teacher, { scope: "group" });
+    if ("error" in r) throw new Error(r.error);
+    expect(r.group?.id).toBe(g1);
+    expect(names(r.board.entries)).toEqual(["1:Ali"]);
+  });
+
   it("o'quvchi guruhi sessiyadan: URL'dagi groupId e'tiborsiz", async () => {
     const ali = await student("Ali", g1, 10);
     await student("Bek", g2, 20);

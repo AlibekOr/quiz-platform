@@ -1,6 +1,11 @@
 import "server-only";
 import type { CurrentUser } from "@/lib/auth/guards";
-import { canAccessGroup, getScope, groupScopeWhere } from "@/lib/auth/scope";
+import {
+  canAccessGroup,
+  getScope,
+  groupScopeWhere,
+  type Scope,
+} from "@/lib/auth/scope";
 import { db } from "@/lib/db";
 import {
   getOverallLeaderboard,
@@ -12,6 +17,7 @@ import {
   type SemesterLeaderboard,
 } from "@/lib/semester-leaderboard";
 import { getTestAccess } from "@/lib/tests/access";
+import { toDbDate, todayInTashkent } from "@/lib/time";
 import { leaderboardQuerySchema } from "@/lib/validators/leaderboard";
 
 export type LeaderboardScope = "group" | "all";
@@ -41,6 +47,37 @@ const EMPTY = { entries: [], me: null, total: 0 };
  * O'qituvchi: istalgan guruhni groupId bilan tanlaydi (berilmasa — birinchi guruh).
  * Menejer: faqat doiradagi guruhlar va ko'rinadigan testlar; "Umumiy" — doiradagi o'quvchilar.
  */
+/**
+ * Xodim guruh tanlamaganda: semestr reytingi uchun joriy semestri bor birinchi guruh
+ * (bo'lmasa — doiradagi birinchi guruh), aks holda reyting bo'sh ochilib qolardi
+ */
+async function defaultStaffGroup(
+  access: Scope,
+  preferCurrentSemester: boolean,
+): Promise<{ id: string; name: string } | null> {
+  const select = { id: true, name: true } as const;
+  const orderBy = { name: "asc" } as const;
+  if (preferCurrentSemester) {
+    const today = toDbDate(todayInTashkent());
+    const withSemester = await db.group.findFirst({
+      where: {
+        ...groupScopeWhere(access),
+        semesters: {
+          some: { startDate: { lte: today }, endDate: { gte: today } },
+        },
+      },
+      orderBy,
+      select,
+    });
+    if (withSemester) return withSemester;
+  }
+  return db.group.findFirst({
+    where: groupScopeWhere(access),
+    orderBy,
+    select,
+  });
+}
+
 export async function resolveLeaderboard(
   user: CurrentUser,
   params: {
@@ -92,11 +129,7 @@ export async function resolveLeaderboard(
           select: { id: true, name: true },
         })
       : access
-        ? await db.group.findFirst({
-            where: groupScopeWhere(access),
-            orderBy: { name: "asc" },
-            select: { id: true, name: true },
-          })
+        ? await defaultStaffGroup(access, !test && query.board !== "tests")
         : null;
     if (isStaff && groupId && !group)
       return { error: "Guruh topilmadi", status: 404 };
