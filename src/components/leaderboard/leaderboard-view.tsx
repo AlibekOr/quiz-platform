@@ -101,9 +101,14 @@ export function LeaderboardView({
           showGroup={showGroup}
           entries={data.board.entries}
           me={data.board.me}
-          valueHeaders={["Jami"]}
-          values={(e: SemesterLeaderboardEntry) => [formatPoints(e.total)]}
+          valueHeaders={["To'plagan", "Jarima", "Jami"]}
+          values={(e: SemesterLeaderboardEntry) => [
+            formatPoints(e.earned),
+            e.penalties > 0 ? `−${formatPoints(e.penalties)}` : "0",
+            formatPoints(e.total).replace("-", "−"),
+          ]}
           danger={(e: SemesterLeaderboardEntry) => e.belowNorm}
+          strongLast
         />
       )}
       <p className="text-muted-foreground text-xs">
@@ -111,7 +116,7 @@ export function LeaderboardView({
           ? "Faqat birinchi urinish hisobga olinadi. Teng ball bo'lsa, kamroq vaqt sarflagan yuqorida."
           : data.kind === "tests"
             ? "Barcha testlardagi birinchi urinish ballari yig'indisi. Teng bo'lsa, umumiy vaqt kamrog'i yuqorida."
-            : "Har guruh o'zining joriy semestri bo'yicha: uyga vazifa, amaliy, og'zaki, bonus va tuzatishlar yig'indisidan jarimalar ayirilgan jami. Testlar kirmaydi."}
+            : "Har guruh o'zining joriy semestri bo'yicha. To'plagan — uyga vazifa, amaliy, og'zaki, bonus va tuzatishlar; Jami — to'plagandan jarimalar ayirilgani. Testlar kirmaydi."}
         {data.kind === "semester" &&
           [...data.board.entries, data.board.me].some((e) => e?.belowNorm) &&
           " Semestrning oxirgi 2 haftasida o'tish balidan past bo'lganlar qizil va ro'yxat oxirida."}
@@ -135,6 +140,7 @@ function BoardTable<E extends BaseEntry>({
   valueHeaders,
   values,
   danger,
+  strongLast = false,
 }: {
   entries: E[];
   me: E | null;
@@ -143,6 +149,8 @@ function BoardTable<E extends BaseEntry>({
   values: (entry: E) => string[];
   /** Qizil qator (normativdan past) */
   danger?: (entry: E) => boolean;
+  /** Oxirgi ustun (Jami) qalin */
+  strongLast?: boolean;
 }) {
   const meOutside = me && !entries.some((e) => e.userId === me.userId);
   const columns = 2 + (showGroup ? 1 : 0) + valueHeaders.length;
@@ -159,7 +167,7 @@ function BoardTable<E extends BaseEntry>({
               </th>
             )}
             {valueHeaders.map((h) => (
-              <th key={h} className="px-3 py-2 text-right font-medium">
+              <th key={h} className="px-2 py-2 text-right font-medium sm:px-3">
                 {h}
               </th>
             ))}
@@ -174,6 +182,7 @@ function BoardTable<E extends BaseEntry>({
               showGroup={showGroup}
               values={values(e)}
               danger={danger?.(e) ?? false}
+              strongLast={strongLast}
             />
           ))}
         </tbody>
@@ -193,6 +202,7 @@ function BoardTable<E extends BaseEntry>({
               showGroup={showGroup}
               values={values(me)}
               danger={danger?.(me) ?? false}
+              strongLast={strongLast}
               prefix="Siz: "
             />
           </tfoot>
@@ -208,6 +218,7 @@ function Row({
   showGroup,
   values,
   danger,
+  strongLast,
   prefix,
 }: {
   entry: BaseEntry;
@@ -215,6 +226,7 @@ function Row({
   showGroup: boolean;
   values: string[];
   danger: boolean;
+  strongLast: boolean;
   prefix?: string;
 }) {
   return (
@@ -251,7 +263,13 @@ function Row({
         </td>
       )}
       {values.map((v, i) => (
-        <td key={i} className="px-3 py-2 text-right tabular-nums">
+        <td
+          key={i}
+          className={cn(
+            "px-2 py-2 text-right tabular-nums sm:px-3",
+            strongLast && i === values.length - 1 && "font-semibold",
+          )}
+        >
           {v}
         </td>
       ))}

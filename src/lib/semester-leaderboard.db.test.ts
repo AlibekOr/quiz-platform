@@ -188,3 +188,43 @@ describe("normativdan pastlar (oxirgi 2 hafta)", () => {
     expect(board.entries.every((e) => !e.belowNorm)).toBe(true);
   });
 });
+
+describe("to'plagan, jarima va jami", () => {
+  it("jami manfiy bo'lishi mumkin, tartib jami bo'yicha", async () => {
+    const semester = await db.semester.findFirstOrThrow({
+      where: { groupId: g1 },
+    });
+    const type = await db.penaltyType.create({
+      data: { name: "Test jarima", defaultPoints: 2 },
+    });
+    const penalize = (studentId: string, points: number) =>
+      db.penalty.create({
+        data: {
+          studentId,
+          semesterId: semester.id,
+          typeId: type.id,
+          points,
+          date: day(-1),
+          createdById: teacherId,
+        },
+      });
+    const ali = await student("Ali", g1, 1);
+    const bek = await student("Bek", g1, 3);
+    await penalize(ali, 2);
+    await penalize(bek, 1);
+
+    const board = await getSemesterLeaderboard({ groupId: g1 });
+    expect(
+      board.entries.map((e) => [
+        e.rank,
+        e.fullName,
+        e.earned,
+        e.penalties,
+        e.total,
+      ]),
+    ).toEqual([
+      [1, "Bek", 3, 1, 2],
+      [2, "Ali", 1, 2, -1],
+    ]);
+  });
+});

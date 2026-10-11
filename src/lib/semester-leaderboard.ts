@@ -1,6 +1,6 @@
 import "server-only";
 import { db } from "@/lib/db";
-import { isFinalStretch, rankByTotal } from "@/lib/grades";
+import { isFinalStretch, rankByTotal, round1 } from "@/lib/grades";
 import { currentSemesterId, getSemesterGrades } from "@/lib/grades-data";
 import { LEADERBOARD_LIMIT } from "@/lib/leaderboard";
 import { todayInTashkent } from "@/lib/time";
@@ -15,7 +15,11 @@ export type SemesterLeaderboardEntry = {
   fullName: string;
   groupName: string;
   rank: number;
-  /** Jarimalardan keyingi jami */
+  /** To'plagan ball (uyga vazifa, amaliy, og'zaki, bonus, tuzatish), jarimalarsiz */
+  earned: number;
+  /** Jarimalar yig'indisi (musbat son) */
+  penalties: number;
+  /** To'plagan − jarima; reytingda manfiy ham bo'lishi mumkin (tartib ma'noli bo'lsin) */
   total: number;
   /** Semestr oxirgi 2 haftasi va jami o'tish balidan past — qizil, ro'yxat oxirida */
   belowNorm: boolean;
@@ -72,7 +76,9 @@ export async function getSemesterLeaderboard(
           userId: s.id,
           fullName: s.fullName,
           groupName: g.name,
-          total: s.result.total,
+          earned: s.result.earned,
+          penalties: s.result.penalties,
+          total: round1(s.result.earned - s.result.penalties),
           belowNorm: finalStretch && s.result.total < s.result.passScore,
         }));
     }),

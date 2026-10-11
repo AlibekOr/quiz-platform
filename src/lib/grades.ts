@@ -74,6 +74,8 @@ export type SemesterResult = {
   categories: Record<PointCategory, CategoryResult>;
   adjustments: number;
   penalties: number;
+  /** Jarimalardan oldingi yig'indi (EXTRA bilan, maxTotal gacha) — reytingdagi "To'plagan" */
+  earned: number;
   /** EXTRA'siz jami (jarimalardan keyin, [0, maxTotal]) — holat va EXTRA ruxsati shundan */
   withoutExtra: number;
   /** Yakuniy jami, [0, maxTotal] */
@@ -159,6 +161,7 @@ export function computeSemesterResult(
     categories,
     adjustments,
     penalties,
+    earned: round1(Math.min(base + categories.EXTRA.counted, rules.maxTotal)),
     withoutExtra,
     total,
     maxTotal: rules.maxTotal,
