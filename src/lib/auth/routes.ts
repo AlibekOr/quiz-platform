@@ -22,6 +22,7 @@ export function allowedRoles(pathname: string): readonly Role[] | null {
   if (
     under(pathname, "/dashboard") ||
     under(pathname, "/test") ||
+    under(pathname, "/tests") ||
     under(pathname, "/result") ||
     under(pathname, "/grades") ||
     under(pathname, "/homework")

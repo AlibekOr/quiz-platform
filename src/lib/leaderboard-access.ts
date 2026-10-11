@@ -2,7 +2,11 @@ import "server-only";
 import type { CurrentUser } from "@/lib/auth/guards";
 import { canAccessGroup, getScope, groupScopeWhere } from "@/lib/auth/scope";
 import { db } from "@/lib/db";
-import { getTestLeaderboard, type Leaderboard } from "@/lib/leaderboard";
+import {
+  getOverallLeaderboard,
+  getTestLeaderboard,
+  type Leaderboard,
+} from "@/lib/leaderboard";
 import {
   getSemesterLeaderboard,
   type SemesterLeaderboard,
@@ -13,7 +17,8 @@ import { leaderboardQuerySchema } from "@/lib/validators/leaderboard";
 export type LeaderboardScope = "group" | "all";
 
 /**
- * testId bo'lsa — test reytingi (birinchi urinish, ball va vaqt), aks holda bosh reyting:
+ * testId bo'lsa — bitta test reytingi (birinchi urinish, ball va vaqt); board = "tests" —
+ * barcha testlar yig'indisi (ikkalasi Testlar bo'limida); aks holda bosh reyting —
  * joriy semestr jami bali (lib/semester-leaderboard.ts)
  */
 export type ResolvedLeaderboard = {
@@ -22,6 +27,7 @@ export type ResolvedLeaderboard = {
   group: { id: string; name: string } | null;
 } & (
   | { kind: "test"; test: { id: string; title: string }; board: Leaderboard }
+  | { kind: "tests"; test: null; board: Leaderboard }
   | { kind: "semester"; test: null; board: SemesterLeaderboard }
 );
 
@@ -41,6 +47,7 @@ export async function resolveLeaderboard(
     testId?: string | null;
     scope?: string | null;
     groupId?: string | null;
+    board?: string | null;
   },
 ): Promise<ResolvedLeaderboard | LeaderboardError> {
   const query = leaderboardQuerySchema.parse(params);
@@ -97,7 +104,9 @@ export async function resolveLeaderboard(
     if (!group)
       return test
         ? { scope, group: null, kind: "test", test, board: EMPTY }
-        : { scope, group: null, kind: "semester", test: null, board: EMPTY };
+        : query.board === "tests"
+          ? { scope, group: null, kind: "tests", test: null, board: EMPTY }
+          : { scope, group: null, kind: "semester", test: null, board: EMPTY };
   }
 
   const filter = {
@@ -106,19 +115,27 @@ export async function resolveLeaderboard(
     groupIds: access?.kind === "manager" ? access.groupIds : null,
     userId: isStaff ? null : user.id,
   };
-  return test
-    ? {
-        scope,
-        group,
-        kind: "test",
-        test,
-        board: await getTestLeaderboard(test.id, filter),
-      }
-    : {
-        scope,
-        group,
-        kind: "semester",
-        test: null,
-        board: await getSemesterLeaderboard(filter),
-      };
+  if (test)
+    return {
+      scope,
+      group,
+      kind: "test",
+      test,
+      board: await getTestLeaderboard(test.id, filter),
+    };
+  if (query.board === "tests")
+    return {
+      scope,
+      group,
+      kind: "tests",
+      test: null,
+      board: await getOverallLeaderboard(filter),
+    };
+  return {
+    scope,
+    group,
+    kind: "semester",
+    test: null,
+    board: await getSemesterLeaderboard(filter),
+  };
 }

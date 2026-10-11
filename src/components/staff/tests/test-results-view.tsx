@@ -156,7 +156,7 @@ export async function TestResultsView({
           CSV yuklab olish
         </a>
         <Link
-          href={`/test/${id}/leaderboard`}
+          href={`${staff}/tests/${id}/leaderboard`}
           className={buttonVariants({ variant: "outline" })}
         >
           Reyting

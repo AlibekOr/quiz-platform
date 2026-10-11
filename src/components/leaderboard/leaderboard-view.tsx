@@ -76,16 +76,25 @@ export function LeaderboardView({
             ? "Joriy semestr yo'q yoki hali ballar yo'q."
             : "Hali natijalar yo'q."}
         </p>
-      ) : data.kind === "test" ? (
+      ) : data.kind !== "semester" ? (
         <BoardTable
           showGroup={showGroup}
           entries={data.board.entries}
           me={data.board.me}
-          valueHeaders={["Ball", "Vaqt"]}
-          values={(e: LeaderboardEntry) => [
-            String(e.score),
-            formatDuration(e.durationSec),
-          ]}
+          valueHeaders={
+            data.kind === "tests"
+              ? ["Ball", "Testlar", "Vaqt"]
+              : ["Ball", "Vaqt"]
+          }
+          values={(e: LeaderboardEntry) =>
+            data.kind === "tests"
+              ? [
+                  String(e.score),
+                  String(e.tests),
+                  formatDuration(e.durationSec),
+                ]
+              : [String(e.score), formatDuration(e.durationSec)]
+          }
         />
       ) : (
         <BoardTable
@@ -101,7 +110,9 @@ export function LeaderboardView({
       <p className="text-muted-foreground text-xs">
         {data.kind === "test"
           ? "Faqat birinchi urinish hisobga olinadi. Teng ball bo'lsa, kamroq vaqt sarflagan yuqorida."
-          : "Har guruh o'zining joriy semestri bo'yicha: uyga vazifa, amaliy, og'zaki, bonus, tuzatish va jarimalardan keyingi jami. Testlar kirmaydi."}
+          : data.kind === "tests"
+            ? "Barcha testlardagi birinchi urinish ballari yig'indisi. Teng bo'lsa, umumiy vaqt kamrog'i yuqorida."
+            : "Har guruh o'zining joriy semestri bo'yicha: uyga vazifa, amaliy, og'zaki, bonus, tuzatish va jarimalardan keyingi jami. Testlar kirmaydi."}
         {data.board.total > 0 && ` Jami: ${data.board.total} ta o'quvchi.`}
       </p>
     </div>

@@ -3,7 +3,7 @@ import { Prisma } from "@/generated/prisma/client";
 import { finalizeExpiredAttempts } from "@/lib/attempts";
 import { db } from "@/lib/db";
 
-// Test reytingi (PLAN.md, "Reyting"): faqat isFirst = true va FINISHED/EXPIRED attemptlar,
+// Test reytingi (PLAN.md, "Reyting"; Testlar bo'limida): faqat isFirst = true va FINISHED/EXPIRED attemptlar,
 // faol o'quvchilar. Tartib: score DESC, durationSec ASC; o'rin RANK() bilan.
 
 export const LEADERBOARD_LIMIT = 50;
@@ -102,6 +102,45 @@ export async function getTestLeaderboard(
         AND u."archivedAt" IS NULL
         AND u."role" = 'STUDENT'
         ${groupFilter(filter)}
+    )
+    SELECT * FROM ranked
+    WHERE "rank" <= ${limit} OR "userId" = ${userId}
+    ORDER BY "rank", "fullName"
+  `;
+  return split(rows, userId, limit);
+}
+
+/** Umumiy reyting: barcha testlardagi birinchi urinish ballari yig'indisi, teng bo'lsa umumiy vaqt kamrog'i */
+export async function getOverallLeaderboard(
+  filter: Filter,
+): Promise<Leaderboard> {
+  await finalizeExpiredAttempts();
+  const limit = filter.limit ?? LEADERBOARD_LIMIT;
+  const userId = filter.userId ?? null;
+
+  const rows = await db.$queryRaw<Row[]>`
+    WITH totals AS (
+      SELECT a."userId",
+             SUM(a."score")::int AS "score",
+             SUM(a."durationSec")::int AS "durationSec",
+             COUNT(*)::int AS "tests"
+      FROM "Attempt" a
+      JOIN "User" u ON u."id" = a."userId"
+      WHERE a."isFirst" = true
+        AND a."status" IN ('FINISHED', 'EXPIRED')
+        AND u."isActive" = true
+        AND u."archivedAt" IS NULL
+        AND u."role" = 'STUDENT'
+        ${groupFilter(filter)}
+      GROUP BY a."userId"
+    ),
+    ranked AS (
+      SELECT t.*, u."fullName", g."name" AS "groupName",
+             RANK() OVER (ORDER BY t."score" DESC, t."durationSec" ASC)::int AS "rank",
+             COUNT(*) OVER ()::int AS "total"
+      FROM totals t
+      JOIN "User" u ON u."id" = t."userId"
+      LEFT JOIN "Group" g ON g."id" = u."groupId"
     )
     SELECT * FROM ranked
     WHERE "rank" <= ${limit} OR "userId" = ${userId}

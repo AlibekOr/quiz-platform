@@ -9,7 +9,12 @@ describe("leaderboardQuerySchema", () => {
         scope: null,
         groupId: null,
       }),
-    ).toEqual({ testId: null, scope: "group", groupId: null });
+    ).toEqual({
+      testId: null,
+      scope: "group",
+      groupId: null,
+      board: "semester",
+    });
   });
 
   it("scope=all qabul qilinadi, noma'lum scope group'ga tushadi", () => {

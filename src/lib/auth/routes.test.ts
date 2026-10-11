@@ -8,6 +8,7 @@ describe("allowedRoles", () => {
     expect(allowedRoles("/manager/requests")).toEqual(["MANAGER"]);
     expect(allowedRoles("/dashboard")).toEqual(["STUDENT"]);
     expect(allowedRoles("/test/abc")).toEqual(["STUDENT"]);
+    expect(allowedRoles("/tests/leaderboard")).toEqual(["STUDENT"]);
     expect(allowedRoles("/result/abc")).toEqual(["STUDENT"]);
     expect(allowedRoles("/grades")).toEqual(["STUDENT"]);
     expect(allowedRoles("/homework")).toEqual(["STUDENT"]);

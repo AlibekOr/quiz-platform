@@ -50,7 +50,7 @@ export function TestHeaderActions({
         Natijalar
       </Link>
       <Link
-        href={`/test/${testId}/leaderboard`}
+        href={`${basePath}/tests/${testId}/leaderboard`}
         className={buttonVariants({ variant: "outline" })}
       >
         Reyting

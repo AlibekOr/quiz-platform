@@ -1,7 +1,11 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { db } from "@/lib/db";
 import { resetDatabase } from "@/test/db";
-import { getTestLeaderboard, getTestRank } from "./leaderboard";
+import {
+  getOverallLeaderboard,
+  getTestLeaderboard,
+  getTestRank,
+} from "./leaderboard";
 
 let teacherId: string;
 
@@ -207,6 +211,10 @@ describe("test reytingi", () => {
     expect(names(await getTestLeaderboard(t, { groupId: g }))).toEqual([
       "1:Bek",
     ]);
+    expect(names(await getOverallLeaderboard({ groupId: null }))).toEqual([
+      "1:Dil",
+      "2:Bek",
+    ]);
   });
 
   it("top N dan tashqaridagi o'quvchi 'me' da qaytadi", async () => {
@@ -234,5 +242,42 @@ describe("test reytingi", () => {
     expect(
       await getTestRank({ testId: t, userId: last, isFirst: false }),
     ).toBeNull();
+  });
+});
+
+describe("umumiy reyting", () => {
+  it("birinchi urinishlar yig'indisi, teng bo'lsa umumiy vaqt kamrog'i yuqorida", async () => {
+    const g1 = await group("G1");
+    const g2 = await group("G2");
+    const t1 = await test("CSS");
+    const t2 = await test("HTML");
+    const ali = await student("Ali", g1);
+    const bek = await student("Bek", g2);
+    const dil = await student("Dil", g1);
+    await attempt(ali, t1, { score: 5, durationSec: 100 });
+    await attempt(ali, t2, { score: 5, durationSec: 100 });
+    await attempt(ali, t2, { score: 10, durationSec: 10, isFirst: false });
+    await attempt(bek, t1, { score: 10, durationSec: 150 });
+    await attempt(dil, t1, { score: 4, durationSec: 50 });
+
+    const board = await getOverallLeaderboard({ groupId: null, userId: dil });
+    expect(
+      board.entries.map((e) => [
+        e.rank,
+        e.fullName,
+        e.score,
+        e.durationSec,
+        e.tests,
+        e.groupName,
+      ]),
+    ).toEqual([
+      [1, "Bek", 10, 150, 1, "G2"],
+      [2, "Ali", 10, 200, 2, "G1"],
+      [3, "Dil", 4, 50, 1, "G1"],
+    ]);
+    expect(board.me?.rank).toBe(3);
+
+    const group1 = await getOverallLeaderboard({ groupId: g1 });
+    expect(names(group1)).toEqual(["1:Ali", "2:Dil"]);
   });
 });

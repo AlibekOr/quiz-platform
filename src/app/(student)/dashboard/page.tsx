@@ -167,7 +167,17 @@ export default async function DashboardPage() {
       )}
 
       <section className="flex flex-col gap-3">
-        <h2 className="text-lg font-semibold">Mavjud testlar</h2>
+        <div className="flex items-baseline justify-between gap-2">
+          <h2 className="text-lg font-semibold">Mavjud testlar</h2>
+          {student.groupId && (
+            <Link
+              href="/tests/leaderboard"
+              className="text-muted-foreground text-sm hover:underline"
+            >
+              Test reytingi
+            </Link>
+          )}
+        </div>
         {!student.groupId ? (
           <p className="text-muted-foreground">
             Siz hali guruhga biriktirilmagansiz. O&apos;qituvchingizga murojaat

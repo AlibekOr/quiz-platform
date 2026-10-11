@@ -1,6 +1,8 @@
 import Link from "next/link";
+import { TrophyIcon } from "lucide-react";
 import { CreateTestButton } from "@/components/teacher/tests/create-test-button";
 import { Badge } from "@/components/ui/badge";
+import { buttonVariants } from "@/components/ui/button";
 import {
   Table,
   TableBody,
@@ -41,7 +43,16 @@ export async function TestsListView({ user }: { user: CurrentUser }) {
     <>
       <div className="flex items-center justify-between gap-4">
         <h1 className="text-2xl font-semibold">Testlar</h1>
-        <CreateTestButton />
+        <div className="flex flex-wrap gap-2">
+          <Link
+            href={`${base}/tests/leaderboard`}
+            className={buttonVariants({ variant: "outline" })}
+          >
+            <TrophyIcon />
+            Test reytingi
+          </Link>
+          <CreateTestButton />
+        </div>
       </div>
 
       {tests.length === 0 ? (
