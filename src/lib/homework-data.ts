@@ -1,7 +1,7 @@
 import "server-only";
 import { db } from "@/lib/db";
 import type { AssignmentCategory } from "@/lib/grades";
-import { defaultHomeworkTitle, lessonsWithoutHomework } from "@/lib/homework";
+import { defaultHomeworkTitle } from "@/lib/homework";
 import {
   addDays,
   fromDbDate,
@@ -133,20 +133,12 @@ export async function getMissingHomeworkLessons(
         gte: toDbDate(addDays(today, -(days - 1))),
         lte: toDbDate(today),
       },
+      assignments: { none: { category: "HOMEWORK" } },
     },
     orderBy: [{ date: "desc" }, { group: { name: "asc" } }],
-    select: {
-      ...lessonSelect,
-      assignments: {
-        where: { category: "HOMEWORK" },
-        select: { id: true },
-      },
-    },
+    select: lessonSelect,
   });
-  const linked = lessons
-    .filter((l) => l.assignments.length > 0)
-    .map((l) => l.id);
-  return lessonsWithoutHomework(lessons, linked).flatMap((l) => {
+  return lessons.flatMap((l) => {
     const p = prefill(l);
     return p ? [p] : [];
   });
@@ -173,10 +165,24 @@ export async function getStudentAssignments(
   studentId: string,
   groupId: string,
 ): Promise<StudentAssignment[]> {
+  // Guruhga qo'shilishdan oldin muddati tugagan (va baholanmagan) vazifalar ko'rsatilmaydi —
+  // o'tkazilgan o'quvchida ular "Bajarilmagan" bo'lib chiqmasin
+  const membership = await db.groupMembership.findFirst({
+    where: { studentId, groupId, leftAt: null },
+    orderBy: { joinedAt: "desc" },
+    select: { joinedAt: true },
+  });
+  const joinedOn = membership ? todayInTashkent(membership.joinedAt) : null;
+  const graded = { grades: { some: { studentId } } };
   const rows = await db.assignment.findMany({
     where: {
       semester: { groupId },
-      OR: [{ category: { not: "EXTRA" } }, { grades: { some: { studentId } } }],
+      AND: [
+        { OR: [{ category: { not: "EXTRA" } }, graded] },
+        ...(joinedOn
+          ? [{ OR: [{ dueDate: { gte: toDbDate(joinedOn) } }, graded] }]
+          : []),
+      ],
     },
     orderBy: [{ dueDate: "desc" }, { createdAt: "desc" }],
     select: {

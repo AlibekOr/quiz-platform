@@ -127,6 +127,19 @@ describe("applyPenalty", () => {
     });
     expect(r.ok).toBe(false);
   });
+
+  it("semestrdan tashqaridagi sana rad etiladi", async () => {
+    const ali = await student("ali");
+    const r = await applyPenalty({
+      ...base(),
+      studentIds: [ali],
+      date: addDays(today, -365),
+    });
+    expect(r).toEqual({
+      ok: false,
+      error: "Jarima sanasi semestr ichida bo'lsin",
+    });
+  });
 });
 
 describe("jarima semestr jamida", () => {

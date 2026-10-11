@@ -24,15 +24,6 @@ export const HOMEWORK_STATUS_LABEL: Record<HomeworkStatus, string> = {
   MISSED: "Bajarilmagan",
 };
 
-/** Uyga vazifa bog'lanmagan darslar (eslatma uchun) */
-export function lessonsWithoutHomework<L extends { id: string }>(
-  lessons: readonly L[],
-  linkedLessonIds: Iterable<string>,
-): L[] {
-  const linked = new Set(linkedLessonIds);
-  return lessons.filter((l) => !linked.has(l.id));
-}
-
 /** Darsdan yaratiladigan vazifaning default nomi: "Uyga vazifa — 11.10" */
 export function defaultHomeworkTitle(lessonDate: DateStr): string {
   return `Uyga vazifa — ${formatDayMonth(lessonDate)}`;

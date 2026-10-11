@@ -38,6 +38,11 @@ export async function applyPenalty(
   const ids = [...new Set(input.studentIds)];
   const sheet = await getSemesterGrades(input.semesterId, ids);
   if (!sheet) return { ok: false, error: "Semestr topilmadi" };
+  if (
+    input.date < sheet.semester.startDate ||
+    input.date > sheet.semester.endDate
+  )
+    return { ok: false, error: "Jarima sanasi semestr ichida bo'lsin" };
   if (sheet.students.length !== ids.length)
     return {
       ok: false,

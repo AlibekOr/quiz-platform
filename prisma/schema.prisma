@@ -345,15 +345,18 @@ model OralScore {
 // Semestr baliga qo'lda tuzatish (manfiy ham bo'lishi mumkin), masalan boshqa guruhdan
 // o'tkazilgan o'quvchining ballari
 model PointAdjustment {
-  id          String   @id @default(cuid())
-  studentId   String
-  student     User     @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  semesterId  String   @map("periodId")
-  semester    Semester @relation(fields: [semesterId], references: [id], onDelete: Cascade)
-  points      Float
-  reason      String
-  createdById String
-  createdAt   DateTime @default(now())
+  id             String   @id @default(cuid())
+  studentId      String
+  student        User     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  semesterId     String   @map("periodId")
+  semester       Semester @relation(fields: [semesterId], references: [id], onDelete: Cascade)
+  points         Float
+  reason         String
+  // Guruhga o'tkazishda ko'chirilgan ball: qaysi semestrdan kelgan (qaytib o'tkazilganda
+  // ikki marta hisoblanmasin — lib/grades-data.ts planPointCarryOver)
+  fromSemesterId String?
+  createdById    String
+  createdAt      DateTime @default(now())
 
   @@index([studentId, semesterId])
 }

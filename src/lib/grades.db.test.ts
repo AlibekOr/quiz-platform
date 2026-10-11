@@ -280,6 +280,7 @@ describe("planPointCarryOver", () => {
       {
         studentId: ali,
         semesterId: to,
+        fromSemesterId: from,
         points: 7.5,
         reason: `"Frontend-1" guruhidan ko'chirildi (S-30)`,
       },
@@ -295,5 +296,32 @@ describe("planPointCarryOver", () => {
       todayInTashkent(),
     );
     expect(plan).toEqual({ items: [], noTarget: true });
+  });
+});
+
+describe("planPointCarryOver: qaytib o'tkazish", () => {
+  it("avval shu semestrdan kelgan ball qaytarilmaydi", async () => {
+    const a = await semester(groupId, -30, 30);
+    const b = await semester(otherGroupId, -30, 30);
+    const ali = await student("Ali", otherGroupId);
+    // A dan B ga 20 ball ko'chirilgan, B da yana 5 ball to'plagan
+    await db.pointAdjustment.create({
+      data: {
+        studentId: ali,
+        semesterId: b,
+        fromSemesterId: a,
+        points: 20,
+        reason: "ko'chirildi",
+        createdById: teacherId,
+      },
+    });
+    await grade(await assignment(b, "BONUS", 10), ali, 5);
+
+    const plan = await planPointCarryOver(
+      [{ id: ali, groupId: otherGroupId }],
+      groupId,
+      today,
+    );
+    expect(plan.items.map((i) => [i.semesterId, i.points])).toEqual([[a, 5]]);
   });
 });

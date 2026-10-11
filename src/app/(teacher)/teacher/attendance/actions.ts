@@ -97,16 +97,11 @@ export async function saveAttendance(
         update: { status, note: r.note },
       });
       // Og'zaki ball davomat bilan birga saqlanadi (kelmaganlarga — validatorda rad etiladi)
-      const key = {
-        lessonId_studentId: { lessonId: lesson.id, studentId: r.studentId },
-      };
-      if (r.oral === null)
-        await tx.oralScore.deleteMany({
-          where: { lessonId: lesson.id, studentId: r.studentId },
-        });
-      else
+      if (r.oral !== null)
         await tx.oralScore.upsert({
-          where: key,
+          where: {
+            lessonId_studentId: { lessonId: lesson.id, studentId: r.studentId },
+          },
           create: {
             lessonId: lesson.id,
             studentId: r.studentId,
@@ -116,6 +111,14 @@ export async function saveAttendance(
           update: { points: r.oral },
         });
     }
+    // Bo'sh qoldirilgan og'zaki ballar bitta so'rovda o'chiriladi
+    const clearOral = records
+      .filter((r) => r.oral === null)
+      .map((r) => r.studentId);
+    if (clearOral.length > 0)
+      await tx.oralScore.deleteMany({
+        where: { lessonId: lesson.id, studentId: { in: clearOral } },
+      });
   });
 
   revalidatePath("/teacher/attendance");

@@ -26,7 +26,7 @@ export default async function DashboardPage() {
   await finalizeExpiredAttempts({ userId: student.id });
 
   const today = todayInTashkent();
-  const [tests, results, homeworks] = await Promise.all([
+  const [tests, results, homeworks, ranking] = await Promise.all([
     student.groupId
       ? db.test.findMany({
           where: { isActive: true, groups: { some: { id: student.groupId } } },
@@ -66,6 +66,11 @@ export default async function DashboardPage() {
           where: {
             semester: { groupId: student.groupId },
             dueDate: { gte: toDbDate(today) },
+            // EXTRA faqat o'ziga ball qo'yilgan bo'lsa (getStudentAssignments bilan bir xil)
+            OR: [
+              { category: { not: "EXTRA" } },
+              { grades: { some: { studentId: student.id } } },
+            ],
           },
           orderBy: { dueDate: "asc" },
           take: 5,
@@ -79,9 +84,9 @@ export default async function DashboardPage() {
           },
         })
       : [],
+    // Bosh reyting: guruh ichida joriy semestr jami bali bo'yicha (guruh sessiyadan)
+    resolveLeaderboard(student, { scope: "group" }),
   ]);
-  // Bosh reyting: guruh ichida joriy semestr jami bali bo'yicha (guruh sessiyadan)
-  const ranking = await resolveLeaderboard(student, { scope: "group" });
   const board =
     !("error" in ranking) && ranking.kind === "semester" ? ranking.board : null;
 
@@ -167,8 +172,7 @@ export default async function DashboardPage() {
                     )}
                   </div>
                   <p className="text-muted-foreground text-sm">
-                    {CATEGORY_LABEL[h.category]} ·{" "}
-                    {h.category === "HOMEWORK" ? 1 : h.maxPoints} ball
+                    {CATEGORY_LABEL[h.category]} · {h.maxPoints} ball
                     {h.description && ` · ${h.description}`}
                   </p>
                 </li>

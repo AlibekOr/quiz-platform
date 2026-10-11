@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import {
   autoPenalties,
   computeSemesterResult,
+  round1,
   isSemesterEnded,
   type AssignmentCategory,
   type PointSums,
@@ -421,6 +422,8 @@ export type PointCarryOver = {
   studentId: string;
   /** Yangi guruhning o'tkazish sanasidagi semestri */
   semesterId: string;
+  /** Qaysi semestrdan ko'chirildi */
+  fromSemesterId: string;
   points: number;
   reason: string;
 };
@@ -451,12 +454,28 @@ export async function planPointCarryOver(
     if (!source) continue;
     const data = await getSemesterGrades(source, ids);
     if (!data) continue;
+    // Avval shu (yangi) semestrdan ko'chirib kelingan ball qaytarilmaydi: o'quvchi
+    // eski guruhiga qaytsa, u yerdagi asl ballari baribir hisobda (ikki marta bo'lmasin)
+    const carriedIn = await db.pointAdjustment.groupBy({
+      by: ["studentId"],
+      where: {
+        semesterId: source,
+        fromSemesterId: target,
+        studentId: { in: ids },
+      },
+      _sum: { points: true },
+    });
+    const carriedBack = new Map(
+      carriedIn.map((c) => [c.studentId, c._sum.points ?? 0]),
+    );
     for (const st of data.students) {
-      if (st.result.total <= 0) continue;
+      const points = round1(st.result.total - (carriedBack.get(st.id) ?? 0));
+      if (points <= 0) continue;
       items.push({
         studentId: st.id,
         semesterId: target,
-        points: st.result.total,
+        fromSemesterId: source,
+        points,
         reason: `"${data.semester.group.name}" guruhidan ko'chirildi (${data.semester.name})`,
       });
     }

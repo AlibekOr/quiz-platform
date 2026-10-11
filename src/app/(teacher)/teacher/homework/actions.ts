@@ -8,6 +8,7 @@ import { db } from "@/lib/db";
 import {
   formatPoints,
   isValidPoints,
+  passScore,
   type AssignmentCategory,
 } from "@/lib/grades";
 import { getSemesterGrades } from "@/lib/grades-data";
@@ -204,7 +205,7 @@ export async function saveAssignmentGrades(
       return {
         ok: false,
         error: sheet.semester.ended
-          ? `Qo'shimcha ball faqat ${sheet.semester.rules.failBelow} ≤ jami < ${formatPoints(sheet.students[0]?.result.passScore ?? 0)} bo'lganlarga: ${denied.map((s) => s.fullName).join(", ")}`
+          ? `Qo'shimcha ball faqat ${sheet.semester.rules.failBelow} ≤ jami < ${formatPoints(passScore(sheet.semester.rules))} bo'lganlarga: ${denied.map((s) => s.fullName).join(", ")}`
           : "Qo'shimcha ball faqat semestr tugagandan keyin qo'yiladi",
       };
   }

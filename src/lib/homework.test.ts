@@ -1,9 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  defaultHomeworkTitle,
-  homeworkStatus,
-  lessonsWithoutHomework,
-} from "./homework";
+import { defaultHomeworkTitle, homeworkStatus } from "./homework";
 
 describe("homeworkStatus", () => {
   const due = "2026-10-14";
@@ -20,17 +16,6 @@ describe("homeworkStatus", () => {
   it("ball yo'q: muddat kunining o'zida kutilmoqda, keyin bajarilmagan", () => {
     expect(homeworkStatus(null, due, "2026-10-14")).toBe("PENDING");
     expect(homeworkStatus(null, due, "2026-10-15")).toBe("MISSED");
-  });
-});
-
-describe("lessonsWithoutHomework", () => {
-  it("vazifa bog'langan darslar chiqarib tashlanadi", () => {
-    const lessons = [{ id: "a" }, { id: "b" }, { id: "c" }];
-    expect(lessonsWithoutHomework(lessons, ["b"])).toEqual([
-      { id: "a" },
-      { id: "c" },
-    ]);
-    expect(lessonsWithoutHomework(lessons, [])).toHaveLength(3);
   });
 });
 

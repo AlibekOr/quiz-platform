@@ -7,7 +7,13 @@ import {
   getStudentAssignments,
   lessonMismatch,
 } from "./homework-data";
-import { addDays, toDbDate, todayInTashkent, weekdayOf } from "./time";
+import {
+  addDays,
+  startOfDayInTashkent,
+  toDbDate,
+  todayInTashkent,
+  weekdayOf,
+} from "./time";
 
 const today = todayInTashkent();
 const day = (offset: number) => toDbDate(addDays(today, offset));
@@ -166,5 +172,35 @@ describe("getStudentAssignments", () => {
     const valis = await getStudentAssignments(vali.id, groupId);
     expect(valis.map((a) => a.id).sort()).toEqual([extra, hw].sort());
     expect(valis.find((a) => a.id === hw)?.points).toBe(0.5);
+  });
+
+  it("guruhga qo'shilishdan oldin muddati tugagan, baholanmagan vazifa ko'rinmaydi", async () => {
+    const ali = await db.user.create({
+      data: {
+        username: "ali",
+        fullName: "Ali",
+        passwordHash: "x",
+        groupId,
+        memberships: {
+          create: {
+            groupId,
+            joinedAt: startOfDayInTashkent(addDays(today, -5)),
+          },
+        },
+      },
+    });
+    const old = await assignment();
+    const gradedOld = await assignment();
+    const fresh = await assignment();
+    await db.assignment.updateMany({
+      where: { id: { in: [old, gradedOld] } },
+      data: { dueDate: day(-10) },
+    });
+    await db.assignmentGrade.create({
+      data: { assignmentId: gradedOld, studentId: ali.id, points: 1 },
+    });
+
+    const list = await getStudentAssignments(ali.id, groupId);
+    expect(list.map((a) => a.id).sort()).toEqual([fresh, gradedOld].sort());
   });
 });
