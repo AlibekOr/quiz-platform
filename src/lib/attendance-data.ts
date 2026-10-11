@@ -1,4 +1,5 @@
 import "server-only";
+import { groupScopeWhere, type Scope } from "@/lib/auth/scope";
 import { db } from "@/lib/db";
 import { buildAttendanceReport, type AttendanceMark } from "@/lib/attendance";
 import { describeDeparture, toPeriod } from "@/lib/memberships";
@@ -6,9 +7,17 @@ import {
   memberOnWhere,
   membershipOverlapWhere,
 } from "@/lib/memberships-data";
-import { fromDbDate, toDbDate, type DateStr } from "@/lib/time";
+import {
+  fromDbDate,
+  isValidMonthStr,
+  monthRange,
+  toDbDate,
+  todayInTashkent,
+  type DateStr,
+} from "@/lib/time";
 
-// Faqat o'qituvchi sahifalari ishlatadi (ota-ona telefoni bor — CLAUDE.md, 10-qoida)
+// O'qituvchi va menejer sahifalari (ota-ona telefoni bor — CLAUDE.md, 10-qoida;
+// menejer faqat o'z doirasidagi guruhlar uchun)
 
 export type SheetRow = {
   studentId: string;
@@ -191,4 +200,30 @@ export async function getAttendanceReport(
       })),
     })),
   });
+}
+
+/**
+ * Davomat hisoboti sahifasi (o'qituvchi va menejer): doiradagi guruhlar, tanlangan guruh va oy.
+ * Doiradan tashqaridagi yoki noma'lum groupId e'tiborsiz qoldiriladi — birinchi guruh tanlanadi
+ */
+export async function getAttendanceReportPage(
+  scope: Scope,
+  params: { group: string; month: string },
+) {
+  const currentMonth = todayInTashkent().slice(0, 7);
+  const month = isValidMonthStr(params.month) ? params.month : currentMonth;
+  const { from, to } = monthRange(month);
+
+  const groups = await db.group.findMany({
+    where: groupScopeWhere(scope),
+    orderBy: { name: "asc" },
+    select: {
+      id: true,
+      name: true,
+      schedules: { select: { weekday: true, startTime: true, endTime: true } },
+    },
+  });
+  const group = groups.find((g) => g.id === params.group) ?? groups[0] ?? null;
+  const report = group ? await getAttendanceReport(group.id, from, to) : null;
+  return { groups, group, report, month, currentMonth, from, to };
 }

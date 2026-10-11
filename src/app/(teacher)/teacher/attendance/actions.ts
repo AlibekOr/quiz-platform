@@ -99,6 +99,6 @@ export async function saveAttendance(
   });
 
   revalidatePath("/teacher/attendance");
-  revalidatePath(`/teacher/groups/${gid}/attendance`);
+  revalidatePath("/teacher/attendance/report");
   return { ok: true, message: "Davomat saqlandi" };
 }

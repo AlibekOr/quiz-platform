@@ -65,7 +65,7 @@ export default async function GroupPage({
             </p>
           </div>
           <Link
-            href={`/teacher/groups/${group.id}/attendance`}
+            href={`/teacher/attendance/report?group=${group.id}`}
             className={buttonVariants({ variant: "outline" })}
           >
             <CalendarDaysIcon />

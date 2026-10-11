@@ -10,13 +10,15 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { NavLinks, type NavVariant } from "./nav-links";
+import { NavMenu, type NavVariant } from "./nav-menu";
 
 export function MobileNav({
   variant,
+  title,
   badges,
 }: {
   variant: NavVariant;
+  title: string;
   badges?: Record<string, number>;
 }) {
   const [open, setOpen] = useState(false);
@@ -30,11 +32,11 @@ export function MobileNav({
       >
         <MenuIcon />
       </SheetTrigger>
-      <SheetContent side="left" className="p-4">
+      <SheetContent side="left" className="overflow-y-auto p-4">
         <SheetHeader className="p-0">
-          <SheetTitle>Test platformasi</SheetTitle>
+          <SheetTitle>{title}</SheetTitle>
         </SheetHeader>
-        <NavLinks
+        <NavMenu
           variant={variant}
           badges={badges}
           onNavigate={() => setOpen(false)}

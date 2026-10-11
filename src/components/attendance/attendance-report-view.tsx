@@ -8,7 +8,7 @@ import {
   type AttendanceReport,
 } from "@/lib/attendance";
 import { departureLabel } from "@/lib/memberships";
-import { formatDayMonth } from "@/lib/time";
+import { formatDayMonth, type DateStr } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
 const CELL_CLASS = {
@@ -17,13 +17,18 @@ const CELL_CLASS = {
   LATE: "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-200",
 } as const;
 
-/** Oylik davomat hisoboti jadvali (o'qituvchi va menejer). studentHref null — havolasiz */
+/**
+ * Oylik davomat hisoboti jadvali (o'qituvchi va menejer). studentHref null — havolasiz;
+ * lessonHref — sana sarlavhasidan o'sha darsning davomat yuritish sahifasiga (faqat o'qituvchi)
+ */
 export function AttendanceReportView({
   report,
   studentHref,
+  lessonHref = null,
 }: {
   report: AttendanceReport;
   studentHref: ((id: string) => string) | null;
+  lessonHref?: ((date: DateStr) => string) | null;
 }) {
   const worst = mostAbsent(report);
   const marks = report.students.flatMap((s) =>
@@ -85,7 +90,17 @@ export function AttendanceReportView({
                       key={d}
                       className="px-1.5 py-2 text-center font-medium tabular-nums"
                     >
-                      {formatDayMonth(d)}
+                      {lessonHref ? (
+                        <Link
+                          href={lessonHref(d)}
+                          title="Davomatni tahrirlash"
+                          className="text-primary hover:underline"
+                        >
+                          {formatDayMonth(d)}
+                        </Link>
+                      ) : (
+                        formatDayMonth(d)
+                      )}
                     </th>
                   ))}
                   <th className="px-2 py-2 text-right font-medium">Keldi</th>

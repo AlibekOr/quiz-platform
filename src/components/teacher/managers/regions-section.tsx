@@ -44,8 +44,7 @@ export function RegionsSection({ regions }: { regions: RegionRow[] }) {
   }
 
   return (
-    <section className="flex flex-col gap-3 rounded-lg border p-4">
-      <h2 className="font-semibold">Regionlar</h2>
+    <section className="flex max-w-xl flex-col gap-3 rounded-lg border p-4">
       {regions.length > 0 && (
         <ul className="flex flex-col divide-y text-sm">
           {regions.map((r) => (

@@ -28,6 +28,7 @@ const idSchema = z.string().min(1).max(64);
 
 function revalidate() {
   revalidatePath("/teacher/managers");
+  revalidatePath("/teacher/regions");
   revalidatePath("/teacher/groups");
 }
 

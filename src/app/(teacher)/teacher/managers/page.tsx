@@ -4,7 +4,6 @@ import {
   AddManagerButton,
   ManagerRowActions,
 } from "@/components/teacher/managers/manager-controls";
-import { RegionsSection } from "@/components/teacher/managers/regions-section";
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
@@ -41,11 +40,7 @@ export default async function ManagersPage() {
     }),
     db.region.findMany({
       orderBy: { name: "asc" },
-      select: {
-        id: true,
-        name: true,
-        _count: { select: { groups: true, managers: true } },
-      },
+      select: { id: true, name: true },
     }),
     db.group.findMany({
       orderBy: { name: "asc" },
@@ -134,14 +129,6 @@ export default async function ManagersPage() {
         </div>
       )}
 
-      <RegionsSection
-        regions={regions.map((r) => ({
-          id: r.id,
-          name: r.name,
-          groupCount: r._count.groups,
-          managerCount: r._count.managers,
-        }))}
-      />
     </>
   );
 }
