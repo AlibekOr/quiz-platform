@@ -2,7 +2,7 @@ import type { NextRequest } from "next/server";
 import { getCurrentUser } from "@/lib/auth/guards";
 import { resolveLeaderboard } from "@/lib/leaderboard-access";
 
-// GET /api/leaderboard?testId=&scope=group|all&groupId= (testId bo'lmasa umumiy reyting)
+// GET /api/leaderboard?testId=&scope=group|all&groupId= (testId bo'lmasa — joriy semestr reytingi)
 // groupId faqat o'qituvchi uchun; o'quvchida guruh sessiyadagi userdan (bazadan) olinadi
 export async function GET(request: NextRequest) {
   const user = await getCurrentUser();
@@ -20,6 +20,7 @@ export async function GET(request: NextRequest) {
 
   return Response.json(
     {
+      kind: result.kind,
       scope: result.scope,
       group: result.group,
       test: result.test,

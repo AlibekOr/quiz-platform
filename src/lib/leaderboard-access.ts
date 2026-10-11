@@ -2,27 +2,32 @@ import "server-only";
 import type { CurrentUser } from "@/lib/auth/guards";
 import { canAccessGroup, getScope, groupScopeWhere } from "@/lib/auth/scope";
 import { db } from "@/lib/db";
+import { getTestLeaderboard, type Leaderboard } from "@/lib/leaderboard";
 import {
-  getOverallLeaderboard,
-  getTestLeaderboard,
-  type Leaderboard,
-} from "@/lib/leaderboard";
+  getSemesterLeaderboard,
+  type SemesterLeaderboard,
+} from "@/lib/semester-leaderboard";
 import { getTestAccess } from "@/lib/tests/access";
 import { leaderboardQuerySchema } from "@/lib/validators/leaderboard";
 
 export type LeaderboardScope = "group" | "all";
 
+/**
+ * testId bo'lsa — test reytingi (birinchi urinish, ball va vaqt), aks holda bosh reyting:
+ * joriy semestr jami bali (lib/semester-leaderboard.ts)
+ */
 export type ResolvedLeaderboard = {
   scope: LeaderboardScope;
   /** "Mening guruhim"/tanlangan guruh; scope=all bo'lsa null */
   group: { id: string; name: string } | null;
-  test: { id: string; title: string } | null;
-  board: Leaderboard;
-};
+} & (
+  | { kind: "test"; test: { id: string; title: string }; board: Leaderboard }
+  | { kind: "semester"; test: null; board: SemesterLeaderboard }
+);
 
 export type LeaderboardError = { error: string; status: 400 | 403 | 404 };
 
-const EMPTY: Leaderboard = { entries: [], me: null, total: 0 };
+const EMPTY = { entries: [], me: null, total: 0 };
 
 /**
  * Reyting so'rovini tekshiradi va bajaradi (API va sahifalar uchun umumiy).
@@ -44,7 +49,7 @@ export async function resolveLeaderboard(
   const isStaff = user.role === "TEACHER" || user.role === "MANAGER";
   const access = isStaff ? await getScope(user) : null;
 
-  let test: ResolvedLeaderboard["test"] = null;
+  let test: { id: string; title: string } | null = null;
   if (query.testId) {
     const found = await db.test.findUnique({
       where: { id: query.testId },
@@ -89,7 +94,10 @@ export async function resolveLeaderboard(
     if (isStaff && groupId && !group)
       return { error: "Guruh topilmadi", status: 404 };
     // Guruhsiz o'quvchi (yoki guruhsiz menejer) uchun bo'sh
-    if (!group) return { scope, group: null, test, board: EMPTY };
+    if (!group)
+      return test
+        ? { scope, group: null, kind: "test", test, board: EMPTY }
+        : { scope, group: null, kind: "semester", test: null, board: EMPTY };
   }
 
   const filter = {
@@ -98,8 +106,19 @@ export async function resolveLeaderboard(
     groupIds: access?.kind === "manager" ? access.groupIds : null,
     userId: isStaff ? null : user.id,
   };
-  const board = test
-    ? await getTestLeaderboard(test.id, filter)
-    : await getOverallLeaderboard(filter);
-  return { scope, group, test, board };
+  return test
+    ? {
+        scope,
+        group,
+        kind: "test",
+        test,
+        board: await getTestLeaderboard(test.id, filter),
+      }
+    : {
+        scope,
+        group,
+        kind: "semester",
+        test: null,
+        board: await getSemesterLeaderboard(filter),
+      };
 }

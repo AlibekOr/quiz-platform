@@ -36,9 +36,10 @@ export default async function LeaderboardPage({
   return (
     <>
       <div>
-        <h1 className="text-2xl font-semibold">Umumiy reyting</h1>
+        <h1 className="text-2xl font-semibold">Reyting</h1>
         <p className="text-muted-foreground text-sm">
-          Barcha testlardagi birinchi urinish ballari yig&apos;indisi
+          Joriy semestr bali bo&apos;yicha. Test reytingi — har bir test
+          sahifasida.
         </p>
       </div>
       <LeaderboardView

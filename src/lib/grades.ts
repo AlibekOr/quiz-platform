@@ -227,3 +227,20 @@ export const ASSIGNMENT_CATEGORIES: readonly AssignmentCategory[] = [
   "BONUS",
   "EXTRA",
 ];
+
+/**
+ * Semestr reytingi tartibi: jami ball kamayish bo'yicha, teng ballga bir xil o'rin
+ * (RANK: 1, 1, 3), teng bo'lsa alifbo bo'yicha
+ */
+export function rankByTotal<T extends { total: number; fullName: string }>(
+  rows: readonly T[],
+): (T & { rank: number })[] {
+  const sorted = [...rows].sort(
+    (a, b) => b.total - a.total || a.fullName.localeCompare(b.fullName, "uz"),
+  );
+  let rank = 0;
+  return sorted.map((r, i) => {
+    if (i === 0 || r.total !== sorted[i - 1].total) rank = i + 1;
+    return { ...r, rank };
+  });
+}

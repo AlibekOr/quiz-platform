@@ -1,12 +1,18 @@
 import Link from "next/link";
-import type { ResolvedLeaderboard } from "@/lib/leaderboard-access";
+import { formatPoints } from "@/lib/grades";
 import type { LeaderboardEntry } from "@/lib/leaderboard";
+import type { ResolvedLeaderboard } from "@/lib/leaderboard-access";
+import type { SemesterLeaderboardEntry } from "@/lib/semester-leaderboard";
 import { formatDuration } from "@/lib/time";
 import { cn } from "@/lib/utils";
 import { LeaderboardGroupSelect } from "./group-select";
 
 const MEDALS = ["🥇", "🥈", "🥉"];
 
+/**
+ * Reyting: "Mening guruhim" / "Umumiy" tablari, xodimga guruh tanlagich.
+ * Test reytingi — ball va vaqt; bosh reyting — joriy semestr jami bali
+ */
 export function LeaderboardView({
   data,
   basePath,
@@ -19,11 +25,8 @@ export function LeaderboardView({
   /** O'qituvchi uchun guruh tanlagich */
   groups: { id: string; name: string }[];
 }) {
-  const { board, scope } = data;
-  const meId = board.me?.userId;
-  const meOutside = board.me && !board.entries.some((e) => e.userId === meId);
+  const { scope } = data;
   const showGroup = scope === "all";
-  const overall = data.test === null;
 
   const tabs = [
     { scope: "group", label: isTeacher ? "Guruh" : "Mening guruhim" },
@@ -67,63 +70,116 @@ export function LeaderboardView({
             ? "Guruhlar yo'q."
             : "Siz hali guruhga biriktirilmagansiz."}
         </p>
-      ) : board.entries.length === 0 ? (
-        <p className="text-muted-foreground">Hali natijalar yo&apos;q.</p>
+      ) : data.board.entries.length === 0 ? (
+        <p className="text-muted-foreground">
+          {data.kind === "semester"
+            ? "Joriy semestr yo'q yoki hali ballar yo'q."
+            : "Hali natijalar yo'q."}
+        </p>
+      ) : data.kind === "test" ? (
+        <BoardTable
+          showGroup={showGroup}
+          entries={data.board.entries}
+          me={data.board.me}
+          valueHeaders={["Ball", "Vaqt"]}
+          values={(e: LeaderboardEntry) => [
+            String(e.score),
+            formatDuration(e.durationSec),
+          ]}
+        />
       ) : (
-        <div className="overflow-x-auto rounded-lg border">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="bg-muted/50 border-b text-left">
-                <th className="w-16 px-3 py-2 font-medium">O&apos;rin</th>
-                <th className="px-3 py-2 font-medium">Ism</th>
-                {showGroup && (
-                  <th className="hidden px-3 py-2 font-medium sm:table-cell">
-                    Guruh
-                  </th>
-                )}
-                <th className="px-3 py-2 text-right font-medium">Ball</th>
-                <th className="px-3 py-2 text-right font-medium">Vaqt</th>
-              </tr>
-            </thead>
-            <tbody>
-              {board.entries.map((e) => (
-                <Row
-                  key={e.userId}
-                  entry={e}
-                  me={e.userId === meId}
-                  showGroup={showGroup}
-                  overall={overall}
-                />
-              ))}
-            </tbody>
-            {meOutside && board.me && (
-              <tfoot>
-                <tr>
-                  <td
-                    colSpan={showGroup ? 5 : 4}
-                    className="text-muted-foreground border-t px-3 py-1 text-center"
-                  >
-                    ⋯
-                  </td>
-                </tr>
-                <Row
-                  entry={board.me}
-                  me
-                  showGroup={showGroup}
-                  overall={overall}
-                  prefix="Siz: "
-                />
-              </tfoot>
-            )}
-          </table>
-        </div>
+        <BoardTable
+          showGroup={showGroup}
+          entries={data.board.entries}
+          me={data.board.me}
+          valueHeaders={["Jami"]}
+          values={(e: SemesterLeaderboardEntry) => [
+            `${formatPoints(e.total)} / ${e.maxTotal}`,
+          ]}
+        />
       )}
       <p className="text-muted-foreground text-xs">
-        Faqat birinchi urinish hisobga olinadi. Teng ball bo&apos;lsa, kamroq
-        vaqt sarflagan yuqorida
-        {overall && " (umumiy reytingda — barcha testlar bo'yicha yig'indi)"}.
-        {board.total > 0 && ` Jami: ${board.total} ta o'quvchi.`}
+        {data.kind === "test"
+          ? "Faqat birinchi urinish hisobga olinadi. Teng ball bo'lsa, kamroq vaqt sarflagan yuqorida."
+          : "Har guruh o'zining joriy semestri bo'yicha: uyga vazifa, amaliy, og'zaki, bonus, tuzatish va jarimalardan keyingi jami. Testlar kirmaydi."}
+        {data.board.total > 0 && ` Jami: ${data.board.total} ta o'quvchi.`}
       </p>
+    </div>
+  );
+}
+
+type BaseEntry = {
+  userId: string;
+  fullName: string;
+  groupName: string | null;
+  rank: number;
+};
+
+function BoardTable<E extends BaseEntry>({
+  entries,
+  me,
+  showGroup,
+  valueHeaders,
+  values,
+}: {
+  entries: E[];
+  me: E | null;
+  showGroup: boolean;
+  valueHeaders: string[];
+  values: (entry: E) => string[];
+}) {
+  const meOutside = me && !entries.some((e) => e.userId === me.userId);
+  const columns = 2 + (showGroup ? 1 : 0) + valueHeaders.length;
+  return (
+    <div className="overflow-x-auto rounded-lg border">
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="bg-muted/50 border-b text-left">
+            <th className="w-16 px-3 py-2 font-medium">O&apos;rin</th>
+            <th className="px-3 py-2 font-medium">Ism</th>
+            {showGroup && (
+              <th className="hidden px-3 py-2 font-medium sm:table-cell">
+                Guruh
+              </th>
+            )}
+            {valueHeaders.map((h) => (
+              <th key={h} className="px-3 py-2 text-right font-medium">
+                {h}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {entries.map((e) => (
+            <Row
+              key={e.userId}
+              entry={e}
+              me={e.userId === me?.userId}
+              showGroup={showGroup}
+              values={values(e)}
+            />
+          ))}
+        </tbody>
+        {meOutside && (
+          <tfoot>
+            <tr>
+              <td
+                colSpan={columns}
+                className="text-muted-foreground border-t px-3 py-1 text-center"
+              >
+                ⋯
+              </td>
+            </tr>
+            <Row
+              entry={me}
+              me
+              showGroup={showGroup}
+              values={values(me)}
+              prefix="Siz: "
+            />
+          </tfoot>
+        )}
+      </table>
     </div>
   );
 }
@@ -132,13 +188,13 @@ function Row({
   entry,
   me,
   showGroup,
-  overall,
+  values,
   prefix,
 }: {
-  entry: LeaderboardEntry;
+  entry: BaseEntry;
   me: boolean;
   showGroup: boolean;
-  overall: boolean;
+  values: string[];
   prefix?: string;
 }) {
   return (
@@ -172,17 +228,11 @@ function Row({
           {entry.groupName ?? "—"}
         </td>
       )}
-      <td className="px-3 py-2 text-right tabular-nums">
-        {entry.score}
-        {overall && (
-          <span className="text-muted-foreground block text-xs font-normal">
-            {entry.tests} ta test
-          </span>
-        )}
-      </td>
-      <td className="px-3 py-2 text-right tabular-nums">
-        {formatDuration(entry.durationSec)}
-      </td>
+      {values.map((v, i) => (
+        <td key={i} className="px-3 py-2 text-right tabular-nums">
+          {v}
+        </td>
+      ))}
     </tr>
   );
 }

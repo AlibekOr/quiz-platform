@@ -93,6 +93,7 @@ const MENUS: Record<NavVariant, { main: MenuItem[]; footer: MenuLink[] }> = {
             label: "Baholar",
             icon: GraduationCapIcon,
           },
+          { href: "/leaderboard", label: "Reyting", icon: TrophyIcon },
         ],
       },
       {

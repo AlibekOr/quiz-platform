@@ -1,12 +1,14 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { TrophyIcon } from "lucide-react";
 import { StartTestButton } from "@/components/student/start-test-button";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { finalizeExpiredAttempts } from "@/lib/attempts";
 import { requireStudent } from "@/lib/auth/guards";
 import { db } from "@/lib/db";
-import { CATEGORY_LABEL } from "@/lib/grades";
+import { CATEGORY_LABEL, formatPoints } from "@/lib/grades";
+import { resolveLeaderboard } from "@/lib/leaderboard-access";
 import {
   formatDate,
   formatDateTime,
@@ -15,6 +17,7 @@ import {
   toDbDate,
   todayInTashkent,
 } from "@/lib/time";
+import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Testlarim" };
 
@@ -77,10 +80,55 @@ export default async function DashboardPage() {
         })
       : [],
   ]);
+  // Bosh reyting: guruh ichida joriy semestr jami bali bo'yicha (guruh sessiyadan)
+  const ranking = await resolveLeaderboard(student, { scope: "group" });
+  const board =
+    !("error" in ranking) && ranking.kind === "semester" ? ranking.board : null;
 
   return (
     <>
       <h1 className="text-2xl font-semibold">Salom, {student.fullName}</h1>
+
+      {board && board.me && (
+        <section className="flex flex-col gap-3 rounded-lg border p-4">
+          <div className="flex items-baseline justify-between gap-2">
+            <h2 className="flex items-center gap-2 text-lg font-semibold">
+              <TrophyIcon className="size-5 text-amber-500" />
+              Reyting
+            </h2>
+            <Link
+              href="/leaderboard"
+              className="text-muted-foreground text-sm hover:underline"
+            >
+              To&apos;liq reyting
+            </Link>
+          </div>
+          <p className="text-sm">
+            Guruhda{" "}
+            <b className="text-lg tabular-nums">{board.me.rank}-o&apos;rin</b>{" "}
+            <span className="text-muted-foreground">
+              / {board.total} · {formatPoints(board.me.total)} /{" "}
+              {board.me.maxTotal} ball
+            </span>
+          </p>
+          <ol className="flex flex-col gap-1 text-sm">
+            {board.entries.slice(0, 3).map((e) => (
+              <li
+                key={e.userId}
+                className={cn(
+                  "flex justify-between gap-2",
+                  e.userId === student.id && "font-semibold",
+                )}
+              >
+                <span>
+                  {e.rank}. {e.fullName}
+                </span>
+                <span className="tabular-nums">{formatPoints(e.total)}</span>
+              </li>
+            ))}
+          </ol>
+        </section>
+      )}
 
       {homeworks.length > 0 && (
         <section className="flex flex-col gap-3">

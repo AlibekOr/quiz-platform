@@ -9,6 +9,7 @@ import {
   isSemesterEnded,
   isValidPoints,
   passScore,
+  rankByTotal,
   type PointSums,
 } from "./grades";
 
@@ -166,5 +167,26 @@ describe("formatlash", () => {
       "12,5 / 30",
     );
     expect(categoryText({ earned: 3, cap: null, counted: 3 })).toBe("3");
+  });
+});
+
+describe("rankByTotal", () => {
+  it("jami ball kamayish bo'yicha, teng ballga bir xil o'rin (1, 1, 3)", () => {
+    const ranked = rankByTotal([
+      { fullName: "Vali", total: 30 },
+      { fullName: "Ali", total: 42.5 },
+      { fullName: "Bek", total: 30 },
+      { fullName: "Dil", total: 12 },
+    ]);
+    expect(ranked.map((r) => [r.rank, r.fullName])).toEqual([
+      [1, "Ali"],
+      [2, "Bek"],
+      [2, "Vali"],
+      [4, "Dil"],
+    ]);
+  });
+
+  it("bo'sh ro'yxat", () => {
+    expect(rankByTotal([])).toEqual([]);
   });
 });

@@ -8,6 +8,7 @@ import {
   type LeaderboardError,
 } from "@/lib/leaderboard-access";
 import { getTestResults } from "@/lib/results-data";
+import { addDays, toDbDate, todayInTashkent } from "@/lib/time";
 import { resetDatabase } from "@/test/db";
 import { getTestAccess, outOfScopeGroups } from "./access";
 
@@ -155,6 +156,28 @@ describe("natijalar va reyting doirasi", () => {
     const t = await test(teacher.id, [mine, other]);
     await attempt(ali.id, t, 1);
     await attempt(vali.id, t, 1);
+    // Bosh (semestr) reyting: har guruhda joriy semestr va a'zolik
+    const today = todayInTashkent();
+    for (const [studentId, groupId] of [
+      [ali.id, mine],
+      [vali.id, other],
+    ] as const) {
+      await db.groupMembership.create({
+        data: {
+          studentId,
+          groupId,
+          joinedAt: new Date(`${addDays(today, -30)}T05:00:00Z`),
+        },
+      });
+      await db.semester.create({
+        data: {
+          groupId,
+          name: "1-semestr",
+          startDate: toDbDate(addDays(today, -30)),
+          endDate: toDbDate(addDays(today, 30)),
+        },
+      });
+    }
 
     expect(names(await resolveLeaderboard(manager, { scope: "all" }))).toEqual([
       "ali",
