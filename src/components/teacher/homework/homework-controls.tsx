@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useForm } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { MoreHorizontalIcon, PlusIcon } from "lucide-react";
 import { toast } from "sonner";
@@ -10,6 +10,7 @@ import {
   deleteHomework,
   updateHomework,
 } from "@/app/(teacher)/teacher/homework/actions";
+import { DatePicker } from "@/components/common/date-picker";
 import { ConfirmAction } from "@/components/common/confirm-action";
 import { applyServerErrors } from "@/components/common/form-errors";
 import { FormError, FormField } from "@/components/common/form-field";
@@ -245,11 +246,17 @@ function HomeworkForm({
       </FormField>
       <div className="grid grid-cols-2 gap-3">
         <FormField id="hw-due" label="Muddat" error={errors.dueDate?.message}>
-          <Input
-            id="hw-due"
-            type="date"
-            aria-invalid={!!errors.dueDate}
-            {...form.register("dueDate")}
+          <Controller
+            control={form.control}
+            name="dueDate"
+            render={({ field }) => (
+              <DatePicker
+                id="hw-due"
+                value={field.value}
+                onChange={field.onChange}
+                invalid={!!errors.dueDate}
+              />
+            )}
           />
         </FormField>
         <FormField

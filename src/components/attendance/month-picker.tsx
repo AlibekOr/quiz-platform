@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Input } from "@/components/ui/input";
+import { MonthPicker as MonthSelect } from "@/components/common/date-picker";
 
 /** Oy tanlash: boshqa URL parametrlari (masalan, guruh) saqlanadi */
 export function MonthPicker({ month, max }: { month: string; max: string }) {
@@ -9,16 +9,14 @@ export function MonthPicker({ month, max }: { month: string; max: string }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   return (
-    <Input
-      type="month"
+    <MonthSelect
       aria-label="Oy"
       className="w-44"
       value={month}
       max={max}
-      onChange={(e) => {
-        if (!e.target.value) return;
+      onChange={(value) => {
         const params = new URLSearchParams(searchParams);
-        params.set("month", e.target.value);
+        params.set("month", value);
         router.replace(`${pathname}?${params}`);
       }}
     />

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useForm } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { PencilIcon, PlusIcon, Trash2Icon } from "lucide-react";
 import { toast } from "sonner";
@@ -10,6 +10,7 @@ import {
   deletePeriod,
   updatePeriod,
 } from "@/app/(teacher)/teacher/grades/actions";
+import { DatePicker } from "@/components/common/date-picker";
 import { ConfirmAction } from "@/components/common/confirm-action";
 import { applyServerErrors } from "@/components/common/form-errors";
 import { FormError, FormField } from "@/components/common/form-field";
@@ -185,11 +186,17 @@ function PeriodForm({
           label="Boshlanishi"
           error={errors.startDate?.message}
         >
-          <Input
-            id="period-start"
-            type="date"
-            aria-invalid={!!errors.startDate}
-            {...form.register("startDate")}
+          <Controller
+            control={form.control}
+            name="startDate"
+            render={({ field }) => (
+              <DatePicker
+                id="period-start"
+                value={field.value}
+                onChange={field.onChange}
+                invalid={!!errors.startDate}
+              />
+            )}
           />
         </FormField>
         <FormField
@@ -197,11 +204,17 @@ function PeriodForm({
           label="Tugashi"
           error={errors.endDate?.message}
         >
-          <Input
-            id="period-end"
-            type="date"
-            aria-invalid={!!errors.endDate}
-            {...form.register("endDate")}
+          <Controller
+            control={form.control}
+            name="endDate"
+            render={({ field }) => (
+              <DatePicker
+                id="period-end"
+                value={field.value}
+                onChange={field.onChange}
+                invalid={!!errors.endDate}
+              />
+            )}
           />
         </FormField>
       </div>

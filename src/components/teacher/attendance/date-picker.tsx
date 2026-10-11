@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname, useRouter } from "next/navigation";
-import { Input } from "@/components/ui/input";
+import { DatePicker } from "@/components/common/date-picker";
 
 export function AttendanceDatePicker({
   date,
@@ -14,14 +14,12 @@ export function AttendanceDatePicker({
   const pathname = usePathname();
 
   return (
-    <Input
-      type="date"
+    <DatePicker
       aria-label="Sana"
       className="w-44"
       value={date}
       max={max}
-      onChange={(e) => {
-        const value = e.target.value;
+      onChange={(value) => {
         if (value && value <= max) router.replace(`${pathname}?date=${value}`);
       }}
     />

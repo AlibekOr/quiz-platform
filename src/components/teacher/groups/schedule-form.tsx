@@ -1,14 +1,14 @@
 "use client";
 
 import { useTransition } from "react";
-import { useForm, useWatch } from "react-hook-form";
+import { Controller, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 import { saveSchedule } from "@/app/(teacher)/teacher/groups/actions";
+import { TimePicker } from "@/components/common/time-picker";
 import { applyServerErrors } from "@/components/common/form-errors";
 import { FormError } from "@/components/common/form-field";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { WEEKDAYS } from "@/lib/time";
 import {
   scheduleFormSchema,
@@ -81,22 +81,34 @@ export function ScheduleForm({
                   {d.long}
                 </label>
                 <div className="flex items-center gap-2">
-                  <Input
-                    type="time"
-                    aria-label={`${d.long}: boshlanish`}
-                    className="w-28"
-                    disabled={!enabled}
-                    aria-invalid={!!rowErrors?.startTime}
-                    {...form.register(`days.${i}.startTime`)}
+                  <Controller
+                    control={form.control}
+                    name={`days.${i}.startTime`}
+                    render={({ field }) => (
+                      <TimePicker
+                        aria-label={`${d.long}: boshlanish`}
+                        className="w-28"
+                        disabled={!enabled}
+                        invalid={!!rowErrors?.startTime}
+                        value={field.value}
+                        onChange={field.onChange}
+                      />
+                    )}
                   />
                   <span className="text-muted-foreground">–</span>
-                  <Input
-                    type="time"
-                    aria-label={`${d.long}: tugash`}
-                    className="w-28"
-                    disabled={!enabled}
-                    aria-invalid={!!rowErrors?.endTime}
-                    {...form.register(`days.${i}.endTime`)}
+                  <Controller
+                    control={form.control}
+                    name={`days.${i}.endTime`}
+                    render={({ field }) => (
+                      <TimePicker
+                        aria-label={`${d.long}: tugash`}
+                        className="w-28"
+                        disabled={!enabled}
+                        invalid={!!rowErrors?.endTime}
+                        value={field.value}
+                        onChange={field.onChange}
+                      />
+                    )}
                   />
                 </div>
               </div>

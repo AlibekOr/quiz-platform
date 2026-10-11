@@ -1,10 +1,11 @@
 "use client";
 
 import { useTransition } from "react";
-import { useForm } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 import { transferStudents } from "@/app/(teacher)/teacher/students/actions";
+import { DatePicker } from "@/components/common/date-picker";
 import { applyServerErrors } from "@/components/common/form-errors";
 import { FormError, FormField } from "@/components/common/form-field";
 import { Button } from "@/components/ui/button";
@@ -16,7 +17,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import {
   NativeSelect,
   NativeSelectOption,
@@ -143,12 +143,18 @@ function TransferForm({
         </NativeSelect>
       </FormField>
       <FormField id="date" label="Sana" error={errors.date?.message}>
-        <Input
-          id="date"
-          type="date"
-          max={today}
-          aria-invalid={!!errors.date}
-          {...form.register("date")}
+        <Controller
+          control={form.control}
+          name="date"
+          render={({ field }) => (
+            <DatePicker
+              id="date"
+              value={field.value}
+              onChange={field.onChange}
+              max={today}
+              invalid={!!errors.date}
+            />
+          )}
         />
       </FormField>
       <FormField

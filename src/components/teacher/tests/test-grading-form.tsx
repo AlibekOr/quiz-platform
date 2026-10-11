@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { saveTestGrading } from "@/app/(teacher)/teacher/grades/actions";
 import { FormError, FormField } from "@/components/common/form-field";
+import { DatePicker } from "@/components/common/date-picker";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { DateStr } from "@/lib/time";
@@ -80,12 +81,13 @@ export function TestGradingForm({
     >
       <h2 className="font-semibold">Baholash</h2>
       <FormField id="test-due" label="Muddat (ixtiyoriy)">
-        <Input
+        <DatePicker
           id="test-due"
-          type="date"
           className="w-44"
           value={due}
-          onChange={(e) => setDue(e.target.value)}
+          onChange={setDue}
+          placeholder="Muddatsiz"
+          clearable
         />
       </FormField>
       <p className="text-muted-foreground -mt-2 text-xs">
