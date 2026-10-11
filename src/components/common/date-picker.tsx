@@ -149,7 +149,8 @@ export function DatePicker({
         </PopoverTrigger>
         <PopoverContent
           align="start"
-          className="w-auto gap-3 rounded-2xl p-3 shadow-lg"
+          className="w-auto gap-3 p-3 shadow-lg"
+          style={{ borderRadius: 16 }}
         >
           <div className="flex items-center justify-between">
             <Button
@@ -202,7 +203,11 @@ export function DatePicker({
             </Button>
           </div>
 
-          <div className="grid grid-cols-[repeat(7,2.25rem)] justify-center gap-y-0.5 text-center">
+          {/* Ustunlar inline: Safari'da ham doim 7 ustun (Tailwind klassiga bog'liq emas) */}
+          <div
+            className="grid justify-center text-center"
+            style={{ gridTemplateColumns: "repeat(7, 2.25rem)", rowGap: 2 }}
+          >
             {WEEKDAYS.map((w) => (
               <span
                 key={w.value}
@@ -222,8 +227,9 @@ export function DatePicker({
                   onClick={() => select(d)}
                   aria-label={formatShort(d)}
                   aria-pressed={selected}
+                  style={{ width: 36, height: 36 }}
                   className={cn(
-                    "focus-visible:ring-ring/50 relative mx-auto flex size-9 items-center justify-center rounded-full text-sm tabular-nums transition-colors outline-none focus-visible:ring-3 disabled:pointer-events-none disabled:opacity-30",
+                    "focus-visible:ring-ring/50 relative mx-auto flex items-center justify-center rounded-full text-sm tabular-nums transition-colors outline-none focus-visible:ring-3 disabled:pointer-events-none disabled:opacity-30",
                     selected
                       ? "bg-primary text-primary-foreground font-semibold"
                       : "hover:bg-muted",

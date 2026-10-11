@@ -22,7 +22,9 @@ import { cn } from "@/lib/utils";
 import { PICKER_TRIGGER_CLASS, type PickerProps } from "./date-picker";
 
 // Vaqt tanlash ("14:00"): soat siferblati oynasi, 24 soatlik (tashqi halqa 1–12,
-// ichki 13–00). Avval soat, keyin daqiqa (5 daqiqa qadam); bosib yoki sudrab tanlanadi
+// ichki 13–00). Avval soat, keyin daqiqa (5 daqiqa qadam); bosib yoki sudrab tanlanadi.
+// Asosiy o'lchamlar inline stilda: dev rejimida Safari yangi Tailwind klasslarini
+// keshdan olmay qolsa ham siferblat buzilmaydi
 
 const DIAL = 216;
 const CENTER = DIAL / 2;
@@ -106,7 +108,8 @@ function Dial({
       onPointerCancel={() => {
         dragging.current = false;
       }}
-      className="bg-muted focus-visible:ring-ring/50 relative mx-auto size-54 shrink-0 cursor-pointer touch-none rounded-full outline-none select-none focus-visible:ring-3"
+      style={{ width: DIAL, height: DIAL }}
+      className="bg-muted focus-visible:ring-ring/50 relative mx-auto shrink-0 cursor-pointer touch-none rounded-full outline-none select-none focus-visible:ring-3"
     >
       <svg
         viewBox={`0 0 ${DIAL} ${DIAL}`}
@@ -138,7 +141,7 @@ function Dial({
           <span
             key={m.label}
             className={cn(
-              "pointer-events-none absolute flex size-8 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full tabular-nums",
+              "pointer-events-none absolute flex -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full tabular-nums",
               isInner ? "text-muted-foreground text-xs" : "text-sm",
               m.value === value &&
                 (mode === "minute" || isInner === inner) &&
@@ -147,6 +150,8 @@ function Dial({
             style={{
               left: CENTER + m.x * RADIUS,
               top: CENTER + m.y * RADIUS,
+              width: 32,
+              height: 32,
             }}
           >
             {m.label}
@@ -174,11 +179,18 @@ function Segment({
       aria-label={label}
       aria-pressed={active}
       onClick={onClick}
+      style={{
+        width: 72,
+        height: 56,
+        fontSize: "2.25rem",
+        lineHeight: 1,
+        backgroundColor: active
+          ? "color-mix(in oklab, var(--primary) 15%, transparent)"
+          : undefined,
+      }}
       className={cn(
-        "focus-visible:ring-ring/50 flex h-14 w-18 items-center justify-center rounded-xl text-4xl tabular-nums transition-colors outline-none focus-visible:ring-3",
-        active
-          ? "bg-primary/15 text-primary"
-          : "bg-muted text-foreground hover:bg-muted/70",
+        "focus-visible:ring-ring/50 flex items-center justify-center rounded-xl tabular-nums transition-colors outline-none focus-visible:ring-3",
+        active ? "text-primary" : "bg-muted text-foreground hover:bg-muted/70",
       )}
     >
       {String(value).padStart(2, "0")}
@@ -239,7 +251,8 @@ export function TimePicker({
       </DialogTrigger>
       <DialogContent
         showCloseButton={false}
-        className="w-auto gap-4 rounded-3xl p-5 sm:max-w-none"
+        className="w-auto gap-4 sm:max-w-none"
+        style={{ padding: 20, borderRadius: 24 }}
       >
         <DialogTitle className="text-muted-foreground text-xs font-medium">
           Vaqtni tanlang
@@ -251,7 +264,7 @@ export function TimePicker({
             value={hour}
             onClick={() => setMode("hour")}
           />
-          <span className="text-4xl leading-none">:</span>
+          <span style={{ fontSize: "2.25rem", lineHeight: 1 }}>:</span>
           <Segment
             label="Daqiqa"
             active={mode === "minute"}
