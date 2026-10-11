@@ -167,26 +167,6 @@ export const MONTHS = [
   "Dekabr",
 ] as const;
 
-/** "2026-10" -> "Oktabr 2026" */
-export function formatMonth(month: string): string {
-  const [y, m] = month.split("-").map(Number);
-  return `${MONTHS[m - 1] ?? "?"} ${y}`;
-}
-
-/** "2026-10", -1 -> "2026-09" (yil chegarasidan o'tadi) */
-export function addMonths(month: string, delta: number): string {
-  const [y, m] = month.split("-").map(Number);
-  const d = new Date(Date.UTC(y, m - 1 + delta, 1));
-  return fromDbDate(d).slice(0, 7);
-}
-
-/** Kalendar katagi: oyning 6 haftasi (42 kun), dushanbadan boshlanadi */
-export function calendarDays(month: string): DateStr[] {
-  const first = `${month}-01`;
-  const start = addDays(first, 1 - weekdayOf(first));
-  return Array.from({ length: 42 }, (_, i) => addDays(start, i));
-}
-
 /**
  * Jadval bo'yicha `after` dan keyingi birinchi dars kuni (uyga vazifaning default muddati).
  * weekdays: 1 = Dushanba ... 7 = Yakshanba; jadval bo'sh bo'lsa null

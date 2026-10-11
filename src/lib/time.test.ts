@@ -2,14 +2,11 @@ import { describe, expect, it } from "vitest";
 import { percent } from "./format";
 import {
   addDays,
-  addMonths,
-  calendarDays,
   datesBetween,
   formatDate,
   formatDateTime,
   formatDayMonth,
   formatDuration,
-  formatMonth,
   formatSchedule,
   fromDbDate,
   isValidDateStr,
@@ -109,34 +106,6 @@ describe("Toshkent sanalari", () => {
         { weekday: 6, startTime: "09:00", endTime: "11:00" },
       ]),
     ).toBe("Se 10:00–12:00, Sha 09:00–11:00");
-  });
-});
-
-describe("kalendar yordamchilari", () => {
-  it("formatMonth", () => {
-    expect(formatMonth("2026-10")).toBe("Oktabr 2026");
-    expect(formatMonth("2027-01")).toBe("Yanvar 2027");
-  });
-
-  it("addMonths yil chegarasidan o'tadi", () => {
-    expect(addMonths("2026-01", -1)).toBe("2025-12");
-    expect(addMonths("2026-12", 1)).toBe("2027-01");
-    expect(addMonths("2026-10", 0)).toBe("2026-10");
-  });
-
-  it("calendarDays dushanbadan boshlanadi va 42 kun", () => {
-    // 2026-10-01 — payshanba
-    const days = calendarDays("2026-10");
-    expect(days).toHaveLength(42);
-    expect(days[0]).toBe("2026-09-28");
-    expect(weekdayOf(days[0])).toBe(1);
-    expect(days[3]).toBe("2026-10-01");
-    expect(days[41]).toBe("2026-11-08");
-  });
-
-  it("oy dushanbadan boshlansa birinchi katak — 1-kun", () => {
-    // 2026-06-01 — dushanba
-    expect(calendarDays("2026-06")[0]).toBe("2026-06-01");
   });
 });
 

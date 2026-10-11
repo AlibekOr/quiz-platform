@@ -11,7 +11,7 @@ export function MonthPicker({ month, max }: { month: string; max: string }) {
   return (
     <MonthSelect
       aria-label="Oy"
-      className="w-44"
+      className="w-auto"
       value={month}
       max={max}
       onChange={(value) => {
