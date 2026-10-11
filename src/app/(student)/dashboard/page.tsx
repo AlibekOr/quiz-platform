@@ -1,14 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { TrophyIcon } from "lucide-react";
+import { SemesterCard } from "@/components/grades/semester-card";
 import { StartTestButton } from "@/components/student/start-test-button";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { finalizeExpiredAttempts } from "@/lib/attempts";
 import { requireStudent } from "@/lib/auth/guards";
 import { db } from "@/lib/db";
-import { CATEGORY_LABEL, formatPoints } from "@/lib/grades";
-import { resolveLeaderboard } from "@/lib/leaderboard-access";
+import { getStudentSemesters } from "@/lib/grades-data";
 import {
   formatDate,
   formatDateTime,
@@ -17,7 +16,6 @@ import {
   toDbDate,
   todayInTashkent,
 } from "@/lib/time";
-import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Testlarim" };
 
@@ -26,7 +24,7 @@ export default async function DashboardPage() {
   await finalizeExpiredAttempts({ userId: student.id });
 
   const today = todayInTashkent();
-  const [tests, results, homeworks, ranking] = await Promise.all([
+  const [tests, results, current] = await Promise.all([
     student.groupId
       ? db.test.findMany({
           where: { isActive: true, groups: { some: { id: student.groupId } } },
@@ -60,125 +58,68 @@ export default async function DashboardPage() {
         test: { select: { title: true } },
       },
     }),
-    // Muddati hali o'tmagan topshiriqlar (faqat hozirgi guruh)
-    student.groupId
-      ? db.assignment.findMany({
-          where: {
-            semester: { groupId: student.groupId },
-            dueDate: { gte: toDbDate(today) },
-            // EXTRA faqat o'ziga ball qo'yilgan bo'lsa (getStudentAssignments bilan bir xil)
-            OR: [
-              { category: { not: "EXTRA" } },
-              { grades: { some: { studentId: student.id } } },
-            ],
-          },
-          orderBy: { dueDate: "asc" },
-          take: 5,
-          select: {
-            id: true,
-            category: true,
-            title: true,
-            description: true,
-            dueDate: true,
-            maxPoints: true,
-          },
-        })
-      : [],
-    // Bosh reyting: guruh ichida joriy semestr jami bali bo'yicha (guruh sessiyadan)
-    resolveLeaderboard(student, { scope: "group" }),
+    // Joriy semestr (bugunni o'z ichiga olgani) — bosh sahifada faqat shu
+    getStudentSemesters(student.id).then(
+      (list) =>
+        list.find(
+          (s) => s.semester.startDate <= today && today <= s.semester.endDate,
+        ) ?? null,
+    ),
   ]);
-  const board =
-    !("error" in ranking) && ranking.kind === "semester" ? ranking.board : null;
+  const me = current?.students[0] ?? null;
+  // Joriy semestrda darsga kelmagan kunlar (sababsiz va sababli)
+  const absences = current
+    ? await db.attendance.findMany({
+        where: {
+          studentId: student.id,
+          status: { in: ["ABSENT", "EXCUSED"] },
+          lesson: {
+            date: {
+              gte: toDbDate(current.semester.startDate),
+              lte: toDbDate(today),
+            },
+          },
+        },
+        orderBy: { lesson: { date: "desc" } },
+        select: {
+          status: true,
+          note: true,
+          lesson: { select: { date: true } },
+        },
+      })
+    : [];
 
   return (
     <>
       <h1 className="text-2xl font-semibold">Salom, {student.fullName}</h1>
 
-      {board && board.me && (
-        <section className="flex flex-col gap-3 rounded-lg border p-4">
-          <div className="flex items-baseline justify-between gap-2">
-            <h2 className="flex items-center gap-2 text-lg font-semibold">
-              <TrophyIcon className="size-5 text-amber-500" />
-              Reyting
-            </h2>
-            <Link
-              href="/leaderboard"
-              className="text-muted-foreground text-sm hover:underline"
-            >
-              To&apos;liq reyting
-            </Link>
-          </div>
-          <p
-            className={cn(
-              "text-sm",
-              board.me.belowNorm && "text-red-700 dark:text-red-300",
-            )}
-          >
-            Guruhda{" "}
-            <b className="text-lg tabular-nums">{board.me.rank}-o&apos;rin</b>{" "}
-            <span
-              className={cn(!board.me.belowNorm && "text-muted-foreground")}
-            >
-              / {board.total} · {formatPoints(board.me.total)} ball
-            </span>
-          </p>
-          {board.me.belowNorm && (
-            <p className="text-sm text-red-700 dark:text-red-300">
-              Semestr tugashiga oz qoldi, ballingiz o&apos;tish balidan past.
-            </p>
-          )}
-          <ol className="flex flex-col gap-1 text-sm">
-            {board.entries.slice(0, 3).map((e) => (
-              <li
-                key={e.userId}
-                className={cn(
-                  "flex justify-between gap-2",
-                  e.userId === student.id && "font-semibold",
-                  e.belowNorm && "text-red-700 dark:text-red-300",
-                )}
-              >
-                <span>
-                  {e.rank}. {e.fullName}
-                </span>
-                <span className="tabular-nums">{formatPoints(e.total)}</span>
-              </li>
-            ))}
-          </ol>
-        </section>
-      )}
+      {current && me && <SemesterCard data={current} student={me} summary />}
 
-      {homeworks.length > 0 && (
-        <section className="flex flex-col gap-3">
-          <div className="flex items-baseline justify-between gap-2">
-            <h2 className="text-lg font-semibold">Uyga vazifalar</h2>
-            <Link
-              href="/homework"
-              className="text-muted-foreground text-sm hover:underline"
-            >
-              Barcha vazifalar
-            </Link>
-          </div>
-          <ul className="divide-y rounded-lg border">
-            {homeworks.map((h) => {
-              const due = fromDbDate(h.dueDate);
-              return (
-                <li key={h.id} className="flex flex-col gap-1 p-3">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="font-medium">{h.title}</span>
-                    {due === today ? (
-                      <Badge>Bugun</Badge>
-                    ) : (
-                      <Badge variant="outline">{formatDate(due)} gacha</Badge>
-                    )}
-                  </div>
-                  <p className="text-muted-foreground text-sm">
-                    {CATEGORY_LABEL[h.category]} · {h.maxPoints} ball
-                    {h.description && ` · ${h.description}`}
-                  </p>
-                </li>
-              );
-            })}
-          </ul>
+      {current && (
+        <section className="flex flex-col gap-2 rounded-lg border p-4">
+          <h2 className="font-semibold">Darsga kelmagan kunlar</h2>
+          {absences.length === 0 ? (
+            <p className="text-muted-foreground text-sm">
+              Bu semestrda dars qoldirmagansiz.
+            </p>
+          ) : (
+            <ul className="flex flex-wrap gap-2">
+              {absences.map((a) => {
+                const excused = a.status === "EXCUSED";
+                return (
+                  <li key={a.lesson.date.toISOString()}>
+                    <Badge
+                      variant={excused ? "outline" : "destructive"}
+                      title={a.note ?? undefined}
+                    >
+                      {formatDate(fromDbDate(a.lesson.date))} ·{" "}
+                      {excused ? "sababli" : "sababsiz (−1)"}
+                    </Badge>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
         </section>
       )}
 
