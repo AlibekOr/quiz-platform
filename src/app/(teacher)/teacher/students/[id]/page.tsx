@@ -19,6 +19,7 @@ import { finalizeExpiredAttempts } from "@/lib/attempts";
 import { requireTeacher } from "@/lib/auth/guards";
 import { db } from "@/lib/db";
 import { getStudentSemesters } from "@/lib/grades-data";
+import { getActivePenaltyTypes } from "@/lib/penalties";
 import { percent } from "@/lib/format";
 import { formatPhone } from "@/lib/students/format";
 import { teacherProfileSelect } from "@/lib/students/profile-select";
@@ -85,7 +86,10 @@ export default async function StudentCardPage({
   ]);
   if (!student) notFound();
 
-  const semesters = await getStudentSemesters(student.id);
+  const [semesters, penaltyTypes] = await Promise.all([
+    getStudentSemesters(student.id),
+    getActivePenaltyTypes(),
+  ]);
 
   const { profile } = student;
   const row = {
@@ -269,6 +273,9 @@ export default async function StudentCardPage({
 
       <StudentGradesSection
         studentId={student.id}
+        fullName={student.fullName}
+        penaltyTypes={penaltyTypes}
+        today={todayInTashkent()}
         archived={student.archivedAt !== null}
         semesters={semesters.flatMap(({ semester, students }) => {
           const me = students[0];
@@ -282,6 +289,7 @@ export default async function StudentCardPage({
                   maxTotal: me.result.maxTotal,
                   status: me.result.status,
                   adjustments: me.adjustments,
+                  penalties: me.penalties,
                 },
               ]
             : [];

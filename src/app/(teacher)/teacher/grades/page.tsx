@@ -3,11 +3,13 @@ import Link from "next/link";
 import { DownloadIcon } from "lucide-react";
 import { ParamSelect } from "@/components/common/param-select";
 import { GradeSheetTable } from "@/components/teacher/grades/grade-sheet-table";
+import { PenaltyDialog } from "@/components/teacher/penalties/penalty-dialog";
 import { buttonVariants } from "@/components/ui/button";
 import { requireTeacher } from "@/lib/auth/guards";
 import { db } from "@/lib/db";
 import { passScore } from "@/lib/grades";
 import { getSemesterGrades } from "@/lib/grades-data";
+import { getActivePenaltyTypes } from "@/lib/penalties";
 import { formatDate, fromDbDate, todayInTashkent } from "@/lib/time";
 
 export const metadata: Metadata = { title: "Baholar" };
@@ -43,20 +45,35 @@ export default async function GradesPage({
       (p) => fromDbDate(p.startDate) <= today && today <= fromDbDate(p.endDate),
     )?.id ??
     periods[0]?.id;
-  const data = periodId ? await getSemesterGrades(periodId) : null;
+  const [data, penaltyTypes] = await Promise.all([
+    periodId ? getSemesterGrades(periodId) : null,
+    getActivePenaltyTypes(),
+  ]);
 
   return (
     <>
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-2xl font-semibold">Baholar</h1>
         {data && (
-          <a
-            href={`/api/grades/export?periodId=${encodeURIComponent(data.semester.id)}`}
-            className={buttonVariants({ variant: "outline" })}
-          >
-            <DownloadIcon />
-            Excel&apos;ga eksport
-          </a>
+          <div className="flex flex-wrap gap-2">
+            <PenaltyDialog
+              size="default"
+              label="Jarima qo'yish"
+              students={data.students
+                .filter((s) => s.departure === null)
+                .map((s) => ({ id: s.id, fullName: s.fullName }))}
+              semesters={[{ id: data.semester.id, name: data.semester.name }]}
+              types={penaltyTypes}
+              date={today}
+            />
+            <a
+              href={`/api/grades/export?periodId=${encodeURIComponent(data.semester.id)}`}
+              className={buttonVariants({ variant: "outline" })}
+            >
+              <DownloadIcon />
+              Excel&apos;ga eksport
+            </a>
+          </div>
         )}
       </div>
 

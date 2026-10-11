@@ -63,6 +63,7 @@ model User {
   assignmentGrades   AssignmentGrade[]
   adjustments        PointAdjustment[]
   oralScores         OralScore[]
+  penalties          Penalty[]
   createdTests       Test[]            @relation("TestAuthor")
   // Menejerning regioni (faqat MANAGER uchun); doirasi: region guruhlari + ManagerGroup
   regionId           String?
@@ -270,6 +271,7 @@ model Semester {
   extraCap     Int               @default(40)
   assignments  Assignment[]
   adjustments  PointAdjustment[]
+  penalties    Penalty[]
   createdAt    DateTime          @default(now())
 
   @@unique([groupId, name])
@@ -353,6 +355,38 @@ model PointAdjustment {
   createdAt   DateTime @default(now())
 
   @@index([studentId, semesterId])
+}
+
+// Jarima shablonlari (Sozlamalar → Jarima shablonlari). Nofaol shablon tanlashda chiqmaydi,
+// lekin eski jarimalarda nomi saqlanadi (o'chirish — faqat ishlatilmagan bo'lsa)
+model PenaltyType {
+  id            String    @id @default(cuid())
+  name          String    @unique
+  defaultPoints Float
+  description   String?
+  isActive      Boolean   @default(true)
+  penalties     Penalty[]
+  createdAt     DateTime  @default(now())
+}
+
+// Jarima: semestr jamidan 60 lik chegaradan KEYIN ayiriladi (lib/grades.ts).
+// points shablondan nusxa olinadi (o'zgartirsa bo'ladi)
+model Penalty {
+  id          String      @id @default(cuid())
+  studentId   String
+  student     User        @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  semesterId  String
+  semester    Semester    @relation(fields: [semesterId], references: [id], onDelete: Cascade)
+  typeId      String
+  type        PenaltyType @relation(fields: [typeId], references: [id], onDelete: Restrict)
+  points      Float
+  note        String?
+  date        DateTime    @db.Date
+  createdById String
+  createdAt   DateTime    @default(now())
+
+  @@index([semesterId, studentId])
+  @@index([studentId])
 }
 
 model Region {

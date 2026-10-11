@@ -26,6 +26,13 @@ const SCHEDULES: Record<
 };
 const STUDENTS_PER_GROUP = 5;
 
+const PENALTY_TYPES = [
+  { name: "Darsga sababsiz kelmaslik", defaultPoints: 2 },
+  { name: "Uyga vazifani ko'chirish", defaultPoints: 2 },
+  { name: "Darsda tartibni buzish", defaultPoints: 1 },
+  { name: "Darsga kechikish", defaultPoints: 1 },
+];
+
 type SeedQuestion = {
   text: string;
   type: QuestionType;
@@ -337,8 +344,17 @@ async function main() {
     }
   }
 
+  // Namunaviy jarima shablonlari (migratsiya ham qo'shadi; o'qituvchi o'zgartirganiga tegilmaydi)
+  for (const t of PENALTY_TYPES) {
+    await db.penaltyType.upsert({
+      where: { name: t.name },
+      update: {},
+      create: t,
+    });
+  }
+
   console.log(
-    `Seed tayyor: 1 o'qituvchi, ${GROUPS.length} guruh, ${GROUPS.length * STUDENTS_PER_GROUP} o'quvchi, 1 test (${CSS_QUESTIONS.length} savol), dars jadvali, 2 haftalik davomat, ${managerSetup.length} region va ${managerSetup.length} menejer`,
+    `Seed tayyor: 1 o'qituvchi, ${GROUPS.length} guruh, ${GROUPS.length * STUDENTS_PER_GROUP} o'quvchi, 1 test (${CSS_QUESTIONS.length} savol), dars jadvali, 2 haftalik davomat, ${managerSetup.length} region va ${managerSetup.length} menejer, ${PENALTY_TYPES.length} jarima shabloni`,
   );
 }
 

@@ -9,10 +9,12 @@ import {
   addPointAdjustment,
   deletePointAdjustment,
 } from "@/app/(teacher)/teacher/grades/actions";
+import { deletePenalty } from "@/app/(teacher)/teacher/penalties/actions";
 import { ConfirmAction } from "@/components/common/confirm-action";
 import { applyServerErrors } from "@/components/common/form-errors";
 import { FormError, FormField } from "@/components/common/form-field";
 import { StatusBadge } from "@/components/grades/status-badge";
+import { PenaltyDialog } from "@/components/teacher/penalties/penalty-dialog";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -28,6 +30,8 @@ import {
   NativeSelectOption,
 } from "@/components/ui/native-select";
 import { formatPoints, signedPoints, type SemesterStatus } from "@/lib/grades";
+import type { PenaltyOption } from "@/lib/penalties";
+import { formatDate, type DateStr } from "@/lib/time";
 import {
   adjustmentSchema,
   type AdjustmentInput,
@@ -41,23 +45,40 @@ export type StudentSemesterSummary = {
   maxTotal: number;
   status: SemesterStatus;
   adjustments: { id: string; points: number; reason: string }[];
+  penalties: {
+    id: string;
+    points: number;
+    name: string;
+    note: string | null;
+    date: DateStr;
+  }[];
 };
 
 /** O'quvchi kartochkasi: semestrlar bo'yicha natija va ball tuzatishlari */
 export function StudentGradesSection({
   studentId,
+  fullName,
   semesters,
+  penaltyTypes,
+  today,
   archived,
 }: {
   studentId: string;
+  fullName: string;
   semesters: StudentSemesterSummary[];
+  penaltyTypes: PenaltyOption[];
+  today: DateStr;
   archived: boolean;
 }) {
   const [adding, setAdding] = useState(false);
   const [removing, setRemoving] = useState<{
+    kind: "adjustment" | "penalty";
     id: string;
     label: string;
   } | null>(null);
+  const penalties = semesters.flatMap((s) =>
+    s.penalties.map((p) => ({ ...p, semesterName: s.name })),
+  );
   const adjustments = semesters.flatMap((s) =>
     s.adjustments.map((a) => ({ ...a, semesterName: s.name })),
   );
@@ -67,9 +88,20 @@ export function StudentGradesSection({
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-lg font-semibold">Semestr ballari</h2>
         {!archived && semesters.length > 0 && (
-          <Button size="sm" variant="outline" onClick={() => setAdding(true)}>
-            Ball tuzatish
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <PenaltyDialog
+              students={[{ id: studentId, fullName }]}
+              semesters={semesters.map((s) => ({
+                id: s.id,
+                name: `${s.name} · ${s.groupName}`,
+              }))}
+              types={penaltyTypes}
+              date={today}
+            />
+            <Button size="sm" variant="outline" onClick={() => setAdding(true)}>
+              Ball tuzatish
+            </Button>
+          </div>
         )}
       </div>
 
@@ -119,7 +151,46 @@ export function StudentGradesSection({
                       size="icon-sm"
                       variant="ghost"
                       aria-label={`${label}: o'chirish`}
-                      onClick={() => setRemoving({ id: a.id, label })}
+                      onClick={() =>
+                        setRemoving({ kind: "adjustment", id: a.id, label })
+                      }
+                    >
+                      <Trash2Icon />
+                    </Button>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
+
+      {penalties.length > 0 && (
+        <div className="flex flex-col gap-1 rounded-lg border p-3 text-sm">
+          <h3 className="font-medium">Jarimalar</h3>
+          <ul className="flex flex-col divide-y">
+            {penalties.map((p) => {
+              const label = `−${formatPoints(p.points)} · ${p.name}`;
+              return (
+                <li
+                  key={p.id}
+                  className="flex items-start justify-between gap-2 py-1.5"
+                >
+                  <span className="min-w-0">
+                    <span className="text-destructive block">{label}</span>
+                    <span className="text-muted-foreground block text-xs">
+                      {formatDate(p.date)} · {p.semesterName}
+                      {p.note && ` · ${p.note}`}
+                    </span>
+                  </span>
+                  {!archived && (
+                    <Button
+                      size="icon-sm"
+                      variant="ghost"
+                      aria-label={`${label}: bekor qilish`}
+                      onClick={() =>
+                        setRemoving({ kind: "penalty", id: p.id, label })
+                      }
                     >
                       <Trash2Icon />
                     </Button>
@@ -156,11 +227,21 @@ export function StudentGradesSection({
         <ConfirmAction
           open
           onOpenChange={(o) => !o && setRemoving(null)}
-          title="Tuzatishni o'chirish"
+          title={
+            removing.kind === "penalty"
+              ? "Jarimani bekor qilish"
+              : "Tuzatishni o'chirish"
+          }
           description={removing.label}
-          confirmLabel="O'chirish"
+          confirmLabel={
+            removing.kind === "penalty" ? "Bekor qilish" : "O'chirish"
+          }
           destructive
-          action={() => deletePointAdjustment(removing.id)}
+          action={() =>
+            removing.kind === "penalty"
+              ? deletePenalty(removing.id)
+              : deletePointAdjustment(removing.id)
+          }
         />
       )}
     </section>

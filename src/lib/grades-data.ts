@@ -92,6 +92,14 @@ export type StudentSemester = {
   grades: Record<string, { points: number; note: string | null }>;
   oral: { date: DateStr; points: number; note: string | null }[];
   adjustments: { id: string; points: number; reason: string }[];
+  /** Jarimalar (yangilari birinchi) — sababi bilan, o'quvchiga ham ko'rinadi */
+  penalties: {
+    id: string;
+    points: number;
+    name: string;
+    note: string | null;
+    date: DateStr;
+  }[];
   result: SemesterResult;
 };
 
@@ -146,7 +154,7 @@ async function buildSemester(
   const studentIds = students.map((st) => st.id);
   const none = studentIds.length === 0;
 
-  const [grades, oral, adjustments] = await Promise.all([
+  const [grades, oral, adjustments, penalties] = await Promise.all([
     none || assignments.length === 0
       ? []
       : db.assignmentGrade.findMany({
@@ -189,6 +197,20 @@ async function buildSemester(
           orderBy: { createdAt: "asc" },
           select: { id: true, studentId: true, points: true, reason: true },
         }),
+    none
+      ? []
+      : db.penalty.findMany({
+          where: { semesterId: s.id, studentId: { in: studentIds } },
+          orderBy: [{ date: "desc" }, { createdAt: "desc" }],
+          select: {
+            id: true,
+            studentId: true,
+            points: true,
+            note: true,
+            date: true,
+            type: { select: { name: true } },
+          },
+        }),
   ]);
 
   const categoryOf = new Map(assignments.map((a) => [a.id, a.category]));
@@ -197,6 +219,7 @@ async function buildSemester(
     const own = grades.filter((g) => g.studentId === st.id);
     const ownOral = oral.filter((o) => o.studentId === st.id);
     const ownAdj = adjustments.filter((a) => a.studentId === st.id);
+    const ownPen = penalties.filter((p) => p.studentId === st.id);
 
     const sums: PointSums = {
       homework: 0,
@@ -205,8 +228,7 @@ async function buildSemester(
       extra: 0,
       bonus: 0,
       adjustments: ownAdj.reduce((sum, a) => sum + a.points, 0),
-      // Jarimalar 19-bosqichda
-      penalties: 0,
+      penalties: ownPen.reduce((sum, p) => sum + p.points, 0),
     };
     for (const g of own) {
       const category = categoryOf.get(g.assignmentId);
@@ -237,6 +259,13 @@ async function buildSemester(
         id,
         points,
         reason,
+      })),
+      penalties: ownPen.map((p) => ({
+        id: p.id,
+        points: p.points,
+        name: p.type.name,
+        note: p.note,
+        date: fromDbDate(p.date),
       })),
       result: computeSemesterResult(semester.rules, sums, semester.ended),
     };

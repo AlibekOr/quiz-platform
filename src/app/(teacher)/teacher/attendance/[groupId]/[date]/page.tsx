@@ -3,7 +3,11 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeftIcon } from "lucide-react";
 import { AttendanceSheet } from "@/components/teacher/attendance/attendance-sheet";
+import { PenaltyDialog } from "@/components/teacher/penalties/penalty-dialog";
 import { getLessonSheet } from "@/lib/attendance-data";
+import { db } from "@/lib/db";
+import { currentSemesterId } from "@/lib/grades-data";
+import { getActivePenaltyTypes } from "@/lib/penalties";
 import { requireTeacher } from "@/lib/auth/guards";
 import {
   formatDate,
@@ -29,6 +33,17 @@ export default async function AttendanceSheetPage({
   const schedule = sheet.group.schedules.find(
     (s) => s.weekday === weekdayOf(date),
   );
+  // Jarima: dars sanasi tushadigan semestrga (semestr bo'lmasa tugma chiqmaydi)
+  const [semesterId, penaltyTypes] = await Promise.all([
+    currentSemesterId(groupId, date),
+    getActivePenaltyTypes(),
+  ]);
+  const semester = semesterId
+    ? await db.semester.findUnique({
+        where: { id: semesterId },
+        select: { id: true, name: true },
+      })
+    : null;
 
   return (
     <>
@@ -50,6 +65,18 @@ export default async function AttendanceSheetPage({
             {sheet.lesson ? " · saqlangan" : ""}
           </p>
         </div>
+        {semester && date <= today && (
+          <div>
+            <PenaltyDialog
+              students={sheet.rows
+                .filter((r) => !r.formerMember)
+                .map((r) => ({ id: r.studentId, fullName: r.fullName }))}
+              semesters={[semester]}
+              types={penaltyTypes}
+              date={date}
+            />
+          </div>
+        )}
       </div>
 
       {date > today ? (

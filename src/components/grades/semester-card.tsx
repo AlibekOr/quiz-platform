@@ -113,6 +113,21 @@ export function SemesterCard({
         </p>
       )}
 
+      {student.penalties.length > 0 && (
+        <ul className="flex flex-col gap-1 text-sm">
+          {student.penalties.map((p) => (
+            <li key={p.id} className="text-destructive">
+              Jarima −{formatPoints(p.points)}: {p.name}
+              <span className="text-muted-foreground">
+                {" "}
+                · {formatDate(p.date)}
+                {p.note && ` · ${p.note}`}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+
       {student.adjustments.length > 0 && (
         <ul className="text-muted-foreground flex flex-col gap-1 text-sm">
           {student.adjustments.map((a) => (
