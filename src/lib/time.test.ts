@@ -2,6 +2,10 @@ import { describe, expect, it } from "vitest";
 import { percent } from "./format";
 import {
   addDays,
+  addMonths,
+  calendarDays,
+  formatMonth,
+  parseDateInput,
   datesBetween,
   formatDate,
   formatDateTime,
@@ -125,5 +129,29 @@ describe("nextLessonDate", () => {
 
   it("jadval bo'sh — null", () => {
     expect(nextLessonDate([], "2026-10-12")).toBeNull();
+  });
+});
+
+describe("kalendar", () => {
+  it("oylar va yil chegarasi", () => {
+    expect(addMonths("2026-01", -1)).toBe("2025-12");
+    expect(addMonths("2026-12", 1)).toBe("2027-01");
+    expect(formatMonth("2026-10")).toBe("Oktabr 2026");
+  });
+
+  it("kalendar dushanbadan boshlanadi, oyni to'liq qamraydi", () => {
+    const days = calendarDays("2026-10");
+    expect(days[0]).toBe("2026-09-28");
+    expect(days.at(-1)).toBe("2026-11-01");
+    expect(days).toHaveLength(35);
+    // 2026-03: 1-mart yakshanba, 31 kun -> 6 hafta
+    expect(calendarDays("2026-03")).toHaveLength(42);
+  });
+
+  it("qo'lda kiritilgan sana", () => {
+    expect(parseDateInput("11/10/2026")).toBe("2026-10-11");
+    expect(parseDateInput("1.2.2026")).toBe("2026-02-01");
+    expect(parseDateInput("31/02/2026")).toBeNull();
+    expect(parseDateInput("abc")).toBeNull();
   });
 });

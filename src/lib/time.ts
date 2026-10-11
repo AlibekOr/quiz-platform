@@ -181,3 +181,34 @@ export function nextLessonDate(
   }
   return null;
 }
+
+/** "2026-10" -> "Oktabr 2026" */
+export function formatMonth(month: string): string {
+  const [y, m] = month.split("-").map(Number);
+  return `${MONTHS[m - 1] ?? "?"} ${y}`;
+}
+
+/** "2026-10", -1 -> "2026-09" (yil chegarasidan o'tadi) */
+export function addMonths(month: string, delta: number): string {
+  const [y, m] = month.split("-").map(Number);
+  return fromDbDate(new Date(Date.UTC(y, m - 1 + delta, 1))).slice(0, 7);
+}
+
+/** Kalendar katagi: oyni to'liq qamraydigan haftalar (dushanbadan), 4–6 qator */
+export function calendarDays(month: string): DateStr[] {
+  const { from, to } = monthRange(month);
+  const start = addDays(from, 1 - weekdayOf(from));
+  const end = addDays(to, 7 - weekdayOf(to));
+  return datesBetween(start, end);
+}
+
+/** Qo'lda kiritilgan sana: "11/10/2026", "11.10.2026" -> "2026-10-11"; noto'g'ri bo'lsa null */
+export function parseDateInput(value: string): DateStr | null {
+  const match = /^\s*(\d{1,2})\s*[./-]\s*(\d{1,2})\s*[./-]\s*(\d{4})\s*$/.exec(
+    value,
+  );
+  if (!match) return null;
+  const [, d, m, y] = match;
+  const date = `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
+  return isValidDateStr(date) ? date : null;
+}
