@@ -24,10 +24,10 @@ import { PICKER_TRIGGER_CLASS, type PickerProps } from "./date-picker";
 // Vaqt tanlash ("14:00"): soat siferblati oynasi, 24 soatlik (tashqi halqa 1–12,
 // ichki 13–00). Avval soat, keyin daqiqa (5 daqiqa qadam); bosib yoki sudrab tanlanadi
 
-const DIAL = 256;
+const DIAL = 216;
 const CENTER = DIAL / 2;
 /** Tashqi halqa radiusi (px) */
-const RADIUS = 100;
+const RADIUS = 84;
 const STEP = 5;
 
 function Dial({
@@ -106,7 +106,7 @@ function Dial({
       onPointerCancel={() => {
         dragging.current = false;
       }}
-      className="bg-muted focus-visible:ring-ring/50 relative mx-auto size-64 shrink-0 cursor-pointer touch-none rounded-full outline-none select-none focus-visible:ring-3"
+      className="bg-muted focus-visible:ring-ring/50 relative mx-auto size-54 shrink-0 cursor-pointer touch-none rounded-full outline-none select-none focus-visible:ring-3"
     >
       <svg
         viewBox={`0 0 ${DIAL} ${DIAL}`}
@@ -122,7 +122,7 @@ function Dial({
           strokeWidth={2}
         />
         <circle cx={CENTER} cy={CENTER} r={4} fill="currentColor" />
-        <circle cx={tipX} cy={tipY} r={20} fill="currentColor" />
+        <circle cx={tipX} cy={tipY} r={16} fill="currentColor" />
         {mode === "minute" && value % 5 !== 0 && (
           <circle
             cx={tipX}
@@ -138,8 +138,8 @@ function Dial({
           <span
             key={m.label}
             className={cn(
-              "pointer-events-none absolute flex size-10 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full tabular-nums",
-              isInner ? "text-muted-foreground text-sm" : "text-base",
+              "pointer-events-none absolute flex size-8 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full tabular-nums",
+              isInner ? "text-muted-foreground text-xs" : "text-sm",
               m.value === value &&
                 (mode === "minute" || isInner === inner) &&
                 "text-primary-foreground font-semibold",
@@ -175,7 +175,7 @@ function Segment({
       aria-pressed={active}
       onClick={onClick}
       className={cn(
-        "focus-visible:ring-ring/50 flex h-20 w-24 items-center justify-center rounded-xl text-5xl tabular-nums transition-colors outline-none focus-visible:ring-3",
+        "focus-visible:ring-ring/50 flex h-14 w-18 items-center justify-center rounded-xl text-4xl tabular-nums transition-colors outline-none focus-visible:ring-3",
         active
           ? "bg-primary/15 text-primary"
           : "bg-muted text-foreground hover:bg-muted/70",
@@ -239,7 +239,7 @@ export function TimePicker({
       </DialogTrigger>
       <DialogContent
         showCloseButton={false}
-        className="w-auto gap-6 rounded-3xl p-6 sm:max-w-none"
+        className="w-auto gap-4 rounded-3xl p-5 sm:max-w-none"
       >
         <DialogTitle className="text-muted-foreground text-xs font-medium">
           Vaqtni tanlang
@@ -251,7 +251,7 @@ export function TimePicker({
             value={hour}
             onClick={() => setMode("hour")}
           />
-          <span className="text-5xl leading-none">:</span>
+          <span className="text-4xl leading-none">:</span>
           <Segment
             label="Daqiqa"
             active={mode === "minute"}
@@ -271,7 +271,7 @@ export function TimePicker({
           <Button
             type="button"
             variant="ghost"
-            className="text-primary h-10 px-4 font-semibold"
+            className="text-primary h-9 px-3 font-semibold"
             onClick={() => setOpen(false)}
           >
             Bekor qilish
@@ -279,7 +279,7 @@ export function TimePicker({
           <Button
             type="button"
             variant="ghost"
-            className="text-primary h-10 px-4 font-semibold"
+            className="text-primary h-9 px-3 font-semibold"
             onClick={() => {
               onChange(formatTime(hour, minute));
               setOpen(false);

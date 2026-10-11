@@ -149,7 +149,7 @@ export function DatePicker({
         </PopoverTrigger>
         <PopoverContent
           align="start"
-          className="w-auto gap-4 rounded-2xl p-4 shadow-lg"
+          className="w-auto gap-3 rounded-2xl p-3 shadow-lg"
         >
           <div className="flex items-center justify-between">
             <Button
@@ -189,12 +189,12 @@ export function DatePicker({
                   apply();
                 }
               }}
-              className="h-9 flex-1 tabular-nums"
+              className="h-8 flex-1 tabular-nums"
             />
             <Button
               type="button"
               variant="outline"
-              className="h-9 font-semibold"
+              className="h-8 font-semibold"
               disabled={!inRange(today, min, max)}
               onClick={() => select(today)}
             >
@@ -202,11 +202,11 @@ export function DatePicker({
             </Button>
           </div>
 
-          <div className="grid grid-cols-[repeat(7,2.5rem)] justify-center gap-y-1 text-center">
+          <div className="grid grid-cols-[repeat(7,2.25rem)] justify-center gap-y-0.5 text-center">
             {WEEKDAYS.map((w) => (
               <span
                 key={w.value}
-                className="text-muted-foreground py-1.5 text-xs font-medium"
+                className="text-muted-foreground py-1 text-xs font-medium"
               >
                 {w.short}
               </span>
@@ -223,7 +223,7 @@ export function DatePicker({
                   aria-label={formatShort(d)}
                   aria-pressed={selected}
                   className={cn(
-                    "focus-visible:ring-ring/50 relative mx-auto flex size-10 items-center justify-center rounded-full text-sm tabular-nums transition-colors outline-none focus-visible:ring-3 disabled:pointer-events-none disabled:opacity-30",
+                    "focus-visible:ring-ring/50 relative mx-auto flex size-9 items-center justify-center rounded-full text-sm tabular-nums transition-colors outline-none focus-visible:ring-3 disabled:pointer-events-none disabled:opacity-30",
                     selected
                       ? "bg-primary text-primary-foreground font-semibold"
                       : "hover:bg-muted",
@@ -234,7 +234,7 @@ export function DatePicker({
                   {d === today && (
                     <span
                       className={cn(
-                        "absolute bottom-1.5 size-1 rounded-full",
+                        "absolute bottom-1 size-1 rounded-full",
                         selected ? "bg-primary-foreground" : "bg-primary",
                       )}
                     />
@@ -244,18 +244,18 @@ export function DatePicker({
             })}
           </div>
 
-          <div className="-mx-4 grid grid-cols-2 gap-3 border-t px-4 pt-4">
+          <div className="-mx-3 grid grid-cols-2 gap-2 border-t px-3 pt-3">
             <Button
               type="button"
               variant="outline"
-              className="h-10 font-semibold"
+              className="h-9 font-semibold"
               onClick={() => setOpen(false)}
             >
               Bekor qilish
             </Button>
             <Button
               type="button"
-              className="h-10 font-semibold"
+              className="h-9 font-semibold"
               disabled={!draft || !inRange(draft, min, max)}
               onClick={apply}
             >
