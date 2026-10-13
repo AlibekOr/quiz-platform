@@ -3,6 +3,7 @@ import type { Prisma } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
 import {
   autoPenalties,
+  CATEGORY_SUM_KEY,
   computeSemesterResult,
   round1,
   isSemesterEnded,
@@ -140,13 +141,6 @@ export function semesterInfo(
   };
 }
 
-const SUM_KEY: Record<AssignmentCategory, keyof PointSums> = {
-  HOMEWORK: "homework",
-  PRACTICAL: "practical",
-  EXTRA: "extra",
-  BONUS: "bonus",
-};
-
 /** Berilgan o'quvchilar uchun semestr natijalari (o'quvchilarni chaqiruvchi tanlaydi) */
 async function buildSemester(
   s: SemesterRow,
@@ -281,7 +275,7 @@ async function buildSemester(
     };
     for (const g of own) {
       const category = categoryOf.get(g.assignmentId);
-      if (category) sums[SUM_KEY[category]] += g.points;
+      if (category) sums[CATEGORY_SUM_KEY[category]] += g.points;
     }
 
     return {

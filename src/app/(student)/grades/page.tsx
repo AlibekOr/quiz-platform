@@ -1,7 +1,11 @@
+import { Fragment } from "react";
 import type { Metadata } from "next";
+import { ProgressChart } from "@/components/grades/progress-chart";
 import { SemesterCard } from "@/components/grades/semester-card";
 import { requireStudent } from "@/lib/auth/guards";
 import { getStudentSemesters } from "@/lib/grades-data";
+import { semesterProgress } from "@/lib/grades-progress";
+import { todayInTashkent } from "@/lib/time";
 
 export const metadata: Metadata = { title: "Baholarim" };
 
@@ -9,6 +13,7 @@ export const metadata: Metadata = { title: "Baholarim" };
 export default async function MyGradesPage() {
   const student = await requireStudent();
   const semesters = await getStudentSemesters(student.id);
+  const today = todayInTashkent();
 
   return (
     <>
@@ -19,7 +24,14 @@ export default async function MyGradesPage() {
         semesters.map((data) => {
           const me = data.students[0];
           return me ? (
-            <SemesterCard key={data.semester.id} data={data} student={me} />
+            <Fragment key={data.semester.id}>
+              <SemesterCard data={data} student={me} />
+              <ProgressChart
+                points={semesterProgress(data, me, today)}
+                maxTotal={me.result.maxTotal}
+                passScore={me.result.passScore}
+              />
+            </Fragment>
           ) : null;
         })
       )}

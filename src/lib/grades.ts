@@ -48,6 +48,14 @@ export type PointSums = {
   penalties: number;
 };
 
+/** Topshiriq toifasi -> yig'indidagi maydon */
+export const CATEGORY_SUM_KEY: Record<AssignmentCategory, keyof PointSums> = {
+  HOMEWORK: "homework",
+  PRACTICAL: "practical",
+  EXTRA: "extra",
+  BONUS: "bonus",
+};
+
 export const EMPTY_SUMS: PointSums = {
   homework: 0,
   practical: 0,
