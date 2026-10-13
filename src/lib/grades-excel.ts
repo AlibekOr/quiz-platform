@@ -16,6 +16,9 @@ import { formatDate, formatDayMonth } from "@/lib/time";
 // keyingilarida har kategoriya batafsil
 
 export const GRADES_HEADER_ROW = 4;
+/** Har varaqda: 1-ustun — №, 2-ustun — o'quvchi, ma'lumotlar 3-ustundan */
+const NAME_COL = 2;
+const DATA_COL = NAME_COL + 1;
 const MUTED_FONT = { color: { argb: "FF6B7280" }, italic: true };
 const STATUS_FILL: Partial<Record<SemesterStatus, string>> = {
   FAILED: "FFFFC7CE",
@@ -44,7 +47,7 @@ function addSheet(
   title: string,
 ) {
   const ws = workbook.addWorksheet(name, {
-    views: [{ state: "frozen", xSplit: 1, ySplit: GRADES_HEADER_ROW }],
+    views: [{ state: "frozen", xSplit: NAME_COL, ySplit: GRADES_HEADER_ROW }],
   });
   const { semester } = data;
   ws.getCell("A1").value = `${semester.group.name} · ${semester.name}`;
@@ -52,23 +55,34 @@ function addSheet(
   ws.getCell("A2").value =
     `${formatDate(semester.startDate)} – ${formatDate(semester.endDate)} · ${title}`;
   ws.getCell("A2").font = MUTED_FONT;
-  ws.getColumn(1).width = data.students.some((s) => s.departure) ? 46 : 30;
+  ws.getColumn(1).width = 5;
+  ws.getColumn(NAME_COL).width = data.students.some((s) => s.departure)
+    ? 46
+    : 30;
   return ws;
 }
 
 function header(ws: ExcelJS.Worksheet, values: string[]) {
   const row = ws.getRow(GRADES_HEADER_ROW);
-  row.values = values;
+  row.values = ["№", ...values];
   row.font = { bold: true };
   row.alignment = { wrapText: true, vertical: "top", horizontal: "center" };
-  row.getCell(1).alignment = { vertical: "top" };
+  row.getCell(NAME_COL).alignment = { vertical: "top" };
   row.height = 32;
 }
 
-function nameCell(row: ExcelJS.Row, s: SemesterGrades["students"][number]) {
-  const cell = row.getCell(1);
+/** № va ism; qator markazlanadi, ism chapda */
+function nameCell(
+  row: ExcelJS.Row,
+  s: SemesterGrades["students"][number],
+  index: number,
+) {
+  row.getCell(1).value = index + 1;
+  const cell = row.getCell(NAME_COL);
   cell.value = studentLabel(s);
   if (s.departure) cell.font = MUTED_FONT;
+  row.alignment = { horizontal: "center" };
+  cell.alignment = { horizontal: "left" };
 }
 
 export async function buildGradesWorkbook(
@@ -97,17 +111,18 @@ export async function buildGradesWorkbook(
     `Jami / ${rules.maxTotal}`,
     "Holat",
   ]);
-  for (let c = 2; c <= SUMMARY.length + 6; c++) ws.getColumn(c).width = 13;
+  for (let c = DATA_COL; c < DATA_COL + SUMMARY.length + 5; c++)
+    ws.getColumn(c).width = 13;
 
   data.students.forEach((s, i) => {
     const r = s.result;
     const row = ws.getRow(GRADES_HEADER_ROW + 1 + i);
-    nameCell(row, s);
+    nameCell(row, s, i);
     SUMMARY.forEach((c, j) => {
-      row.getCell(2 + j).value = r.categories[c.category].earned;
+      row.getCell(DATA_COL + j).value = r.categories[c.category].earned;
     });
-    const n = SUMMARY.length;
-    const adj = row.getCell(n + 2);
+    const n = DATA_COL + SUMMARY.length;
+    const adj = row.getCell(n);
     if (r.adjustments !== 0) {
       adj.value = r.adjustments;
       adj.note = s.adjustments
@@ -115,11 +130,11 @@ export async function buildGradesWorkbook(
         .join("\n");
     }
     if (r.categories.EXTRA.earned > 0)
-      row.getCell(n + 3).value = r.categories.EXTRA.earned;
-    if (r.penalties > 0) row.getCell(n + 4).value = -r.penalties;
-    row.getCell(n + 5).value = r.total;
-    row.getCell(n + 5).font = { bold: true };
-    const status = row.getCell(n + 6);
+      row.getCell(n + 1).value = r.categories.EXTRA.earned;
+    if (r.penalties > 0) row.getCell(n + 2).value = -r.penalties;
+    row.getCell(n + 3).value = r.total;
+    row.getCell(n + 3).font = { bold: true };
+    const status = row.getCell(n + 4);
     status.value = STATUS_LABEL[r.status];
     const fill = STATUS_FILL[r.status];
     if (fill)
@@ -128,8 +143,6 @@ export async function buildGradesWorkbook(
         pattern: "solid",
         fgColor: { argb: fill },
       };
-    row.alignment = { horizontal: "center" };
-    row.getCell(1).alignment = { horizontal: "left" };
   });
 
   // Kategoriya varaqlari: o'quvchilar × topshiriqlar
@@ -149,22 +162,20 @@ export async function buildGradesWorkbook(
       ),
       "Jami",
     ]);
-    items.forEach((_, j) => (sheet.getColumn(2 + j).width = 14));
+    items.forEach((_, j) => (sheet.getColumn(DATA_COL + j).width = 14));
     data.students.forEach((s, i) => {
       const row = sheet.getRow(GRADES_HEADER_ROW + 1 + i);
-      nameCell(row, s);
+      nameCell(row, s, i);
       items.forEach((a, j) => {
         const g = s.grades[a.id];
         if (!g) return;
-        const cell = row.getCell(2 + j);
+        const cell = row.getCell(DATA_COL + j);
         cell.value = g.points;
         if (g.note) cell.note = g.note;
       });
-      row.getCell(items.length + 2).value =
-        s.result.categories[category].earned;
-      row.getCell(items.length + 2).font = { bold: true };
-      row.alignment = { horizontal: "center" };
-      row.getCell(1).alignment = { horizontal: "left" };
+      const total = row.getCell(DATA_COL + items.length);
+      total.value = s.result.categories[category].earned;
+      total.font = { bold: true };
     });
   }
 
@@ -177,14 +188,13 @@ export async function buildGradesWorkbook(
     header(sheet, ["O'quvchi", ...dates.map(formatDayMonth), "Jami"]);
     data.students.forEach((s, i) => {
       const row = sheet.getRow(GRADES_HEADER_ROW + 1 + i);
-      nameCell(row, s);
+      nameCell(row, s, i);
       s.oral.forEach((o) => {
-        row.getCell(2 + dates.indexOf(o.date)).value = o.points;
+        row.getCell(DATA_COL + dates.indexOf(o.date)).value = o.points;
       });
-      row.getCell(dates.length + 2).value = s.result.categories.ORAL.earned;
-      row.getCell(dates.length + 2).font = { bold: true };
-      row.alignment = { horizontal: "center" };
-      row.getCell(1).alignment = { horizontal: "left" };
+      const total = row.getCell(DATA_COL + dates.length);
+      total.value = s.result.categories.ORAL.earned;
+      total.font = { bold: true };
     });
   }
 

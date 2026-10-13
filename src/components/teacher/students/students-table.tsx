@@ -92,6 +92,7 @@ export function StudentsTable({
                   />
                 )}
               </TableHead>
+              <TableHead className="text-muted-foreground w-10">№</TableHead>
               <TableHead>F.I.Sh</TableHead>
               <TableHead>Login</TableHead>
               <TableHead>Guruh</TableHead>
@@ -103,7 +104,7 @@ export function StudentsTable({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {rows.map((s) => (
+            {rows.map((s, i) => (
               <TableRow
                 key={s.id}
                 data-state={selected.has(s.id) ? "selected" : undefined}
@@ -123,6 +124,9 @@ export function StudentsTable({
                       onChange={(e) => toggle(s.id, e.target.checked)}
                     />
                   )}
+                </TableCell>
+                <TableCell className="text-muted-foreground tabular-nums">
+                  {i + 1}
                 </TableCell>
                 <TableCell className="font-medium">
                   {variant === "teacher" ? (

@@ -61,7 +61,7 @@ export function HomeworkMatrix({
             </tr>
           </thead>
           <tbody>
-            {data.students.map((s) => {
+            {data.students.map((s, i) => {
               const cells = items.map((a) => {
                 const points = s.grades[a.id]?.points ?? null;
                 return {
@@ -80,6 +80,9 @@ export function HomeworkMatrix({
                   )}
                 >
                   <td className="bg-background sticky left-0 z-10 px-3 py-1.5 whitespace-nowrap">
+                    <span className="text-muted-foreground mr-1.5 tabular-nums">
+                      {i + 1}.
+                    </span>
                     <Link
                       href={`/teacher/students/${s.id}`}
                       className="hover:underline"

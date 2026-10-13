@@ -58,6 +58,7 @@ export default async function GroupsPage() {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="text-muted-foreground w-10">№</TableHead>
                 <TableHead>Nomi</TableHead>
                 <TableHead>Dars jadvali</TableHead>
                 {regions.length > 0 && <TableHead>Region</TableHead>}
@@ -69,8 +70,11 @@ export default async function GroupsPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {groups.map((g) => (
+              {groups.map((g, i) => (
                 <TableRow key={g.id}>
+                  <TableCell className="text-muted-foreground tabular-nums">
+                    {i + 1}
+                  </TableCell>
                   <TableCell className="font-medium">
                     <Link
                       href={`/teacher/groups/${g.id}`}

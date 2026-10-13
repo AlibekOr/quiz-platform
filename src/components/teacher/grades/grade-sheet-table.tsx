@@ -62,7 +62,7 @@ export function GradeSheetTable({ students }: { students: StudentSemester[] }) {
           </tr>
         </thead>
         <tbody>
-          {rows.map((s) => {
+          {rows.map((s, i) => {
             const r = s.result;
             return (
               <tr
@@ -74,6 +74,9 @@ export function GradeSheetTable({ students }: { students: StudentSemester[] }) {
                 )}
               >
                 <td className="bg-background sticky left-0 z-10 px-3 py-1.5 whitespace-nowrap">
+                  <span className="text-muted-foreground mr-1.5 tabular-nums">
+                    {i + 1}.
+                  </span>
                   <Link
                     href={`/teacher/students/${s.id}`}
                     className="hover:underline"

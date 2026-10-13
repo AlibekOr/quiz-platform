@@ -228,6 +228,9 @@ export default async function StudentCardPage({
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="text-muted-foreground w-10">
+                    №
+                  </TableHead>
                   <TableHead>Guruh</TableHead>
                   <TableHead>Qachondan</TableHead>
                   <TableHead>Qachongacha</TableHead>
@@ -235,8 +238,11 @@ export default async function StudentCardPage({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {student.memberships.map((m) => (
+                {student.memberships.map((m, i) => (
                   <TableRow key={m.id}>
+                    <TableCell className="text-muted-foreground tabular-nums">
+                      {i + 1}
+                    </TableCell>
                     <TableCell className="font-medium">
                       <Link
                         href={`/teacher/groups/${m.group.id}`}
@@ -313,6 +319,9 @@ export default async function StudentCardPage({
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="text-muted-foreground w-10">
+                    №
+                  </TableHead>
                   <TableHead>Test</TableHead>
                   <TableHead className="text-right">Ball</TableHead>
                   <TableHead className="text-right">Vaqt</TableHead>
@@ -321,8 +330,11 @@ export default async function StudentCardPage({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {student.attempts.map((a) => (
+                {student.attempts.map((a, i) => (
                   <TableRow key={a.id}>
+                    <TableCell className="text-muted-foreground tabular-nums">
+                      {i + 1}
+                    </TableCell>
                     <TableCell className="font-medium">
                       <Link
                         href={`/teacher/tests/${a.test.id}`}

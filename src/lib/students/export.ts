@@ -21,6 +21,7 @@ export type ExportStudent = {
 };
 
 export const EXPORT_HEADERS = [
+  "№",
   "F.I.Sh",
   "Login",
   "Guruh",
@@ -43,6 +44,7 @@ export async function buildStudentsWorkbook(
   });
 
   sheet.columns = [
+    { width: 5 },
     { width: 30 },
     { width: 16 },
     { width: 16 },
@@ -57,9 +59,10 @@ export async function buildStudentsWorkbook(
   const header = sheet.addRow([...EXPORT_HEADERS]);
   header.font = { bold: true };
 
-  for (const s of students) {
+  students.forEach((s, i) => {
     const p = s.profile;
     sheet.addRow([
+      i + 1,
       s.fullName,
       s.username,
       s.groupName,
@@ -71,8 +74,8 @@ export async function buildStudentsWorkbook(
       p?.parentPhone ?? null,
       p?.note ?? null,
     ]);
-  }
-  sheet.autoFilter = { from: "A1", to: `J${Math.max(1, students.length + 1)}` };
+  });
+  sheet.autoFilter = { from: "A1", to: `K${Math.max(1, students.length + 1)}` };
   workbook.title = title;
 
   return Buffer.from(await workbook.xlsx.writeBuffer());

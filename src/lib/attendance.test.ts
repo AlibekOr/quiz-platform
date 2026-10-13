@@ -149,6 +149,7 @@ describe("buildAttendanceWorkbook", () => {
       "Dars jadvali: Du, Cho, Ju · 14:00–16:00",
     );
     expect(values(HEADER_ROW)).toEqual([
+      "№",
       "O'quvchi",
       "02.10",
       "05.10",
@@ -158,43 +159,45 @@ describe("buildAttendanceWorkbook", () => {
     ]);
 
     // Anvar: K (sariq), − (qizil, izoh bilan)
-    expect(values(HEADER_ROW + 1)).toEqual(["Anvar", "K", "−", 1, 1, 0.5]);
-    const absent = sheet.getCell(HEADER_ROW + 1, 3);
+    expect(values(HEADER_ROW + 1)).toEqual([1, "Anvar", "K", "−", 1, 1, 0.5]);
+    const absent = sheet.getCell(HEADER_ROW + 1, 4);
     expect(absent.fill).toMatchObject({ fgColor: { argb: "FFFFC7CE" } });
     expect(absent.note).toBeTruthy();
-    expect(sheet.getCell(HEADER_ROW + 1, 2).fill).toMatchObject({
+    expect(sheet.getCell(HEADER_ROW + 1, 3).fill).toMatchObject({
       fgColor: { argb: "FFFFEB9C" },
     });
-    expect(sheet.getCell(HEADER_ROW + 1, 6).numFmt).toBe("0%");
+    expect(sheet.getCell(HEADER_ROW + 1, 7).numFmt).toBe("0%");
 
     // Nodira: yozuv yo'q — kataklar bo'sh, foiz bo'sh; 02.10 a'zolikdan tashqari (kulrang)
     expect(values(HEADER_ROW + 3)).toEqual([
+      3,
       "Nodira (yangi)",
       undefined,
       undefined,
       0,
       0,
     ]);
-    expect(sheet.getCell(HEADER_ROW + 3, 2).fill).toMatchObject({
+    expect(sheet.getCell(HEADER_ROW + 3, 3).fill).toMatchObject({
       fgColor: { argb: "FFF3F4F6" },
     });
-    expect(sheet.getCell(HEADER_ROW + 3, 3).fill).toBeUndefined();
+    expect(sheet.getCell(HEADER_ROW + 3, 4).fill).toBeUndefined();
     expect(String(sheet.getCell("A4").value)).toContain("bu guruhda bo'lmagan");
 
     // O'tkazilgan o'quvchi oxirida, nomi yonida belgi
-    expect(sheet.getCell(HEADER_ROW + 5, 1).value).toBe(
+    expect(sheet.getCell(HEADER_ROW + 5, 1).value).toBe(5);
+    expect(sheet.getCell(HEADER_ROW + 5, 2).value).toBe(
       "Xurshid (o'tkazilgan: Frontend-2, 04.10.2026)",
     );
-    expect(sheet.getCell(HEADER_ROW + 5, 1).font).toMatchObject({
+    expect(sheet.getCell(HEADER_ROW + 5, 2).font).toMatchObject({
       italic: true,
     });
 
     // Pastki qator: har bir dars bo'yicha kelganlar
-    expect(values(HEADER_ROW + 6)).toEqual(["Kelganlar soni", 2, 1]);
+    expect(values(HEADER_ROW + 6)).toEqual([undefined, "Kelganlar soni", 2, 1]);
 
     expect(sheet.views[0]).toMatchObject({
       state: "frozen",
-      xSplit: 1,
+      xSplit: 2,
       ySplit: HEADER_ROW,
     });
   });

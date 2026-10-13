@@ -40,6 +40,7 @@ describe("buildStudentsWorkbook", () => {
 
     expect(values(1)).toEqual([...EXPORT_HEADERS]);
     expect(values(2)).toEqual([
+      1,
       "Ali Valiyev",
       "ali",
       "G1",
@@ -50,7 +51,8 @@ describe("buildStudentsWorkbook", () => {
       "Ota",
       "+998911112233",
     ]);
-    expect(values(3).slice(0, 4)).toEqual([
+    expect(values(3).slice(0, 5)).toEqual([
+      2,
       "Bek",
       "bek",
       undefined,

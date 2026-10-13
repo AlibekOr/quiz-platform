@@ -68,6 +68,7 @@ export async function TestsListView({ user }: { user: CurrentUser }) {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="text-muted-foreground w-10">№</TableHead>
                 <TableHead>Nomi</TableHead>
                 <TableHead>Guruhlar</TableHead>
                 <TableHead className="text-right">Savollar</TableHead>
@@ -77,8 +78,11 @@ export async function TestsListView({ user }: { user: CurrentUser }) {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {tests.map((t) => (
+              {tests.map((t, i) => (
                 <TableRow key={t.id}>
+                  <TableCell className="text-muted-foreground tabular-nums">
+                    {i + 1}
+                  </TableCell>
                   <TableCell className="font-medium">
                     <Link
                       href={`${base}/tests/${t.id}`}

@@ -74,6 +74,7 @@ export default async function ManagersPage() {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="text-muted-foreground w-10">№</TableHead>
                 <TableHead>F.I.Sh</TableHead>
                 <TableHead>Login</TableHead>
                 <TableHead>Region</TableHead>
@@ -87,11 +88,14 @@ export default async function ManagersPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {managers.map((m) => (
+              {managers.map((m, i) => (
                 <TableRow
                   key={m.id}
                   className={m.isActive ? undefined : "text-muted-foreground"}
                 >
+                  <TableCell className="text-muted-foreground tabular-nums">
+                    {i + 1}
+                  </TableCell>
                   <TableCell className="font-medium">{m.fullName}</TableCell>
                   <TableCell className="font-mono text-xs">
                     {m.username}

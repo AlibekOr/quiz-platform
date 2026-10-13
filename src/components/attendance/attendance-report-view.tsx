@@ -110,7 +110,7 @@ export function AttendanceReportView({
                 </tr>
               </thead>
               <tbody>
-                {report.students.map((s) => (
+                {report.students.map((s, i) => (
                   <tr
                     key={s.id}
                     className={cn(
@@ -119,6 +119,9 @@ export function AttendanceReportView({
                     )}
                   >
                     <td className="bg-background sticky left-0 z-10 px-3 py-1.5 whitespace-nowrap">
+                      <span className="text-muted-foreground mr-1.5 tabular-nums">
+                        {i + 1}.
+                      </span>
                       {name(s)}
                       {s.departure && (
                         <span className="block text-xs italic">

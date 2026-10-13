@@ -167,6 +167,9 @@ export default async function HomeworkPage({
                     <Table>
                       <TableHeader>
                         <TableRow>
+                          <TableHead className="text-muted-foreground w-10">
+                            №
+                          </TableHead>
                           <TableHead>Topshiriq</TableHead>
                           <TableHead>Turi</TableHead>
                           <TableHead>Muddat</TableHead>
@@ -180,10 +183,13 @@ export default async function HomeworkPage({
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {p.assignments.map((h) => {
+                        {p.assignments.map((h, i) => {
                           const due = fromDbDate(h.dueDate);
                           return (
                             <TableRow key={h.id}>
+                              <TableCell className="text-muted-foreground tabular-nums">
+                                {i + 1}
+                              </TableCell>
                               <TableCell className="font-medium">
                                 <Link
                                   href={`/teacher/homework/${h.id}`}

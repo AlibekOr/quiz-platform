@@ -180,6 +180,9 @@ export function attendanceFileName(
 }
 
 export const HEADER_ROW = 5;
+/** 1-ustun — №, 2-ustun — o'quvchi, sanalar shundan keyin */
+const NAME_COL = 2;
+const FIRST_DATE_COL = NAME_COL + 1;
 /** A'zolik davri tashqarisidagi kataklar va guruhdan ketganlar */
 const OUTSIDE_FILL = "FFF3F4F6";
 const MUTED_FONT = { color: { argb: "FF6B7280" }, italic: true };
@@ -196,7 +199,7 @@ export async function buildAttendanceWorkbook(
 ): Promise<Buffer> {
   const workbook = new ExcelJS.Workbook();
   const sheet = workbook.addWorksheet("Davomat", {
-    views: [{ state: "frozen", xSplit: 1, ySplit: HEADER_ROW }],
+    views: [{ state: "frozen", xSplit: NAME_COL, ySplit: HEADER_ROW }],
   });
 
   sheet.getCell("A1").value = `Guruh: ${meta.groupName}`;
@@ -212,6 +215,7 @@ export async function buildAttendanceWorkbook(
   const n = report.dates.length;
   const header = sheet.getRow(HEADER_ROW);
   header.values = [
+    "№",
     "O'quvchi",
     ...report.dates.map(formatDayMonth),
     "Keldi",
@@ -221,19 +225,23 @@ export async function buildAttendanceWorkbook(
   header.font = { bold: true };
   header.alignment = { horizontal: "center" };
   const anyDeparture = report.students.some((s) => s.departure);
-  sheet.getColumn(1).width = anyDeparture ? 48 : 30;
-  for (let c = 2; c <= n + 1; c++) sheet.getColumn(c).width = 6;
-  for (let c = n + 2; c <= n + 4; c++) sheet.getColumn(c).width = 11;
+  sheet.getColumn(1).width = 5;
+  sheet.getColumn(NAME_COL).width = anyDeparture ? 48 : 30;
+  for (let c = FIRST_DATE_COL; c < FIRST_DATE_COL + n; c++)
+    sheet.getColumn(c).width = 6;
+  for (let c = FIRST_DATE_COL + n; c < FIRST_DATE_COL + n + 3; c++)
+    sheet.getColumn(c).width = 11;
 
   report.students.forEach((s, i) => {
     const row = sheet.getRow(HEADER_ROW + 1 + i);
-    const name = row.getCell(1);
+    row.getCell(1).value = i + 1;
+    const name = row.getCell(NAME_COL);
     name.value = s.departure
       ? `${s.fullName} (${departureLabel(s.departure)})`
       : s.fullName;
     if (s.departure) name.font = MUTED_FONT;
     s.cells.forEach((cell, j) => {
-      const target = row.getCell(2 + j);
+      const target = row.getCell(FIRST_DATE_COL + j);
       if (!s.member[j])
         target.fill = {
           type: "pattern",
@@ -252,18 +260,18 @@ export async function buildAttendanceWorkbook(
         };
       if (cell.note) target.note = cell.note;
     });
-    row.getCell(n + 2).value = s.stats.present;
-    row.getCell(n + 3).value = s.stats.absent;
-    const pct = row.getCell(n + 4);
+    row.getCell(FIRST_DATE_COL + n).value = s.stats.present;
+    row.getCell(FIRST_DATE_COL + n + 1).value = s.stats.absent;
+    const pct = row.getCell(FIRST_DATE_COL + n + 2);
     pct.value = s.stats.percent === null ? null : s.stats.percent / 100;
     pct.numFmt = "0%";
   });
 
   const totals = sheet.getRow(HEADER_ROW + 1 + report.students.length);
-  totals.getCell(1).value = "Kelganlar soni";
+  totals.getCell(NAME_COL).value = "Kelganlar soni";
   report.presentPerLesson.forEach((count, j) => {
-    totals.getCell(2 + j).value = count;
-    totals.getCell(2 + j).alignment = { horizontal: "center" };
+    totals.getCell(FIRST_DATE_COL + j).value = count;
+    totals.getCell(FIRST_DATE_COL + j).alignment = { horizontal: "center" };
   });
   totals.font = { bold: true };
 
