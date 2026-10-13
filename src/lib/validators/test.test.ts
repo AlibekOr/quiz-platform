@@ -79,6 +79,7 @@ describe("testSettingsSchema", () => {
       allowRetake: false,
       showAnswers: true,
       shuffleQuestions: false,
+      shuffleOptions: false,
       startsAt: "",
       endsAt: "",
       groupIds: [],
@@ -97,6 +98,7 @@ describe("testSettingsSchema", () => {
       allowRetake: false,
       showAnswers: false,
       shuffleQuestions: false,
+      shuffleOptions: false,
       startsAt: "",
       endsAt: "",
       groupIds: [],
@@ -117,6 +119,7 @@ describe("testSettingsSchema", () => {
       allowRetake: false,
       showAnswers: false,
       shuffleQuestions: false,
+      shuffleOptions: false,
       groupIds: [],
     };
     const check = (startsAt: string, endsAt: string) =>

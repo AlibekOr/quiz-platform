@@ -121,6 +121,7 @@ export async function TestEditView({
           allowRetake: test.allowRetake,
           showAnswers: test.showAnswers,
           shuffleQuestions: test.shuffleQuestions,
+          shuffleOptions: test.shuffleOptions,
           startsAt: test.startsAt ? toLocalDateTime(test.startsAt) : "",
           endsAt: test.endsAt ? toLocalDateTime(test.endsAt) : "",
           groupIds: test.groups.map((g) => g.id),

@@ -7,6 +7,7 @@ import {
 import { finalizeExpiredAttempts } from "@/lib/attempts";
 import { requireStudent } from "@/lib/auth/guards";
 import { db } from "@/lib/db";
+import { optionOrderFor } from "@/lib/grading";
 
 export const metadata: Metadata = { title: "Test" };
 
@@ -26,6 +27,7 @@ export default async function TestPage({ params }: PageProps<"/test/[id]">) {
       id: true,
       deadlineAt: true,
       questionOrder: true,
+      shuffleOptions: true,
       test: { select: { title: true } },
       answers: { select: { questionId: true, selectedOptionIds: true } },
     },
@@ -47,10 +49,13 @@ export default async function TestPage({ params }: PageProps<"/test/[id]">) {
 
   // Attempt boshlangandagi tartib; keyin qo'shilgan savollar oxirida
   const position = new Map(attempt.questionOrder.map((qid, i) => [qid, i]));
-  const questions: RunnerQuestion[] = rows.sort(
-    (a, b) =>
-      (position.get(a.id) ?? Infinity) - (position.get(b.id) ?? Infinity),
-  );
+  // Variantlar ham o'quvchining o'z tartibida (A/B/C harflari shu tartib bo'yicha)
+  const questions: RunnerQuestion[] = rows
+    .sort(
+      (a, b) =>
+        (position.get(a.id) ?? Infinity) - (position.get(b.id) ?? Infinity),
+    )
+    .map((q) => ({ ...q, options: optionOrderFor(attempt, q.id, q.options) }));
   if (questions.length === 0) redirect("/dashboard");
 
   return (

@@ -86,6 +86,7 @@ const testSettingsBaseSchema = z.object({
   allowRetake: z.boolean(),
   showAnswers: z.boolean(),
   shuffleQuestions: z.boolean(),
+  shuffleOptions: z.boolean(),
   /** Ochilish vaqti, Toshkent bo'yicha "2026-10-18T10:00"; "" — darhol */
   startsAt: localDateTime("Ochilish vaqti noto'g'ri"),
   /** Yopilish vaqti; "" — muddatsiz */

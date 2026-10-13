@@ -9,7 +9,7 @@ import type { CurrentUser } from "@/lib/auth/guards";
 import { canAccessStudent } from "@/lib/auth/scope";
 import { db } from "@/lib/db";
 import { percent } from "@/lib/format";
-import { isAnswerCorrect } from "@/lib/grading";
+import { isAnswerCorrect, optionOrderFor } from "@/lib/grading";
 import { getTestAccess, staffBase } from "@/lib/tests/access";
 import { formatDateTime, formatDuration } from "@/lib/time";
 import { cn } from "@/lib/utils";
@@ -41,6 +41,7 @@ export async function AttemptView({
       startedAt: true,
       deadlineAt: true,
       questionOrder: true,
+      shuffleOptions: true,
       user: {
         select: { fullName: true, group: { select: { name: true } } },
       },
@@ -83,7 +84,7 @@ export async function AttemptView({
     }),
   ]);
 
-  // O'quvchi ko'rgan tartibda
+  // O'quvchi ko'rgan tartibda (savollar ham, variantlar ham)
   const position = new Map(attempt.questionOrder.map((qid, i) => [qid, i]));
   questions.sort(
     (a, b) =>
@@ -95,7 +96,7 @@ export async function AttemptView({
       id: q.id,
       text: q.text,
       points: q.points,
-      options: q.options,
+      options: optionOrderFor(attempt, q.id, q.options),
       // Davom etayotgan urinish hali baholanmagan: ko'rsatish uchun joyida tekshiriladi
       answer: answer && {
         selectedOptionIds: answer.selectedOptionIds,

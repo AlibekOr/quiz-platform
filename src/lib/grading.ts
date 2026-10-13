@@ -92,3 +92,39 @@ export function shuffle<T>(
   }
   return result;
 }
+
+/** Satrdan takrorlanuvchi tasodifiy sonlar (FNV-1a hash + mulberry32) */
+function seededRandom(seed: string): () => number {
+  let h = 2166136261;
+  for (let i = 0; i < seed.length; i++) {
+    h ^= seed.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  let state = h >>> 0;
+  return () => {
+    state = (state + 0x6d2b79f5) >>> 0;
+    let t = state;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/** Bir xil urug' — har doim bir xil tartib */
+export function seededShuffle<T>(items: readonly T[], seed: string): T[] {
+  return shuffle(items, seededRandom(seed));
+}
+
+/**
+ * Urinishdagi variantlar tartibi: aralashtirish yoqilgan bo'lsa attemptId + questionId
+ * urug'idan (sahifa yangilansa ham o'zgarmaydi), aks holda asl tartib
+ */
+export function optionOrderFor<T>(
+  attempt: { id: string; shuffleOptions: boolean },
+  questionId: string,
+  options: readonly T[],
+): T[] {
+  return attempt.shuffleOptions
+    ? seededShuffle(options, `${attempt.id}:${questionId}`)
+    : [...options];
+}

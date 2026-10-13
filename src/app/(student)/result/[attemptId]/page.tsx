@@ -11,6 +11,7 @@ import { percent } from "@/lib/format";
 import { formatDuration } from "@/lib/time";
 import {
   isWithinDeadline,
+  optionOrderFor,
   markFromPercent,
   PASS_PERCENT,
   type Mark,
@@ -34,6 +35,7 @@ async function loadAttempt(attemptId: string, userId: string) {
       durationSec: true,
       deadlineAt: true,
       questionOrder: true,
+      shuffleOptions: true,
       test: {
         select: {
           title: true,
@@ -157,6 +159,7 @@ export default async function ResultPage({
             selectedLabel="sizning javobingiz"
             questions={review.map((q) => ({
               ...q,
+              options: optionOrderFor(attempt, q.id, q.options),
               answer: q.answers[0] ?? null,
             }))}
           />

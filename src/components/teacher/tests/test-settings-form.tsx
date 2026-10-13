@@ -33,6 +33,11 @@ const FLAGS = [
     label: "Savollarni aralashtirish",
     hint: "Har bir o'quvchida tartib har xil",
   },
+  {
+    key: "shuffleOptions",
+    label: "Variantlarni aralashtirish",
+    hint: "Har bir o'quvchida variantlar tartibi har xil. \"Hammasi to'g'ri\" kabi variantli testda o'chiring",
+  },
 ] as const;
 
 export function TestSettingsForm({

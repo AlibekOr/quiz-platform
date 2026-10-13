@@ -5,6 +5,8 @@ import {
   isAnswerCorrect,
   isWithinDeadline,
   markFromPercent,
+  optionOrderFor,
+  seededShuffle,
   shuffle,
   type GradableQuestion,
 } from "./grading";
@@ -142,5 +144,41 @@ describe("markFromPercent", () => {
       5,
       5,
     ]);
+  });
+});
+
+describe("seededShuffle", () => {
+  const items = ["a", "b", "c", "d", "e"];
+
+  it("bir xil urug' — bir xil tartib, elementlar yo'qolmaydi", () => {
+    const first = seededShuffle(items, "attempt1:q1");
+    expect(seededShuffle(items, "attempt1:q1")).toEqual(first);
+    expect(first.toSorted()).toEqual(items);
+  });
+
+  it("har xil urug'lar har xil tartib beradi", () => {
+    const orders = new Set(
+      Array.from({ length: 20 }, (_, i) =>
+        seededShuffle(items, `attempt${i}:q1`).join(""),
+      ),
+    );
+    expect(orders.size).toBeGreaterThan(5);
+  });
+});
+
+describe("optionOrderFor", () => {
+  const options = ["a", "b", "c", "d"];
+
+  it("aralashtirish o'chiq bo'lsa asl tartib", () => {
+    expect(
+      optionOrderFor({ id: "x", shuffleOptions: false }, "q1", options),
+    ).toEqual(options);
+  });
+
+  it("yoqilgan bo'lsa urinish va savolga bog'liq, barqaror", () => {
+    const attempt = { id: "x", shuffleOptions: true };
+    expect(optionOrderFor(attempt, "q1", options)).toEqual(
+      seededShuffle(options, "x:q1"),
+    );
   });
 });

@@ -40,6 +40,7 @@ export async function startAttempt(testId: string): Promise<ActionResult> {
         endsAt: true,
         allowRetake: true,
         shuffleQuestions: true,
+        shuffleOptions: true,
         questions: { orderBy: { order: "asc" }, select: { id: true } },
       },
     });
@@ -68,6 +69,7 @@ export async function startAttempt(testId: string): Promise<ActionResult> {
         // Test yopilishiga oz qolgan bo'lsa, urinish ham yopilish vaqtida tugaydi
         deadlineAt: attemptDeadline(now, test.durationMin, test.endsAt),
         questionOrder: test.shuffleQuestions ? shuffle(ids) : ids,
+        shuffleOptions: test.shuffleOptions,
       },
     });
     return { ok: true } as const;
