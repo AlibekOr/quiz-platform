@@ -33,8 +33,9 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  // API o'zi 401 qaytaradi; statik fayllar himoyalanmaydi
+  // API o'zi 401 qaytaradi; statik fayllar himoyalanmaydi;
+  // manifest va ikonkalar (PWA) ham login'siz ochilishi kerak
   matcher: [
-    "/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
+    "/((?!api|_next/static|_next/image|favicon.ico|manifest.webmanifest|icon(?:/|$)|apple-icon(?:/|$)|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
   ],
 };

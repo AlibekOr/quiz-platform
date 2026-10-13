@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
@@ -18,7 +18,11 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: { default: "Test platformasi", template: "%s · Test platformasi" },
   description: "O'qituvchi va o'quvchilar uchun test platformasi",
+  // iPhone'da bosh ekrandan ochilganda ilova kabi (manifest — app/manifest.ts)
+  appleWebApp: { capable: true, title: "Testlar", statusBarStyle: "default" },
 };
+
+export const viewport: Viewport = { themeColor: "#ffffff" };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
