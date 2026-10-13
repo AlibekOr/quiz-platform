@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { isValidLocalDateTime } from "@/lib/time";
 
 export const MAX_OPTIONS = 10;
 
@@ -65,7 +66,7 @@ export const questionInputSchema = z
 
 export type QuestionInput = z.input<typeof questionInputSchema>;
 
-export const testSettingsSchema = z.object({
+const testSettingsBaseSchema = z.object({
   title: z
     .string()
     .trim()
@@ -85,12 +86,29 @@ export const testSettingsSchema = z.object({
   allowRetake: z.boolean(),
   showAnswers: z.boolean(),
   shuffleQuestions: z.boolean(),
+  /** Ochilish vaqti, Toshkent bo'yicha "2026-10-18T10:00"; "" — darhol */
+  startsAt: localDateTime("Ochilish vaqti noto'g'ri"),
+  /** Yopilish vaqti; "" — muddatsiz */
+  endsAt: localDateTime("Yopilish vaqti noto'g'ri"),
   groupIds: z.array(z.string().min(1)).max(200),
 });
 
+function localDateTime(message: string) {
+  return z.string().refine((v) => v === "" || isValidLocalDateTime(v), message);
+}
+
+// Satrlar bir xil formatda, shuning uchun leksik solishtirish vaqt bo'yicha solishtirish
+export const testSettingsSchema = testSettingsBaseSchema.refine(
+  (t) => !t.startsAt || !t.endsAt || t.startsAt < t.endsAt,
+  {
+    path: ["endsAt"],
+    message: "Yopilish vaqti ochilish vaqtidan keyin bo'lsin",
+  },
+);
+
 export type TestSettingsInput = z.input<typeof testSettingsSchema>;
 
-export const createTestSchema = testSettingsSchema.pick({
+export const createTestSchema = testSettingsBaseSchema.pick({
   title: true,
   durationMin: true,
 });

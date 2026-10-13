@@ -4,11 +4,13 @@ import { ArrowLeftIcon, TriangleAlertIcon } from "lucide-react";
 import { QuestionList } from "@/components/teacher/tests/question-list";
 import { TestHeaderActions } from "@/components/teacher/tests/test-header-actions";
 import { TestSettingsForm } from "@/components/teacher/tests/test-settings-form";
-import { Badge } from "@/components/ui/badge";
+import { TestStatusBadge } from "@/components/staff/tests/test-status-badge";
 import type { CurrentUser } from "@/lib/auth/guards";
 import { groupScopeWhere } from "@/lib/auth/scope";
 import { db } from "@/lib/db";
 import { getTestAccess, staffBase } from "@/lib/tests/access";
+import { formatTestWindow } from "@/lib/tests/schedule";
+import { toLocalDateTime } from "@/lib/time";
 
 /**
  * Test sahifasi. Menejer: tahrirlash faqat o'zi yaratgan va barcha guruhlari doirada
@@ -50,6 +52,8 @@ export async function TestEditView({
   if (!test) notFound();
 
   const attemptCount = test._count.attempts;
+  const now = new Date();
+  const schedule = formatTestWindow(test, now);
 
   return (
     <>
@@ -62,12 +66,15 @@ export async function TestEditView({
           Testlar
         </Link>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-semibold break-words">{test.title}</h1>
-            {test.isActive ? (
-              <Badge>Faol</Badge>
-            ) : (
-              <Badge variant="secondary">Qoralama</Badge>
+          <div className="flex flex-col gap-1">
+            <div className="flex items-center gap-3">
+              <h1 className="text-2xl font-semibold break-words">
+                {test.title}
+              </h1>
+              <TestStatusBadge test={test} now={now} />
+            </div>
+            {schedule && (
+              <p className="text-muted-foreground text-sm">Ochiq: {schedule}</p>
             )}
           </div>
           <TestHeaderActions
@@ -114,6 +121,8 @@ export async function TestEditView({
           allowRetake: test.allowRetake,
           showAnswers: test.showAnswers,
           shuffleQuestions: test.shuffleQuestions,
+          startsAt: test.startsAt ? toLocalDateTime(test.startsAt) : "",
+          endsAt: test.endsAt ? toLocalDateTime(test.endsAt) : "",
           groupIds: test.groups.map((g) => g.id),
         }}
       />

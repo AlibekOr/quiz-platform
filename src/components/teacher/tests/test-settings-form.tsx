@@ -5,6 +5,7 @@ import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 import { updateTestSettings } from "@/app/(teacher)/teacher/tests/actions";
+import { DateTimePicker } from "@/components/common/date-time-picker";
 import { applyServerErrors } from "@/components/common/form-errors";
 import { FormError, FormField } from "@/components/common/form-field";
 import type { GroupOption } from "@/components/teacher/students/types";
@@ -111,6 +112,59 @@ export function TestSettingsForm({
             {...form.register("description")}
           />
         </FormField>
+
+        <fieldset className="flex flex-col gap-2">
+          <legend className="mb-2 text-sm font-medium">
+            Ochiq bo&apos;lish vaqti
+          </legend>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Controller
+              control={form.control}
+              name="startsAt"
+              render={({ field }) => (
+                <FormField
+                  id="startsAt"
+                  label="Ochiladi"
+                  error={errors.startsAt?.message}
+                >
+                  <DateTimePicker
+                    id="startsAt"
+                    placeholder="Darhol"
+                    defaultTime="09:00"
+                    invalid={!!errors.startsAt}
+                    value={field.value}
+                    onChange={field.onChange}
+                  />
+                </FormField>
+              )}
+            />
+            <Controller
+              control={form.control}
+              name="endsAt"
+              render={({ field }) => (
+                <FormField
+                  id="endsAt"
+                  label="Yopiladi"
+                  error={errors.endsAt?.message}
+                >
+                  <DateTimePicker
+                    id="endsAt"
+                    placeholder="Muddatsiz"
+                    defaultTime="18:00"
+                    invalid={!!errors.endsAt}
+                    value={field.value}
+                    onChange={field.onChange}
+                  />
+                </FormField>
+              )}
+            />
+          </div>
+          <p className="text-muted-foreground text-sm">
+            Toshkent vaqti. Test faqat &quot;Faol&quot; bo&apos;lsa va shu
+            oraliqda ochiq. Kech boshlagan o&apos;quvchi ham yopilish vaqtida
+            tugatadi.
+          </p>
+        </fieldset>
 
         <fieldset className="flex flex-col gap-2">
           <legend className="mb-2 text-sm font-medium">Qoidalar</legend>

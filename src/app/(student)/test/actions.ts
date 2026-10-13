@@ -11,6 +11,7 @@ import {
 import { requireStudent } from "@/lib/auth/guards";
 import { db } from "@/lib/db";
 import { isWithinDeadline, shuffle } from "@/lib/grading";
+import { attemptDeadline, openTestWhere } from "@/lib/tests/schedule";
 
 const idSchema = z.string().min(1).max(64);
 
@@ -27,17 +28,26 @@ export async function startAttempt(testId: string): Promise<ActionResult> {
     // Bir user+test uchun parallel boshlashlar navbatga turadi: isFirst va "bitta IN_PROGRESS" kafolatlanadi
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`attempt:${student.id}:${id}`}))`;
 
+    const now = new Date();
     const test = await tx.test.findFirst({
-      where: { id, isActive: true, groups: { some: { id: groupId } } },
+      where: {
+        id,
+        groups: { some: { id: groupId } },
+        ...openTestWhere(now),
+      },
       select: {
         durationMin: true,
+        endsAt: true,
         allowRetake: true,
         shuffleQuestions: true,
         questions: { orderBy: { order: "asc" }, select: { id: true } },
       },
     });
     if (!test || test.questions.length === 0)
-      return { ok: false, error: "Test topilmadi yoki faol emas" } as const;
+      return {
+        ok: false,
+        error: "Test topilmadi yoki hozir ochiq emas",
+      } as const;
 
     const attempts = await tx.attempt.findMany({
       where: { userId: student.id, testId: id },
@@ -49,14 +59,14 @@ export async function startAttempt(testId: string): Promise<ActionResult> {
       return { ok: false, error: "Bu testni qayta ishlab bo'lmaydi" } as const;
 
     const ids = test.questions.map((q) => q.id);
-    const now = new Date();
     await tx.attempt.create({
       data: {
         userId: student.id,
         testId: id,
         isFirst: attempts.length === 0,
         startedAt: now,
-        deadlineAt: new Date(now.getTime() + test.durationMin * 60_000),
+        // Test yopilishiga oz qolgan bo'lsa, urinish ham yopilish vaqtida tugaydi
+        deadlineAt: attemptDeadline(now, test.durationMin, test.endsAt),
         questionOrder: test.shuffleQuestions ? shuffle(ids) : ids,
       },
     });

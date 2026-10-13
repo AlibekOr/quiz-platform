@@ -104,6 +104,9 @@ model Test {
   allowRetake      Boolean    @default(true)
   showAnswers      Boolean    @default(false)
   shuffleQuestions Boolean    @default(false)
+  // Ochiq bo'lish oralig'i (ixtiyoriy). Ochiq = isActive va startsAt <= hozir < endsAt (lib/tests/schedule.ts)
+  startsAt         DateTime?
+  endsAt           DateTime?
   createdById      String
   createdBy        User       @relation("TestAuthor", fields: [createdById], references: [id])
   groups           Group[]

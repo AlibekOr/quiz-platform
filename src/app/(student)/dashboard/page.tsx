@@ -8,10 +8,12 @@ import { finalizeExpiredAttempts } from "@/lib/attempts";
 import { requireStudent } from "@/lib/auth/guards";
 import { db } from "@/lib/db";
 import { getStudentSemesters } from "@/lib/grades-data";
+import { testState } from "@/lib/tests/schedule";
 import {
   formatDate,
   formatDateTime,
   formatDuration,
+  formatMoment,
   fromDbDate,
   toDbDate,
   todayInTashkent,
@@ -23,11 +25,25 @@ export default async function DashboardPage() {
   const student = await requireStudent();
   await finalizeExpiredAttempts({ userId: student.id });
 
-  const today = todayInTashkent();
+  const now = new Date();
+  const today = todayInTashkent(now);
   const [tests, results, current] = await Promise.all([
     student.groupId
       ? db.test.findMany({
-          where: { isActive: true, groups: { some: { id: student.groupId } } },
+          // Ochiq va hali ochilmaganlar; muddati o'tganlar yashiriladi (natijasi "Natijalarim" da)
+          where: {
+            isActive: true,
+            groups: { some: { id: student.groupId } },
+            OR: [
+              { endsAt: null },
+              { endsAt: { gt: now } },
+              {
+                attempts: {
+                  some: { userId: student.id, status: "IN_PROGRESS" },
+                },
+              },
+            ],
+          },
           orderBy: { createdAt: "desc" },
           select: {
             id: true,
@@ -35,6 +51,9 @@ export default async function DashboardPage() {
             description: true,
             durationMin: true,
             allowRetake: true,
+            isActive: true,
+            startsAt: true,
+            endsAt: true,
             _count: { select: { questions: true } },
             attempts: {
               where: { userId: student.id },
@@ -71,6 +90,10 @@ export default async function DashboardPage() {
     ),
   ]);
   const me = current?.students[0] ?? null;
+  // Avval ochiqlar, keyin eng yaqin ochiladiganlar
+  const upcomingFirst = (t: (typeof tests)[number]) =>
+    testState(t, now) === "upcoming" ? (t.startsAt?.getTime() ?? 0) : 0;
+  tests.sort((a, b) => upcomingFirst(a) - upcomingFirst(b));
   // Joriy semestrda darsga kelmagan kunlar (sababsiz va sababli)
   const absences = current
     ? await db.attendance.findMany({
@@ -155,11 +178,18 @@ export default async function DashboardPage() {
               const lastDone = t.attempts.find(
                 (a) => a.status !== "IN_PROGRESS",
               );
+              const upcoming = !inProgress && testState(t, now) === "upcoming";
               const info = {
                 id: t.id,
                 title: t.title,
                 durationMin: t.durationMin,
                 questionCount: t._count.questions,
+                // Davomiylik tugashidan oldin yopilsa, o'quvchi oldindan ogohlantiriladi
+                closesAt:
+                  t.endsAt &&
+                  now.getTime() + t.durationMin * 60_000 > t.endsAt.getTime()
+                    ? formatMoment(t.endsAt, now)
+                    : null,
               };
               return (
                 <li
@@ -171,6 +201,10 @@ export default async function DashboardPage() {
                       <span className="font-medium">{t.title}</span>
                       {inProgress ? (
                         <Badge>Davom etmoqda</Badge>
+                      ) : upcoming && t.startsAt ? (
+                        <Badge variant="outline">
+                          Ochiladi: {formatMoment(t.startsAt, now)}
+                        </Badge>
                       ) : lastDone ? (
                         <Badge variant="secondary">
                           Tugatilgan: {lastDone.score}/{lastDone.maxScore}
@@ -181,6 +215,9 @@ export default async function DashboardPage() {
                     </div>
                     <p className="text-muted-foreground text-sm">
                       {t._count.questions} ta savol · {t.durationMin} daqiqa
+                      {t.endsAt &&
+                        !upcoming &&
+                        ` · ${formatMoment(t.endsAt, now)} gacha ochiq`}
                       {t.description && ` · ${t.description}`}
                     </p>
                   </div>
@@ -189,7 +226,7 @@ export default async function DashboardPage() {
                       <Link href={`/test/${t.id}`} className={buttonVariants()}>
                         Davom ettirish
                       </Link>
-                    ) : lastDone ? (
+                    ) : upcoming ? null : lastDone ? (
                       <>
                         <Link
                           href={`/result/${lastDone.id}`}

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { TrophyIcon } from "lucide-react";
 import { CreateTestButton } from "@/components/teacher/tests/create-test-button";
-import { Badge } from "@/components/ui/badge";
+import { TestStatusBadge } from "@/components/staff/tests/test-status-badge";
 import { buttonVariants } from "@/components/ui/button";
 import {
   Table,
@@ -15,6 +15,7 @@ import type { CurrentUser } from "@/lib/auth/guards";
 import { getScope, studentScopeWhere } from "@/lib/auth/scope";
 import { db } from "@/lib/db";
 import { staffBase, testScopeWhere } from "@/lib/tests/access";
+import { formatTestWindow } from "@/lib/tests/schedule";
 
 /** Testlar ro'yxati (o'qituvchi — hammasi, menejer — doiradagi va o'zi yaratganlari) */
 export async function TestsListView({ user }: { user: CurrentUser }) {
@@ -28,6 +29,8 @@ export async function TestsListView({ user }: { user: CurrentUser }) {
       title: true,
       durationMin: true,
       isActive: true,
+      startsAt: true,
+      endsAt: true,
       groups: { select: { name: true }, orderBy: { name: "asc" } },
       // Menejer uchun urinishlar soni ham faqat doiradagi o'quvchilar bo'yicha
       _count: {
@@ -38,6 +41,7 @@ export async function TestsListView({ user }: { user: CurrentUser }) {
       },
     },
   });
+  const now = new Date();
 
   return (
     <>
@@ -98,11 +102,14 @@ export async function TestsListView({ user }: { user: CurrentUser }) {
                     {t._count.attempts}
                   </TableCell>
                   <TableCell>
-                    {t.isActive ? (
-                      <Badge>Faol</Badge>
-                    ) : (
-                      <Badge variant="secondary">Qoralama</Badge>
-                    )}
+                    <div className="flex flex-col items-start gap-1">
+                      <TestStatusBadge test={t} now={now} />
+                      {formatTestWindow(t, now) && (
+                        <span className="text-muted-foreground text-xs">
+                          {formatTestWindow(t, now)}
+                        </span>
+                      )}
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}

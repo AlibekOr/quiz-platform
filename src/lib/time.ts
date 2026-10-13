@@ -212,3 +212,39 @@ export function parseDateInput(value: string): DateStr | null {
   const date = `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
   return isValidDateStr(date) ? date : null;
 }
+
+// ---------- Sana + vaqt ("YYYY-MM-DDTHH:MM", Toshkent bo'yicha) ----------
+// Formalarda lahza shu satr bilan yuradi; bazada oddiy DateTime (UTC) bo'lib saqlanadi.
+
+const LOCAL_DATETIME_RE = /^(\d{4}-\d{2}-\d{2})T([01]\d|2[0-3]):([0-5]\d)$/;
+
+export function isValidLocalDateTime(value: string): boolean {
+  const m = LOCAL_DATETIME_RE.exec(value);
+  return !!m && isValidDateStr(m[1]);
+}
+
+/** "2026-10-18T10:00" (Toshkent) -> Date; noto'g'ri bo'lsa null */
+export function fromLocalDateTime(value: string): Date | null {
+  return isValidLocalDateTime(value) ? new Date(`${value}:00+05:00`) : null;
+}
+
+/** Date -> "2026-10-18T10:00" (Toshkent) */
+export function toLocalDateTime(date: Date): string {
+  const p = Object.fromEntries(
+    dateTimeFormatter.formatToParts(date).map((x) => [x.type, x.value]),
+  );
+  return `${p.year}-${p.month}-${p.day}T${p.hour}:${p.minute}`;
+}
+
+/**
+ * Yaqin lahzani qisqa yozadi: bugun bo'lsa "10:00", bo'lmasa "Shanba, 18.10 · 10:00",
+ * boshqa yil bo'lsa "18.10.2027 · 10:00"
+ */
+export function formatMoment(date: Date, now: Date = new Date()): string {
+  const [day, time] = toLocalDateTime(date).split("T");
+  const today = todayInTashkent(now);
+  if (day === today) return time;
+  if (day.slice(0, 4) !== today.slice(0, 4))
+    return `${formatDate(day)} · ${time}`;
+  return `${weekdayLong(weekdayOf(day))}, ${formatDayMonth(day)} · ${time}`;
+}

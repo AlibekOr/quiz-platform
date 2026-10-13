@@ -13,6 +13,10 @@ import {
   formatDuration,
   formatSchedule,
   fromDbDate,
+  formatMoment,
+  fromLocalDateTime,
+  isValidLocalDateTime,
+  toLocalDateTime,
   isValidDateStr,
   isValidMonthStr,
   monthRange,
@@ -153,5 +157,34 @@ describe("kalendar", () => {
     expect(parseDateInput("1.2.2026")).toBe("2026-02-01");
     expect(parseDateInput("31/02/2026")).toBeNull();
     expect(parseDateInput("abc")).toBeNull();
+  });
+});
+
+describe("sana + vaqt (Toshkent)", () => {
+  it("satr <-> lahza, server vaqt zonasidan qat'i nazar", () => {
+    const d = fromLocalDateTime("2026-10-18T10:00");
+    expect(d?.toISOString()).toBe("2026-10-18T05:00:00.000Z");
+    expect(toLocalDateTime(new Date("2026-10-18T19:30:00Z"))).toBe(
+      "2026-10-19T00:30",
+    );
+  });
+
+  it("noto'g'ri qiymatlar", () => {
+    expect(isValidLocalDateTime("2026-10-18T10:00")).toBe(true);
+    expect(isValidLocalDateTime("2026-13-01T10:00")).toBe(false);
+    expect(isValidLocalDateTime("2026-10-18T25:00")).toBe(false);
+    expect(isValidLocalDateTime("2026-10-18")).toBe(false);
+    expect(fromLocalDateTime("")).toBeNull();
+  });
+
+  it("formatMoment: bugun — faqat soat, aks holda kun bilan", () => {
+    const now = new Date("2026-10-13T05:00:00Z"); // Seshanba, 10:00 Toshkent
+    expect(formatMoment(new Date("2026-10-13T13:00:00Z"), now)).toBe("18:00");
+    expect(formatMoment(new Date("2026-10-18T05:00:00Z"), now)).toBe(
+      "Yakshanba, 18.10 · 10:00",
+    );
+    expect(formatMoment(new Date("2027-01-02T05:00:00Z"), now)).toBe(
+      "02.01.2027 · 10:00",
+    );
   });
 });

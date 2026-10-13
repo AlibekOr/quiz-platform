@@ -79,6 +79,8 @@ describe("testSettingsSchema", () => {
       allowRetake: false,
       showAnswers: true,
       shuffleQuestions: false,
+      startsAt: "",
+      endsAt: "",
       groupIds: [],
     });
     expect(r).toMatchObject({
@@ -95,6 +97,8 @@ describe("testSettingsSchema", () => {
       allowRetake: false,
       showAnswers: false,
       shuffleQuestions: false,
+      startsAt: "",
+      endsAt: "",
       groupIds: [],
     };
     expect(
@@ -103,5 +107,31 @@ describe("testSettingsSchema", () => {
     expect(
       testSettingsSchema.safeParse({ ...input, durationMin: 301 }).success,
     ).toBe(false);
+  });
+
+  it("ochiq bo'lish oralig'i", () => {
+    const input = {
+      title: "T",
+      description: "",
+      durationMin: 30,
+      allowRetake: false,
+      showAnswers: false,
+      shuffleQuestions: false,
+      groupIds: [],
+    };
+    const check = (startsAt: string, endsAt: string) =>
+      testSettingsSchema.safeParse({ ...input, startsAt, endsAt }).success;
+
+    expect(check("", "")).toBe(true);
+    expect(check("2026-10-18T10:00", "")).toBe(true);
+    expect(check("", "2026-10-18T11:00")).toBe(true);
+    expect(check("2026-10-18T10:00", "2026-10-18T11:00")).toBe(true);
+    // Yopilish ochilishdan oldin yoki teng
+    expect(check("2026-10-18T11:00", "2026-10-18T10:00")).toBe(false);
+    expect(check("2026-10-18T10:00", "2026-10-18T10:00")).toBe(false);
+    // Noto'g'ri format va sana
+    expect(check("2026-10-18 10:00", "")).toBe(false);
+    expect(check("2026-02-30T10:00", "")).toBe(false);
+    expect(check("", "2026-10-18T24:00")).toBe(false);
   });
 });

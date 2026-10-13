@@ -24,6 +24,8 @@ export function StartTestButton({
     title: string;
     durationMin: number;
     questionCount: number;
+    /** Davomiylik tugashidan oldin yopiladigan test: yopilish vaqti ("11:00") */
+    closesAt: string | null;
   };
   label: string;
   isRetake: boolean;
@@ -60,6 +62,12 @@ export function StartTestButton({
                   Vaqt: <b>{test.durationMin} daqiqa</b>, savollar:{" "}
                   <b>{test.questionCount} ta</b>
                 </li>
+                {test.closesAt && (
+                  <li>
+                    Test <b>{test.closesAt}</b> da yopiladi: vaqtingiz shu bilan
+                    cheklanadi.
+                  </li>
+                )}
                 <li>
                   Boshlaganingizdan keyin vaqt to&apos;xtamaydi, sahifani
                   yopsangiz ham.

@@ -10,6 +10,7 @@ import { canAccessStudent, FORBIDDEN, type Scope } from "@/lib/auth/scope";
 import { getTestAccess, outOfScopeGroups, staffBase } from "@/lib/tests/access";
 import { db } from "@/lib/db";
 import { isNotFound } from "@/lib/prisma-errors";
+import { fromLocalDateTime } from "@/lib/time";
 import { getUploadedFile, readFirstSheet } from "@/lib/excel";
 import {
   parseJsonQuestions,
@@ -79,7 +80,7 @@ export async function updateTestSettings(
   const parsed = testSettingsSchema.safeParse(input);
   if (!parsed.success)
     return { ok: false, error: issueMessages(parsed.error).join(". ") };
-  const { groupIds, ...settings } = parsed.data;
+  const { groupIds, startsAt, endsAt, ...settings } = parsed.data;
   // Menejer testni faqat doiradagi guruhlarga biriktiradi
   if (outOfScopeGroups(editable.scope, groupIds).length > 0) return FORBIDDEN;
 
@@ -94,6 +95,8 @@ export async function updateTestSettings(
       where: { id },
       data: {
         ...settings,
+        startsAt: fromLocalDateTime(startsAt),
+        endsAt: fromLocalDateTime(endsAt),
         groups: { set: groupIds.map((gid) => ({ id: gid })) },
       },
     });
