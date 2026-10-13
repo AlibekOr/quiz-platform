@@ -6,6 +6,7 @@ import {
   ArrowDownIcon,
   ArrowUpIcon,
   CheckIcon,
+  CopyIcon,
   FileUpIcon,
   PencilIcon,
   PlusIcon,
@@ -65,6 +66,13 @@ export function QuestionList({
             >
               <FileUpIcon />
               Import (JSON/Excel)
+            </Link>
+            <Link
+              href={`${basePath}/tests/${testId}/copy`}
+              className={buttonVariants({ variant: "outline" })}
+            >
+              <CopyIcon />
+              Boshqa testdan
             </Link>
             <Button onClick={() => setEditing("new")}>
               <PlusIcon />

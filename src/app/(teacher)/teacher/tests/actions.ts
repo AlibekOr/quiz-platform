@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { validationFailed, type ActionResult } from "@/lib/action-result";
 import { cancelAttempt } from "@/lib/attempts";
-import { requireStaff } from "@/lib/auth/guards";
+import { requireStaff, type CurrentUser } from "@/lib/auth/guards";
 import { canAccessStudent, FORBIDDEN, type Scope } from "@/lib/auth/scope";
 import { getTestAccess, outOfScopeGroups, staffBase } from "@/lib/tests/access";
 import { db } from "@/lib/db";
@@ -44,12 +44,12 @@ const TEST_NOT_FOUND: ActionResult = { ok: false, error: "Test topilmadi" };
  */
 async function requireEditableTest(
   testId: string,
-): Promise<{ denied: ActionResult } | { scope: Scope }> {
+): Promise<{ denied: ActionResult } | { scope: Scope; user: CurrentUser }> {
   const user = await requireStaff();
   const access = await getTestAccess(user, testId);
   if (!access) return { denied: TEST_NOT_FOUND };
   if (!access.canEdit) return { denied: FORBIDDEN };
-  return { scope: access.scope };
+  return { scope: access.scope, user };
 }
 
 // ---------- Test ----------
@@ -400,6 +400,69 @@ export async function importQuestions(
               isCorrect: o.isCorrect,
               order: oi,
             })),
+          },
+        },
+      }),
+    ),
+  );
+  revalidateTest(id);
+  return { ok: true, message: `${questions.length} ta savol qo'shildi` };
+}
+
+const copyQuestionsSchema = z.object({
+  sourceTestId: idSchema,
+  questionIds: z
+    .array(idSchema)
+    .min(1, "Kamida bitta savol tanlang")
+    .max(200, "Bir martada ko'pi bilan 200 ta savol"),
+});
+
+/**
+ * Boshqa testdan savollarni nusxa qilib qo'shadi (savollar banki o'rnida).
+ * Manba testi foydalanuvchiga ko'rinadigan bo'lishi kerak (menejer — faqat doirasidagi)
+ */
+export async function copyQuestions(
+  testId: string,
+  input: z.input<typeof copyQuestionsSchema>,
+): Promise<ActionResult> {
+  const id = idSchema.parse(testId);
+  const editable = await requireEditableTest(id);
+  if ("denied" in editable) return editable.denied;
+  const parsed = copyQuestionsSchema.safeParse(input);
+  if (!parsed.success)
+    return { ok: false, error: issueMessages(parsed.error).join(". ") };
+  const { sourceTestId, questionIds } = parsed.data;
+  if (sourceTestId === id)
+    return { ok: false, error: "Savollar shu testning o'zidan olinmaydi" };
+  if (!(await getTestAccess(editable.user, sourceTestId))) return FORBIDDEN;
+
+  const unique = [...new Set(questionIds)];
+  const questions = await db.question.findMany({
+    where: { id: { in: unique }, testId: sourceTestId },
+    orderBy: { order: "asc" },
+    select: {
+      text: true,
+      type: true,
+      points: true,
+      options: {
+        orderBy: { order: "asc" },
+        select: { text: true, isCorrect: true },
+      },
+    },
+  });
+  if (questions.length !== unique.length)
+    return { ok: false, error: "Savollardan biri topilmadi" };
+
+  const start = await nextOrder(id);
+  await db.$transaction(
+    questions.map(({ options, ...q }, i) =>
+      db.question.create({
+        data: {
+          ...q,
+          testId: id,
+          order: start + i,
+          options: {
+            create: options.map((o, oi) => ({ ...o, order: oi })),
           },
         },
       }),
