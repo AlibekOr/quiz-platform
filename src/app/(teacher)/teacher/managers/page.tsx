@@ -14,6 +14,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { requireTeacher } from "@/lib/auth/guards";
+import { getRegionOptions } from "@/lib/cached-data";
 import { db } from "@/lib/db";
 
 export const metadata: Metadata = { title: "Menejerlar" };
@@ -38,10 +39,7 @@ export default async function ManagersPage() {
         },
       },
     }),
-    db.region.findMany({
-      orderBy: { name: "asc" },
-      select: { id: true, name: true },
-    }),
+    getRegionOptions(),
     db.group.findMany({
       orderBy: { name: "asc" },
       select: { id: true, name: true },
@@ -61,7 +59,7 @@ export default async function ManagersPage() {
         biriktirilgan guruhlarni ko&apos;radi: o&apos;quvchilarni qo&apos;shadi,
         tahrirlaydi, davomat hisobotlarini ko&apos;radi. O&apos;quvchini
         o&apos;chirish uchun so&apos;rov yuboradi. Guruh regionini{" "}
-        <Link href="/teacher/groups" className="underline">
+        <Link prefetch={false} href="/teacher/groups" className="underline">
           Guruhlar
         </Link>{" "}
         sahifasida tanlang.

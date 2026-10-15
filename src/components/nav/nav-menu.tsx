@@ -41,7 +41,11 @@ import {
 } from "@/lib/nav";
 import { cn } from "@/lib/utils";
 
-type MenuLink = NavLinkItem & { icon: LucideIcon };
+/**
+ * prefetch — Link oldindan yuklansinmi. Har bir prefetch — Vercel'da alohida funksiya
+ * chaqiruvi, shuning uchun faqat eng ko'p ochiladigan 1-2 sahifada yoqilgan
+ */
+type MenuLink = NavLinkItem & { icon: LucideIcon; prefetch?: boolean };
 type MenuGroup = NavGroupItem<MenuLink> & { icon: LucideIcon };
 type MenuItem = MenuLink | MenuGroup;
 
@@ -58,6 +62,7 @@ const MENUS: Record<NavVariant, { main: MenuItem[]; footer: MenuLink[] }> = {
         label: "Bosh sahifa",
         icon: LayoutDashboardIcon,
         exact: true,
+        prefetch: true,
       },
       { href: "/teacher/groups", label: "Guruhlar", icon: UsersRoundIcon },
       { href: "/teacher/students", label: "O'quvchilar", icon: UsersIcon },
@@ -70,6 +75,7 @@ const MENUS: Record<NavVariant, { main: MenuItem[]; footer: MenuLink[] }> = {
             href: "/teacher/attendance",
             label: "Davomat yuritish",
             icon: ClipboardCheckIcon,
+            prefetch: true,
           },
           {
             href: "/teacher/attendance/report",
@@ -127,8 +133,14 @@ const MENUS: Record<NavVariant, { main: MenuItem[]; footer: MenuLink[] }> = {
         label: "Bosh sahifa",
         icon: LayoutDashboardIcon,
         exact: true,
+        prefetch: true,
       },
-      { href: "/manager/students", label: "O'quvchilar", icon: UsersIcon },
+      {
+        href: "/manager/students",
+        label: "O'quvchilar",
+        icon: UsersIcon,
+        prefetch: true,
+      },
       {
         href: "/manager/attendance",
         label: "Davomat",
@@ -147,8 +159,14 @@ const MENUS: Record<NavVariant, { main: MenuItem[]; footer: MenuLink[] }> = {
         label: "Bosh sahifa",
         icon: LayoutDashboardIcon,
         exact: true,
+        prefetch: true,
       },
-      { href: "/homework", label: "Vazifalar", icon: BookOpenCheckIcon },
+      {
+        href: "/homework",
+        label: "Vazifalar",
+        icon: BookOpenCheckIcon,
+        prefetch: true,
+      },
       { href: "/grades", label: "Baholarim", icon: GraduationCapIcon },
       { href: "/leaderboard", label: "Reyting", icon: TrophyIcon },
     ],
@@ -224,6 +242,8 @@ function NavLinkRow({
   return (
     <Link
       href={link.href}
+      // Default (auto): dinamik sahifada faqat loading.tsx gacha yuklanadi
+      prefetch={link.prefetch ? undefined : false}
       onClick={onNavigate}
       aria-current={active ? "page" : undefined}
       className={cn(ITEM_CLASS, active && "bg-accent text-accent-foreground")}

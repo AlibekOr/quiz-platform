@@ -42,6 +42,7 @@ export function LeaderboardView({
         >
           {tabs.map((t) => (
             <Link
+              prefetch={false}
               key={t.scope}
               href={`${basePath}?scope=${t.scope}${t.scope === "group" && isTeacher && data.group ? `&groupId=${data.group.id}` : ""}`}
               aria-current={scope === t.scope ? "page" : undefined}

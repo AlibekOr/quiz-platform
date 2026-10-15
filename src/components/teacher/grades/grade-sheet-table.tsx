@@ -78,6 +78,7 @@ export function GradeSheetTable({ students }: { students: StudentSemester[] }) {
                     {i + 1}.
                   </span>
                   <Link
+                    prefetch={false}
                     href={`/teacher/students/${s.id}`}
                     className="hover:underline"
                   >

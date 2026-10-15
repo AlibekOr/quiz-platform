@@ -112,6 +112,7 @@ export default async function ManagerStudentsPage({
           </a>
           {groups.length > 0 && (
             <Link
+              prefetch={false}
               href="/manager/students/import"
               className={buttonVariants({ variant: "outline" })}
             >

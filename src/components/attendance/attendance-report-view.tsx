@@ -40,7 +40,11 @@ export function AttendanceReportView({
   const hasOutside = report.students.some((s) => s.member.some((m) => !m));
   const name = (s: { id: string; fullName: string }) =>
     studentHref ? (
-      <Link href={studentHref(s.id)} className="hover:underline">
+      <Link
+        prefetch={false}
+        href={studentHref(s.id)}
+        className="hover:underline"
+      >
         {s.fullName}
       </Link>
     ) : (
@@ -93,6 +97,7 @@ export function AttendanceReportView({
                     >
                       {lessonHref ? (
                         <Link
+                          prefetch={false}
                           href={lessonHref(d)}
                           title="Davomatni tahrirlash"
                           className="text-primary hover:underline"

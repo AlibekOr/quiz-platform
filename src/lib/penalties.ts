@@ -8,20 +8,8 @@ import type { ApplyPenaltyData } from "@/lib/validators/penalties";
 // Ball shablondan nusxa olinadi (o'zgartirilgan bo'lsa — o'sha), keyin shablon o'zgarsa
 // eski jarimalar o'zgarmaydi
 
-export type PenaltyOption = {
-  id: string;
-  name: string;
-  defaultPoints: number;
-};
-
-/** Tanlash ro'yxati uchun faqat faol shablonlar */
-export async function getActivePenaltyTypes(): Promise<PenaltyOption[]> {
-  return db.penaltyType.findMany({
-    where: { isActive: true },
-    orderBy: { name: "asc" },
-    select: { id: true, name: true, defaultPoints: true },
-  });
-}
+// Tanlash ro'yxati keshlangan (lib/cached-data.ts)
+export { getActivePenaltyTypes, type PenaltyOption } from "@/lib/cached-data";
 
 export async function applyPenalty(
   input: ApplyPenaltyData & { createdById: string },

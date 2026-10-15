@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { CACHE_TAGS, invalidateCache } from "@/lib/cached-data";
 import { z } from "zod";
 import { validationFailed, type ActionResult } from "@/lib/action-result";
 import { requireTeacher } from "@/lib/auth/guards";
@@ -20,6 +21,7 @@ import {
 const idSchema = z.string().min(1).max(64);
 
 function revalidate() {
+  invalidateCache(CACHE_TAGS.penaltyTypes);
   revalidatePath("/teacher/penalties");
   revalidatePath("/teacher/grades");
   revalidatePath("/teacher/students/[id]", "page");

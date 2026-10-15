@@ -28,8 +28,8 @@ export function HomeworkSuggestion({ lesson }: { lesson: HomeworkPrefill }) {
         <BookOpenCheckIcon className="text-primary mt-0.5 size-5 shrink-0" />
         <div>
           <p className="font-medium">
-            {lesson.groupName}: bu dars uchun uyga vazifa yoki amaliy
-            topshiriq bering
+            {lesson.groupName}: bu dars uchun uyga vazifa yoki amaliy topshiriq
+            bering
           </p>
           <p className="text-muted-foreground text-sm">
             {formatDate(lesson.lessonDate)} darsi · muddat keyingi dars,{" "}

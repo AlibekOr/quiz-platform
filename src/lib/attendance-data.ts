@@ -1,5 +1,6 @@
 import "server-only";
 import { groupScopeWhere, type Scope } from "@/lib/auth/scope";
+import { getScheduleRows, schedulesOf } from "@/lib/cached-data";
 import { db } from "@/lib/db";
 import { buildAttendanceReport, type AttendanceMark } from "@/lib/attendance";
 import { describeDeparture, toPeriod } from "@/lib/memberships";
@@ -31,20 +32,14 @@ export type SheetRow = {
 
 /**
  * Davomat belgilash varag'i. Saqlangan dars bo'lsa — o'sha darsdagi yozuvlar,
- * ustiga o'sha kuni guruh a'zosi bo'lgan faol o'quvchilardan yozuvi yo'qlari qo'shiladi
- * (a'zolik tarixi bo'yicha: keyin o'tkazilganlar ham o'tgan darslarda chiqadi).
+ * ustiga o'sha kuni guruh a'zosi bo'lgan faol o'quvchilardan yozuvi yo'qlari qo'shiladi.
+ * Faqat hozir shu guruhda turganlar: guruhdan ketganlar o'tgan darslarda ham chiqmaydi.
  */
 export async function getLessonSheet(groupId: string, date: DateStr) {
-  const [group, lesson, current] = await Promise.all([
+  const [groupRow, lesson, current, scheduleRows] = await Promise.all([
     db.group.findUnique({
       where: { id: groupId },
-      select: {
-        id: true,
-        name: true,
-        schedules: {
-          select: { weekday: true, startTime: true, endTime: true },
-        },
-      },
+      select: { id: true, name: true },
     }),
     db.lesson.findUnique({
       where: { groupId_date: { groupId, date: toDbDate(date) } },
@@ -83,8 +78,13 @@ export async function getLessonSheet(groupId: string, date: DateStr) {
         profile: { select: { parentName: true, parentPhone: true } },
       },
     }),
+    getScheduleRows(),
   ]);
-  if (!group) return null;
+  if (!groupRow) return null;
+  const group = {
+    ...groupRow,
+    schedules: schedulesOf(scheduleRows, groupRow.id),
+  };
   const memberIds = new Set(current.map((s) => s.id));
   const oral = new Map(
     (lesson?.oralScores ?? []).map((o) => [o.studentId, o.points]),
@@ -222,15 +222,18 @@ export async function getAttendanceReportPage(
   const month = isValidMonthStr(params.month) ? params.month : currentMonth;
   const { from, to } = monthRange(month);
 
-  const groups = await db.group.findMany({
-    where: groupScopeWhere(scope),
-    orderBy: { name: "asc" },
-    select: {
-      id: true,
-      name: true,
-      schedules: { select: { weekday: true, startTime: true, endTime: true } },
-    },
-  });
+  const [groupRows, scheduleRows] = await Promise.all([
+    db.group.findMany({
+      where: groupScopeWhere(scope),
+      orderBy: { name: "asc" },
+      select: { id: true, name: true },
+    }),
+    getScheduleRows(),
+  ]);
+  const groups = groupRows.map((g) => ({
+    ...g,
+    schedules: schedulesOf(scheduleRows, g.id),
+  }));
   const group = groups.find((g) => g.id === params.group) ?? groups[0] ?? null;
   const report = group ? await getAttendanceReport(group.id, from, to) : null;
   return { groups, group, report, month, currentMonth, from, to };

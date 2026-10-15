@@ -66,6 +66,7 @@ export async function TestCopyView({
     <>
       <div className="flex flex-col gap-2">
         <Link
+          prefetch={false}
           href={`${base}/tests/${test.id}`}
           className="text-muted-foreground hover:text-foreground flex items-center gap-1 text-sm"
         >

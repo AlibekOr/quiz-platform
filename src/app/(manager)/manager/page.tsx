@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { requireManager } from "@/lib/auth/guards";
 import { getScope, groupScopeWhere } from "@/lib/auth/scope";
+import { getScheduleRows, schedulesOf } from "@/lib/cached-data";
 import { db } from "@/lib/db";
 import {
   formatDate,
@@ -21,7 +22,7 @@ export default async function ManagerHomePage() {
   const today = todayInTashkent();
   const weekday = weekdayOf(today);
 
-  const [groups, pending] = await Promise.all([
+  const [groupRows, pending, scheduleRows] = await Promise.all([
     db.group.findMany({
       where: groupScopeWhere(scope),
       orderBy: { name: "asc" },
@@ -29,9 +30,6 @@ export default async function ManagerHomePage() {
         id: true,
         name: true,
         region: { select: { name: true } },
-        schedules: {
-          select: { weekday: true, startTime: true, endTime: true },
-        },
         _count: {
           select: { students: { where: { archivedAt: null } } },
         },
@@ -40,7 +38,13 @@ export default async function ManagerHomePage() {
     db.deletionRequest.count({
       where: { requestedById: manager.id, status: "PENDING" },
     }),
+    getScheduleRows(),
   ]);
+  // Dars jadvali keshdan (lib/cached-data.ts)
+  const groups = groupRows.map((g) => ({
+    ...g,
+    schedules: schedulesOf(scheduleRows, g.id),
+  }));
   const todays = groups
     .flatMap((g) =>
       g.schedules
@@ -78,6 +82,7 @@ export default async function ManagerHomePage() {
                     className="flex justify-between gap-2 p-3"
                   >
                     <Link
+                      prefetch={false}
                       href={`/manager/attendance?group=${l.id}`}
                       className="font-medium hover:underline"
                     >
@@ -104,6 +109,7 @@ export default async function ManagerHomePage() {
                 >
                   <div className="flex flex-col">
                     <Link
+                      prefetch={false}
                       href={`/manager/students?group=${g.id}`}
                       className="font-medium hover:underline"
                     >
@@ -130,7 +136,7 @@ export default async function ManagerHomePage() {
 
       {pending > 0 && (
         <p className="text-sm">
-          <Link href="/manager/requests" className="underline">
+          <Link prefetch={false} href="/manager/requests" className="underline">
             Kutilayotgan o&apos;chirish so&apos;rovlari: {pending}
           </Link>
         </p>

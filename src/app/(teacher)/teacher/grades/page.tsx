@@ -102,7 +102,11 @@ export default async function GradesPage({
           {!data ? (
             <p className="text-muted-foreground">
               Bu guruhda semestr yo&apos;q.{" "}
-              <Link href={`/teacher/groups/${groupId}`} className="underline">
+              <Link
+                prefetch={false}
+                href={`/teacher/groups/${groupId}`}
+                className="underline"
+              >
                 Guruh sahifasida semestr qo&apos;shing
               </Link>
               .

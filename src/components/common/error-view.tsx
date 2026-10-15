@@ -32,7 +32,11 @@ export function ErrorView({
       }
     >
       <Button onClick={() => retry()}>Qayta urinish</Button>
-      <Link href={homeHref} className={buttonVariants({ variant: "outline" })}>
+      <Link
+        prefetch={false}
+        href={homeHref}
+        className={buttonVariants({ variant: "outline" })}
+      >
         Bosh sahifa
       </Link>
     </StatusMessage>

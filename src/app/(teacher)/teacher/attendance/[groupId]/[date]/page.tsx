@@ -49,6 +49,7 @@ export default async function AttendanceSheetPage({
     <>
       <div className="flex flex-col gap-2">
         <Link
+          prefetch={false}
           href={`/teacher/attendance?date=${date}`}
           className="text-muted-foreground hover:text-foreground flex items-center gap-1 text-sm"
         >

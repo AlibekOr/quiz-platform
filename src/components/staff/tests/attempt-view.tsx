@@ -115,6 +115,7 @@ export async function AttemptView({
     <>
       <div className="flex flex-col gap-2">
         <Link
+          prefetch={false}
           href={resultsHref}
           className="text-muted-foreground hover:text-foreground flex items-center gap-1 text-sm"
         >
@@ -129,6 +130,7 @@ export async function AttemptView({
             <h1 className="text-2xl font-semibold break-words">
               {user.role === "TEACHER" ? (
                 <Link
+                  prefetch={false}
                   href={`/teacher/students/${attempt.userId}`}
                   className="hover:underline"
                 >
@@ -195,6 +197,7 @@ export async function AttemptView({
             {siblings.map((s, i) => (
               <li key={s.id}>
                 <Link
+                  prefetch={false}
                   href={`${resultsHref}/${s.id}`}
                   aria-current={s.id === attempt.id ? "page" : undefined}
                   className={cn(

@@ -120,6 +120,7 @@ export default async function StudentCardPage({
     <>
       <div className="flex flex-col gap-2">
         <Link
+          prefetch={false}
           href="/teacher/students"
           className="text-muted-foreground hover:text-foreground flex items-center gap-1 text-sm"
         >
@@ -245,6 +246,7 @@ export default async function StudentCardPage({
                     </TableCell>
                     <TableCell className="font-medium">
                       <Link
+                        prefetch={false}
                         href={`/teacher/groups/${m.group.id}`}
                         className="hover:underline"
                       >
@@ -337,6 +339,7 @@ export default async function StudentCardPage({
                     </TableCell>
                     <TableCell className="font-medium">
                       <Link
+                        prefetch={false}
                         href={`/teacher/tests/${a.test.id}`}
                         className="hover:underline"
                       >
@@ -348,6 +351,7 @@ export default async function StudentCardPage({
                     </TableCell>
                     <TableCell className="text-right tabular-nums">
                       <Link
+                        prefetch={false}
                         href={`/teacher/tests/${a.test.id}/results/${a.id}`}
                         className="hover:underline"
                       >

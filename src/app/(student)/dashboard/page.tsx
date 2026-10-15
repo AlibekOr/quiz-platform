@@ -155,6 +155,7 @@ export default async function DashboardPage() {
           <h2 className="text-lg font-semibold">Mavjud testlar</h2>
           {student.groupId && (
             <Link
+              prefetch={false}
               href="/tests/leaderboard"
               className="text-muted-foreground text-sm hover:underline"
             >
@@ -223,12 +224,17 @@ export default async function DashboardPage() {
                   </div>
                   <div className="flex shrink-0 flex-wrap gap-2">
                     {inProgress ? (
-                      <Link href={`/test/${t.id}`} className={buttonVariants()}>
+                      <Link
+                        prefetch={false}
+                        href={`/test/${t.id}`}
+                        className={buttonVariants()}
+                      >
                         Davom ettirish
                       </Link>
                     ) : upcoming ? null : lastDone ? (
                       <>
                         <Link
+                          prefetch={false}
                           href={`/result/${lastDone.id}`}
                           className={buttonVariants({ variant: "outline" })}
                         >
@@ -264,6 +270,7 @@ export default async function DashboardPage() {
             {results.map((r) => (
               <li key={r.id}>
                 <Link
+                  prefetch={false}
                   href={`/result/${r.id}`}
                   className="hover:bg-muted/50 flex flex-col gap-1 p-3 sm:flex-row sm:items-center sm:justify-between"
                 >

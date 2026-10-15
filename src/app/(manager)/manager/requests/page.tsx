@@ -57,7 +57,8 @@ export default async function ManagerRequestsPage() {
               )}
               <p className="text-muted-foreground text-xs">
                 Yuborilgan: {formatDateTime(r.createdAt)}
-                {r.decidedAt && ` · hal qilingan: ${formatDateTime(r.decidedAt)}`}
+                {r.decidedAt &&
+                  ` · hal qilingan: ${formatDateTime(r.decidedAt)}`}
               </p>
             </li>
           ))}

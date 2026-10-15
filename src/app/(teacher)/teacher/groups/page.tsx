@@ -12,6 +12,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { requireTeacher } from "@/lib/auth/guards";
+import { getRegionOptions } from "@/lib/cached-data";
 import { db } from "@/lib/db";
 import { formatSchedule } from "@/lib/time";
 
@@ -38,10 +39,7 @@ export default async function GroupsPage() {
         },
       },
     }),
-    db.region.findMany({
-      orderBy: { name: "asc" },
-      select: { id: true, name: true },
-    }),
+    getRegionOptions(),
   ]);
 
   return (
@@ -77,6 +75,7 @@ export default async function GroupsPage() {
                   </TableCell>
                   <TableCell className="font-medium">
                     <Link
+                      prefetch={false}
                       href={`/teacher/groups/${g.id}`}
                       className="hover:underline"
                     >
@@ -98,6 +97,7 @@ export default async function GroupsPage() {
                   )}
                   <TableCell className="text-right">
                     <Link
+                      prefetch={false}
                       href={`/teacher/students?group=${g.id}`}
                       className="hover:underline"
                     >

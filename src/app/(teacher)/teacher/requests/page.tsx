@@ -59,6 +59,7 @@ export default async function RequestsPage() {
                 <div className="flex min-w-0 flex-col gap-1">
                   <span>
                     <Link
+                      prefetch={false}
                       href={`/teacher/students/${r.student.id}`}
                       className="font-medium hover:underline"
                     >
@@ -92,6 +93,7 @@ export default async function RequestsPage() {
               <li key={r.id} className="flex flex-col gap-1 p-3 text-sm">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <Link
+                    prefetch={false}
                     href={`/teacher/students/${r.student.id}`}
                     className="font-medium hover:underline"
                   >

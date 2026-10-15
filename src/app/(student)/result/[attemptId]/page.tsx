@@ -137,12 +137,14 @@ export default async function ResultPage({
 
       <div className="flex flex-wrap gap-2">
         <Link
+          prefetch={false}
           href="/dashboard"
           className={buttonVariants({ variant: "outline" })}
         >
           Testlarimga qaytish
         </Link>
         <Link
+          prefetch={false}
           href={`/test/${attempt.testId}/leaderboard`}
           className={buttonVariants({ variant: "outline" })}
         >
@@ -223,7 +225,11 @@ function MarkBanner({ mark, canRetake }: { mark: Mark; canRetake: boolean }) {
             {canRetake && (
               <>
                 {" "}
-                <Link href="/dashboard" className="font-medium underline">
+                <Link
+                  prefetch={false}
+                  href="/dashboard"
+                  className="font-medium underline"
+                >
                   Qayta ishlab ko&apos;ring
                 </Link>
               </>

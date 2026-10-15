@@ -75,6 +75,7 @@ export default async function StudentsPage({
             Excel&apos;ga eksport
           </a>
           <Link
+            prefetch={false}
             href="/teacher/students/import"
             className={buttonVariants({ variant: "outline" })}
           >
@@ -88,7 +89,7 @@ export default async function StudentsPage({
       {groups.length === 0 && (
         <p className="text-muted-foreground text-sm">
           O&apos;quvchi qo&apos;shishdan oldin{" "}
-          <Link href="/teacher/groups" className="underline">
+          <Link prefetch={false} href="/teacher/groups" className="underline">
             guruh yarating
           </Link>
           .

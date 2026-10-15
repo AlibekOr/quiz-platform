@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { CACHE_TAGS, invalidateCache } from "@/lib/cached-data";
 import { z } from "zod";
 import { validationFailed, type ActionResult } from "@/lib/action-result";
 import { requireTeacher } from "@/lib/auth/guards";
@@ -25,7 +26,8 @@ function revalidate() {
 /** Region tanlansa, u mavjud bo'lsin */
 async function regionMissing(regionId: string | null): Promise<boolean> {
   return (
-    regionId !== null && (await db.region.count({ where: { id: regionId } })) === 0
+    regionId !== null &&
+    (await db.region.count({ where: { id: regionId } })) === 0
   );
 }
 
@@ -141,6 +143,7 @@ export async function deleteGroup(groupId: string): Promise<ActionResult> {
     if (isNotFound(e)) return { ok: false, error: "Guruh topilmadi" };
     throw e;
   }
+  invalidateCache(CACHE_TAGS.schedules);
   revalidate();
   return { ok: true, message: "Guruh o'chirildi" };
 }
@@ -173,6 +176,7 @@ export async function saveSchedule(
       data: days.map((d) => ({ ...d, groupId: id })),
     }),
   ]);
+  invalidateCache(CACHE_TAGS.schedules);
   revalidatePath(`/teacher/groups/${id}`);
   revalidatePath("/teacher/groups");
   revalidatePath("/teacher/attendance");

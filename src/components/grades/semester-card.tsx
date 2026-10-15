@@ -92,6 +92,7 @@ export function SemesterCard({
 
       {summary ? (
         <Link
+          prefetch={false}
           href="/grades"
           className="text-muted-foreground hover:text-foreground flex items-center gap-1 self-start text-sm"
         >

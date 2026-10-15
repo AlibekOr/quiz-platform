@@ -60,6 +60,7 @@ export default async function MyHomeworkPage({
       <nav className="flex flex-wrap gap-1" aria-label="Turi bo'yicha">
         {FILTERS.map((f) => (
           <Link
+            prefetch={false}
             key={f.value}
             href={f.value ? `/homework?type=${f.value}` : "/homework"}
             aria-current={filter === f.value ? "page" : undefined}

@@ -10,6 +10,7 @@ export default defineConfig({
     alias: {
       "@": src(""),
       "server-only": src("test/server-only.ts"),
+      "next/cache": src("test/next-cache.ts"),
     },
   },
   test: {

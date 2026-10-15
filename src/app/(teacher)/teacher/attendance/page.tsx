@@ -9,6 +9,7 @@ import {
 } from "@/components/teacher/homework/missing-homework";
 import { Badge } from "@/components/ui/badge";
 import { requireTeacher } from "@/lib/auth/guards";
+import { getScheduleRows, schedulesOf } from "@/lib/cached-data";
 import { db } from "@/lib/db";
 import { isPresent } from "@/lib/attendance";
 import {
@@ -42,28 +43,33 @@ export default async function AttendancePage({
       : today;
   const weekday = weekdayOf(date);
 
-  const groups = await db.group.findMany({
-    orderBy: { name: "asc" },
-    select: {
-      id: true,
-      name: true,
-      schedules: {
-        where: { weekday },
-        select: { startTime: true, endTime: true },
-      },
-      lessons: {
-        where: { date: toDbDate(date) },
-        select: { topic: true, attendances: { select: { status: true } } },
-      },
-      _count: {
-        select: {
-          students: {
-            where: { role: "STUDENT", isActive: true, archivedAt: null },
+  const [groupRows, scheduleRows] = await Promise.all([
+    db.group.findMany({
+      orderBy: { name: "asc" },
+      select: {
+        id: true,
+        name: true,
+        lessons: {
+          where: { date: toDbDate(date) },
+          select: { topic: true, attendances: { select: { status: true } } },
+        },
+        _count: {
+          select: {
+            students: {
+              where: { role: "STUDENT", isActive: true, archivedAt: null },
+            },
           },
         },
       },
-    },
-  });
+    }),
+    getScheduleRows(),
+  ]);
+
+  // Dars jadvali keshdan (lib/cached-data.ts)
+  const groups = groupRows.map((g) => ({
+    ...g,
+    schedules: schedulesOf(scheduleRows, g.id, weekday),
+  }));
 
   // Jadval bo'yicha shu kuni darsi bor guruhlar + shu kunga qo'shimcha dars belgilanganlar
   const lessonsToday = groups
@@ -123,6 +129,7 @@ export default async function AttendancePage({
             return (
               <li key={g.id}>
                 <Link
+                  prefetch={false}
                   href={`/teacher/attendance/${g.id}/${date}`}
                   className={cn(
                     "hover:bg-muted/50 flex h-full flex-col gap-2 rounded-lg border p-4 transition-colors",

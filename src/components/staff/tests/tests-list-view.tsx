@@ -49,6 +49,7 @@ export async function TestsListView({ user }: { user: CurrentUser }) {
         <h1 className="text-2xl font-semibold">Testlar</h1>
         <div className="flex flex-wrap gap-2">
           <Link
+            prefetch={false}
             href={`${base}/tests/leaderboard`}
             className={buttonVariants({ variant: "outline" })}
           >
@@ -85,6 +86,7 @@ export async function TestsListView({ user }: { user: CurrentUser }) {
                   </TableCell>
                   <TableCell className="font-medium">
                     <Link
+                      prefetch={false}
                       href={`${base}/tests/${t.id}`}
                       className="hover:underline"
                     >

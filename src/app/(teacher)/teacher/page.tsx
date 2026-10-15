@@ -11,6 +11,7 @@ import { MissingHomeworkList } from "@/components/teacher/homework/missing-homew
 import { Badge } from "@/components/ui/badge";
 import { requireTeacher } from "@/lib/auth/guards";
 import { isPresent } from "@/lib/attendance";
+import { getScheduleRows, schedulesOf } from "@/lib/cached-data";
 import { db } from "@/lib/db";
 import { percent } from "@/lib/format";
 import { getMissingHomeworkLessons } from "@/lib/homework-data";
@@ -36,8 +37,15 @@ export default async function TeacherPage() {
   const today = todayInTashkent();
   const weekday = weekdayOf(today);
   const absentFrom = addDays(today, -(ABSENT_DAYS - 1));
+  // Dars jadvali keshdan (lib/cached-data.ts)
+  const scheduleRows = await getScheduleRows();
+  const scheduledToday = [
+    ...new Set(
+      scheduleRows.filter((s) => s.weekday === weekday).map((s) => s.groupId),
+    ),
+  ];
 
-  const [studentCount, groupCount, activeTestCount, groups, recent, misses] =
+  const [studentCount, groupCount, activeTestCount, groupRows, recent, misses] =
     await Promise.all([
       db.user.count({
         where: { role: "STUDENT", isActive: true, archivedAt: null },
@@ -47,17 +55,13 @@ export default async function TeacherPage() {
       db.group.findMany({
         where: {
           OR: [
-            { schedules: { some: { weekday } } },
+            { id: { in: scheduledToday } },
             { lessons: { some: { date: toDbDate(today) } } },
           ],
         },
         select: {
           id: true,
           name: true,
-          schedules: {
-            where: { weekday },
-            select: { startTime: true, endTime: true },
-          },
           lessons: {
             where: { date: toDbDate(today) },
             select: { attendances: { select: { status: true } } },
@@ -108,6 +112,10 @@ export default async function TeacherPage() {
         },
       }),
     ]);
+  const groups = groupRows.map((g) => ({
+    ...g,
+    schedules: schedulesOf(scheduleRows, g.id, weekday),
+  }));
 
   const lessonsToday = groups.sort((a, b) =>
     (a.schedules[0]?.startTime ?? "99").localeCompare(
@@ -183,6 +191,7 @@ export default async function TeacherPage() {
         {stats.map(({ label, value, href, icon: Icon }) => (
           <li key={href}>
             <Link
+              prefetch={false}
               href={href}
               className="hover:bg-muted/50 flex h-full flex-col gap-1 rounded-lg border p-3 transition-colors sm:p-4"
             >
@@ -202,6 +211,7 @@ export default async function TeacherPage() {
         <div className="flex items-baseline justify-between gap-2">
           <h2 className="font-semibold">Bugungi darslar</h2>
           <Link
+            prefetch={false}
             href="/teacher/attendance"
             className="text-muted-foreground text-sm hover:underline"
           >
@@ -224,6 +234,7 @@ export default async function TeacherPage() {
               return (
                 <li key={g.id}>
                   <Link
+                    prefetch={false}
                     href={`/teacher/attendance/${g.id}/${today}`}
                     className={cn(
                       "hover:bg-muted/50 flex h-full flex-col gap-2 rounded-lg border p-4 transition-colors",
@@ -271,6 +282,7 @@ export default async function TeacherPage() {
               {recent.map((a) => (
                 <li key={a.id}>
                   <Link
+                    prefetch={false}
                     href={`/teacher/tests/${a.testId}/results/${a.id}`}
                     className="hover:bg-muted/50 flex items-center justify-between gap-3 px-4 py-3 transition-colors"
                   >
@@ -319,6 +331,7 @@ export default async function TeacherPage() {
               {topMisses.map((s) => (
                 <li key={s.id}>
                   <Link
+                    prefetch={false}
                     href={`/teacher/students/${s.id}`}
                     className="hover:bg-muted/50 flex items-center justify-between gap-3 px-4 py-3 transition-colors"
                   >

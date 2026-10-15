@@ -13,6 +13,7 @@ export default async function ImportStudentsPage() {
     <>
       <div className="flex flex-col gap-2">
         <Link
+          prefetch={false}
           href="/teacher/students"
           className="text-muted-foreground hover:text-foreground flex items-center gap-1 text-sm"
         >

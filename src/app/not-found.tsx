@@ -14,7 +14,7 @@ export default function NotFound() {
         title="Sahifa topilmadi"
         description="Siz izlagan sahifa mavjud emas yoki uni ko'rishga ruxsatingiz yo'q."
       >
-        <Link href="/" className={buttonVariants()}>
+        <Link prefetch={false} href="/" className={buttonVariants()}>
           Bosh sahifaga qaytish
         </Link>
       </StatusMessage>

@@ -76,6 +76,7 @@ export default async function AssignmentGradesPage({
     <>
       <div className="flex flex-col gap-2">
         <Link
+          prefetch={false}
           href={`/teacher/homework?group=${semester.group.id}`}
           className="text-muted-foreground hover:text-foreground flex items-center gap-1 text-sm"
         >

@@ -49,6 +49,7 @@ export function HomeworkMatrix({
                     {CATEGORY_LABEL[a.category]}
                   </span>
                   <Link
+                    prefetch={false}
                     href={`/teacher/homework/${a.id}`}
                     className="hover:underline"
                     title={a.title}
@@ -84,6 +85,7 @@ export function HomeworkMatrix({
                       {i + 1}.
                     </span>
                     <Link
+                      prefetch={false}
                       href={`/teacher/students/${s.id}`}
                       className="hover:underline"
                     >

@@ -61,6 +61,7 @@ export function QuestionList({
         {!readOnly && (
           <div className="flex flex-wrap gap-2">
             <Link
+              prefetch={false}
               href={`${basePath}/tests/${testId}/import`}
               className={buttonVariants({ variant: "outline" })}
             >
@@ -68,6 +69,7 @@ export function QuestionList({
               Import (JSON/Excel)
             </Link>
             <Link
+              prefetch={false}
               href={`${basePath}/tests/${testId}/copy`}
               className={buttonVariants({ variant: "outline" })}
             >

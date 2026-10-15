@@ -44,12 +44,14 @@ export function TestHeaderActions({
   return (
     <div className="flex flex-wrap gap-2">
       <Link
+        prefetch={false}
         href={`${basePath}/tests/${testId}/results`}
         className={buttonVariants({ variant: "outline" })}
       >
         Natijalar
       </Link>
       <Link
+        prefetch={false}
         href={`${basePath}/tests/${testId}/leaderboard`}
         className={buttonVariants({ variant: "outline" })}
       >

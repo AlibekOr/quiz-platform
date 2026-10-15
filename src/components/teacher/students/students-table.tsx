@@ -131,6 +131,7 @@ export function StudentsTable({
                 <TableCell className="font-medium">
                   {variant === "teacher" ? (
                     <Link
+                      prefetch={false}
                       href={`/teacher/students/${s.id}`}
                       className="hover:underline"
                     >

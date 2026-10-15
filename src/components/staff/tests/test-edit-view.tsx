@@ -59,6 +59,7 @@ export async function TestEditView({
     <>
       <div className="flex flex-col gap-2">
         <Link
+          prefetch={false}
           href={`${base}/tests`}
           className="text-muted-foreground hover:text-foreground flex items-center gap-1 text-sm"
         >

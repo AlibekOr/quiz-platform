@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { CACHE_TAGS, invalidateCache } from "@/lib/cached-data";
 import { z } from "zod";
 import { validationFailed, type ActionResult } from "@/lib/action-result";
 import { hashPassword } from "@/lib/auth/password";
@@ -220,6 +221,7 @@ export async function createRegion(input: RegionInput): Promise<ActionResult> {
     if (isUniqueViolation(e)) return regionTaken;
     throw e;
   }
+  invalidateCache(CACHE_TAGS.regions);
   revalidate();
   return { ok: true, message: "Region qo'shildi" };
 }
@@ -242,6 +244,7 @@ export async function renameRegion(
     if (isUniqueViolation(e)) return regionTaken;
     throw e;
   }
+  invalidateCache(CACHE_TAGS.regions);
   revalidate();
   return { ok: true, message: "Region nomi o'zgartirildi" };
 }

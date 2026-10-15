@@ -1,10 +1,6 @@
 import type { NextRequest } from "next/server";
 import { getCurrentUser } from "@/lib/auth/guards";
-import {
-  canAccessGroup,
-  getScope,
-  studentScopeWhere,
-} from "@/lib/auth/scope";
+import { canAccessGroup, getScope, studentScopeWhere } from "@/lib/auth/scope";
 import { db } from "@/lib/db";
 import { fileSafe } from "@/lib/format";
 import { buildStudentsWorkbook } from "@/lib/students/export";

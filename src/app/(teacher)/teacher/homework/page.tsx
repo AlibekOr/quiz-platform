@@ -98,7 +98,7 @@ export default async function HomeworkPage({
       {groups.length === 0 ? (
         <p className="text-muted-foreground">
           Avval{" "}
-          <Link href="/teacher/groups" className="underline">
+          <Link prefetch={false} href="/teacher/groups" className="underline">
             guruh yarating
           </Link>
           .
@@ -117,6 +117,7 @@ export default async function HomeworkPage({
             <div className="flex gap-1" role="tablist" aria-label="Ko'rinish">
               {(["list", "table"] as const).map((v) => (
                 <Link
+                  prefetch={false}
                   key={v}
                   href={viewHref(v)}
                   role="tab"
@@ -143,7 +144,11 @@ export default async function HomeworkPage({
             0 ? (
             <p className="text-muted-foreground">
               Bu guruhda semestr yo&apos;q.{" "}
-              <Link href={`/teacher/groups/${groupId}`} className="underline">
+              <Link
+                prefetch={false}
+                href={`/teacher/groups/${groupId}`}
+                className="underline"
+              >
                 Guruh sahifasida semestr qo&apos;shing
               </Link>
               .
@@ -192,6 +197,7 @@ export default async function HomeworkPage({
                               </TableCell>
                               <TableCell className="font-medium">
                                 <Link
+                                  prefetch={false}
                                   href={`/teacher/homework/${h.id}`}
                                   className="hover:underline"
                                 >

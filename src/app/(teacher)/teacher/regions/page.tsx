@@ -24,11 +24,11 @@ export default async function RegionsPage() {
         <h1 className="text-2xl font-semibold">Regionlar</h1>
         <p className="text-muted-foreground text-sm">
           Guruh regioni{" "}
-          <Link href="/teacher/groups" className="underline">
+          <Link prefetch={false} href="/teacher/groups" className="underline">
             Guruhlar
           </Link>{" "}
           sahifasida, menejer regioni{" "}
-          <Link href="/teacher/managers" className="underline">
+          <Link prefetch={false} href="/teacher/managers" className="underline">
             Menejerlar
           </Link>{" "}
           sahifasida tanlanadi.

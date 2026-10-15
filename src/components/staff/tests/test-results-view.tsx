@@ -108,6 +108,7 @@ export async function TestResultsView({
     <>
       <div className="flex flex-col gap-2">
         <Link
+          prefetch={false}
           href={`${staff}/tests/${id}`}
           className="text-muted-foreground hover:text-foreground flex items-center gap-1 text-sm"
         >
@@ -156,6 +157,7 @@ export async function TestResultsView({
           CSV yuklab olish
         </a>
         <Link
+          prefetch={false}
           href={`${staff}/tests/${id}/leaderboard`}
           className={buttonVariants({ variant: "outline" })}
         >
@@ -192,6 +194,7 @@ export async function TestResultsView({
                   <TableCell>
                     {user.role === "TEACHER" ? (
                       <Link
+                        prefetch={false}
                         href={`/teacher/students/${r.student.id}`}
                         className="font-medium hover:underline"
                       >
@@ -209,7 +212,7 @@ export async function TestResultsView({
                     {r.first ? (
                       <ScoreLink base={base} attempt={r.first} />
                     ) : r.inProgressId ? (
-                      <Link href={`${base}/${r.inProgressId}`}>
+                      <Link prefetch={false} href={`${base}/${r.inProgressId}`}>
                         <Badge>Ishlamoqda</Badge>
                       </Link>
                     ) : (
@@ -350,6 +353,7 @@ export async function TestResultsView({
         }
       >
         <Link
+          prefetch={false}
           href={`${base}${queryString({ sort: value, dir: nextDir })}`}
           replace
           scroll={false}
@@ -375,6 +379,7 @@ function ScoreLink({
 }) {
   return (
     <Link
+      prefetch={false}
       href={`${base}/${attempt.id}`}
       className="tabular-nums hover:underline"
     >

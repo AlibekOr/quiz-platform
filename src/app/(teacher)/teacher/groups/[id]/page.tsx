@@ -60,6 +60,7 @@ export default async function GroupPage({
     <>
       <div className="flex flex-col gap-2">
         <Link
+          prefetch={false}
           href="/teacher/groups"
           className="text-muted-foreground hover:text-foreground flex items-center gap-1 text-sm"
         >
@@ -74,6 +75,7 @@ export default async function GroupPage({
             </p>
           </div>
           <Link
+            prefetch={false}
             href={`/teacher/attendance/report?group=${group.id}`}
             className={buttonVariants({ variant: "outline" })}
           >
@@ -105,6 +107,7 @@ export default async function GroupPage({
                   className="flex items-center justify-between gap-2 py-2"
                 >
                   <Link
+                    prefetch={false}
                     href={`/teacher/students/${s.id}`}
                     className="font-medium hover:underline"
                   >
