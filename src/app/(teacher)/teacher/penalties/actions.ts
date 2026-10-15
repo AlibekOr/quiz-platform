@@ -20,8 +20,13 @@ import {
 
 const idSchema = z.string().min(1).max(64);
 
-function revalidate() {
+/** Shablon yaratildi, o'zgardi yoki o'chdi: tanlash ro'yxati keshi ham yangilanadi */
+function revalidateTypes() {
   invalidateCache(CACHE_TAGS.penaltyTypes);
+  revalidate();
+}
+
+function revalidate() {
   revalidatePath("/teacher/penalties");
   revalidatePath("/teacher/grades");
   revalidatePath("/teacher/students/[id]", "page");
@@ -48,7 +53,7 @@ export async function createPenaltyType(
     if (isUniqueViolation(e)) return nameTaken;
     throw e;
   }
-  revalidate();
+  revalidateTypes();
   return { ok: true, message: "Shablon qo'shildi" };
 }
 
@@ -68,7 +73,7 @@ export async function updatePenaltyType(
     if (isUniqueViolation(e)) return nameTaken;
     throw e;
   }
-  revalidate();
+  revalidateTypes();
   return { ok: true, message: "Shablon saqlandi" };
 }
 
@@ -88,7 +93,7 @@ export async function deletePenaltyType(typeId: string): Promise<ActionResult> {
     if (isNotFound(e)) return { ok: false, error: "Shablon topilmadi" };
     throw e;
   }
-  revalidate();
+  revalidateTypes();
   return { ok: true, message: "Shablon o'chirildi" };
 }
 
