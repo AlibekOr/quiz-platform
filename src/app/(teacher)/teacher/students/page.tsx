@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { DownloadIcon, FileSpreadsheetIcon } from "lucide-react";
-import type { Prisma } from "@/generated/prisma/client";
 import { AddStudentButton } from "@/components/teacher/students/add-student-button";
 import { StudentFilters } from "@/components/teacher/students/student-filters";
 import { StudentsTable } from "@/components/teacher/students/students-table";
@@ -10,6 +9,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { requireTeacher } from "@/lib/auth/guards";
 import { db } from "@/lib/db";
 import { teacherProfileSelect } from "@/lib/students/profile-select";
+import { studentListWhere } from "@/lib/students/search";
 
 export const metadata: Metadata = { title: "O'quvchilar" };
 
@@ -25,32 +25,7 @@ export default async function StudentsPage({
   const q = param(params.q).slice(0, 100);
   const group = param(params.group);
 
-  const archived = group === "archived";
-  const where: Prisma.UserWhereInput = {
-    role: "STUDENT",
-    archivedAt: archived ? { not: null } : null,
-  };
-  if (q) {
-    where.OR = [
-      { fullName: { contains: q, mode: "insensitive" } },
-      { username: { contains: q, mode: "insensitive" } },
-      {
-        profile: {
-          telegram: { contains: q.replace(/^@/, ""), mode: "insensitive" },
-        },
-      },
-    ];
-    // Telefonlar +998XXXXXXXXX ko'rinishida saqlanadi: "90 123" -> "90123"
-    const digits = q.replace(/\D/g, "");
-    if (digits.length >= 3) {
-      where.OR.push(
-        { profile: { phone: { contains: digits } } },
-        { profile: { parentPhone: { contains: digits } } },
-      );
-    }
-  }
-  if (group === "none") where.groupId = null;
-  else if (group && !archived) where.groupId = group;
+  const where = studentListWhere({ q, group, archived: false });
 
   const [groups, students] = await Promise.all([
     db.group.findMany({
@@ -93,7 +68,7 @@ export default async function StudentsPage({
         <div className="flex flex-col gap-2 sm:flex-row">
           {/* Eksport joriy guruh filtri bo'yicha (filtr bo'lmasa — hammasi) */}
           <a
-            href={`/api/students/export${group && group !== "none" && !archived ? `?groupId=${encodeURIComponent(group)}` : ""}`}
+            href={`/api/students/export${group && group !== "none" ? `?groupId=${encodeURIComponent(group)}` : ""}`}
             className={buttonVariants({ variant: "outline" })}
           >
             <DownloadIcon />
@@ -124,11 +99,7 @@ export default async function StudentsPage({
 
       {rows.length === 0 ? (
         <p className="text-muted-foreground">
-          {archived
-            ? "Arxiv bo'sh."
-            : q || group
-              ? "Hech narsa topilmadi."
-              : "Hali o'quvchi yo'q."}
+          {q || group ? "Hech narsa topilmadi." : "Hali o'quvchi yo'q."}
         </p>
       ) : (
         <StudentsTable rows={rows} groups={groups} />

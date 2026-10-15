@@ -45,19 +45,24 @@ export async function saveAttendance(
   });
   if (!group) return { ok: false, error: "Guruh topilmadi" };
 
-  // Faqat o'sha kuni guruh a'zosi bo'lganlar yoki shu darsda allaqachon yozuvi borlar
+  // Faqat hozir guruhda turgan va o'sha kuni a'zo bo'lganlar yoki shu darsda yozuvi borlar
+  // (guruhdan ketganlar varaqda ko'rinmaydi, ularning eski yozuvlari o'zgarmaydi)
   const lessonDate = toDbDate(date);
   const [members, existing] = await Promise.all([
     db.user.findMany({
       where: {
         role: "STUDENT",
         archivedAt: null,
+        groupId: gid,
         ...memberOnWhere(gid, date),
       },
       select: { id: true },
     }),
     db.attendance.findMany({
-      where: { lesson: { groupId: gid, date: lessonDate } },
+      where: {
+        lesson: { groupId: gid, date: lessonDate },
+        student: { groupId: gid },
+      },
       select: { studentId: true },
     }),
   ]);

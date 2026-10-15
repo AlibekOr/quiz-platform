@@ -27,7 +27,7 @@ src/
     (account)/profile/  # barcha rollar
     (student)/dashboard/  test/[id]/  result/[attemptId]/  leaderboard/  grades/  homework/  tests/leaderboard/
     (teacher)/teacher/tests/  teacher/students/  teacher/groups/  teacher/attendance/  teacher/attendance/report/
-    (teacher)/teacher/homework/  teacher/grades/  teacher/penalties/  teacher/managers/  teacher/requests/
+    (teacher)/teacher/homework/  teacher/grades/  teacher/penalties/  teacher/managers/  teacher/requests/  teacher/archive/
     (manager)/manager/  manager/students/  manager/attendance/  manager/requests/  manager/tests/
     api/leaderboard/route.ts
     api/attendance/export/route.ts

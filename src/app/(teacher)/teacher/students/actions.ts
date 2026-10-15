@@ -51,6 +51,7 @@ function revalidate() {
   revalidatePath("/manager/students");
   revalidatePath("/teacher/students");
   revalidatePath("/teacher/students/[id]", "page");
+  revalidatePath("/teacher/archive");
   revalidatePath("/teacher/groups");
   revalidatePath("/teacher/groups/[id]", "page");
 }

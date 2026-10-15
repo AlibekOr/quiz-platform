@@ -4,6 +4,7 @@ import { useEffect, useId, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
+  ArchiveIcon,
   BookOpenCheckIcon,
   BriefcaseIcon,
   CalendarCheckIcon,
@@ -113,6 +114,7 @@ const MENUS: Record<NavVariant, { main: MenuItem[]; footer: MenuLink[] }> = {
             label: "Jarima shablonlari",
             icon: GavelIcon,
           },
+          { href: "/teacher/archive", label: "Arxiv", icon: ArchiveIcon },
         ],
       },
     ],

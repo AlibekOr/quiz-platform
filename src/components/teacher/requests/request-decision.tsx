@@ -43,7 +43,7 @@ export function RequestDecision({
         open={dialog === "approve"}
         onOpenChange={close}
         title="So'rovni tasdiqlash"
-        description={`${studentName} arxivlanadi: tizimga kira olmaydi va ro'yxatlarda ko'rinmaydi. Natijalari saqlanadi, "Arxiv" filtridan tiklash mumkin.`}
+        description={`${studentName} arxivlanadi: tizimga kira olmaydi va ro'yxatlarda ko'rinmaydi. Natijalari saqlanadi, Sozlamalar → Arxiv sahifasidan tiklash mumkin.`}
         confirmLabel="Tasdiqlash"
         destructive
         action={() => decideRequest(requestId, { approve: true, note: "" })}

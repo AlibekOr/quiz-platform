@@ -179,7 +179,7 @@ export function StudentRowActions({
         open={dialog === "archive"}
         onOpenChange={close}
         title="O'quvchini arxivlash"
-        description={`${student.fullName} tizimga kira olmaydi, ro'yxatlar, reyting va davomatda ko'rinmaydi. Natijalari saqlanadi, "Arxiv" filtridan tiklash mumkin.`}
+        description={`${student.fullName} tizimga kira olmaydi, ro'yxatlar, reyting va davomatda ko'rinmaydi. Natijalari saqlanadi, Sozlamalar → Arxiv sahifasidan tiklash mumkin.`}
         confirmLabel="Arxivlash"
         destructive
         action={() => setStudentArchived(student.id, true)}

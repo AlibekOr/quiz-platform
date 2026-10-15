@@ -53,7 +53,7 @@ export async function getLessonSheet(groupId: string, date: DateStr) {
         topic: true,
         oralScores: { select: { studentId: true, points: true } },
         attendances: {
-          where: { student: { archivedAt: null } },
+          where: { student: { archivedAt: null, groupId } },
           select: {
             studentId: true,
             status: true,
@@ -73,6 +73,8 @@ export async function getLessonSheet(groupId: string, date: DateStr) {
         role: "STUDENT",
         isActive: true,
         archivedAt: null,
+        // Guruhdan ketganlar eski darslarda ham ko'rinmaydi
+        groupId,
         ...memberOnWhere(groupId, date),
       },
       select: {
@@ -135,7 +137,7 @@ export async function getAttendanceReport(
       select: {
         date: true,
         attendances: {
-          where: { student: { archivedAt: null } },
+          where: { student: { archivedAt: null, groupId } },
           select: {
             studentId: true,
             status: true,
@@ -148,7 +150,8 @@ export async function getAttendanceReport(
     db.groupMembership.findMany({
       where: {
         ...membershipOverlapWhere(groupId, from, to),
-        student: { archivedAt: null },
+        // Faqat hozir shu guruhda turganlar: ketganlar tarixi profilda
+        student: { archivedAt: null, groupId },
       },
       select: {
         student: {

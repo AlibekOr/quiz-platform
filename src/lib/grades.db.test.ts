@@ -6,6 +6,7 @@ import {
   getStudentSemesters,
   planPointCarryOver,
 } from "./grades-data";
+import { moveStudent } from "./memberships-data";
 import { addDays, toDbDate, todayInTashkent } from "./time";
 
 // Sanalar bugungi kunga nisbatan: davom etayotgan va tugagan semestrlar
@@ -239,6 +240,35 @@ describe("getSemesterGrades", () => {
       ["Uyga vazifa bajarilmagan", 1, true],
       ["Uyga vazifa bajarilmagan", 2, true],
     ]);
+  });
+});
+
+describe("guruhdan ketganlar", () => {
+  it("o'tkazilgan va chiqarilgan o'quvchi eski guruh jadvalida yo'q, profilida bor", async () => {
+    const sid = await semester(groupId, -30, 30);
+    const ali = await student("Ali", groupId);
+    const bek = await student("Bek", groupId);
+    const vali = await student("Vali", groupId);
+    const hw = await assignment(sid, "HOMEWORK");
+    for (const id of [ali, bek, vali]) await grade(hw, id, 1);
+    const at = new Date(`${addDays(today, -5)}T05:00:00Z`);
+    await db.$transaction(async (tx) => {
+      await moveStudent(tx, { studentId: bek, toGroupId: otherGroupId, at });
+      await moveStudent(tx, { studentId: vali, toGroupId: null, at });
+    });
+
+    const sheet = (await getSemesterGrades(sid))!;
+    expect(sheet.students.map((s) => s.id)).toEqual([ali]);
+    // Ball qo'yishda ham ular semestr o'quvchisi hisoblanmaydi
+    expect((await getSemesterGrades(sid, [bek]))!.students).toEqual([]);
+
+    const profile = await getStudentSemesters(bek);
+    expect(profile.map((p) => p.semester.id)).toEqual([sid]);
+    expect(profile[0].students[0].departure).toMatchObject({
+      kind: "moved",
+      groupName: "Frontend-2",
+    });
+    expect(profile[0].students[0].grades[hw].points).toBe(1);
   });
 });
 

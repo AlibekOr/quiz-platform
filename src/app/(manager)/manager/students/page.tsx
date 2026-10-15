@@ -129,7 +129,7 @@ export default async function ManagerStudentsPage({
         </p>
       )}
 
-      <StudentFilters groups={groups} showArchive={false} />
+      <StudentFilters groups={groups} />
 
       {rows.length === 0 ? (
         <p className="text-muted-foreground">

@@ -9,14 +9,8 @@ import {
 } from "@/components/ui/native-select";
 import type { GroupOption } from "./types";
 
-export function StudentFilters({
-  groups,
-  showArchive = true,
-}: {
-  groups: GroupOption[];
-  /** Menejer arxivni ko'rmaydi */
-  showArchive?: boolean;
-}) {
+/** Arxivlanganlar alohida sahifada: /teacher/archive */
+export function StudentFilters({ groups }: { groups: GroupOption[] }) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -47,7 +41,7 @@ export function StudentFilters({
         className="sm:max-w-xs"
       />
       <NativeSelect
-        aria-label="Guruh yoki arxiv bo'yicha filtr"
+        aria-label="Guruh bo'yicha filtr"
         value={searchParams.get("group") ?? ""}
         onChange={(e) => update("group", e.target.value)}
       >
@@ -58,9 +52,6 @@ export function StudentFilters({
           </NativeSelectOption>
         ))}
         <NativeSelectOption value="none">Guruhsiz</NativeSelectOption>
-        {showArchive && (
-          <NativeSelectOption value="archived">Arxiv</NativeSelectOption>
-        )}
       </NativeSelect>
     </div>
   );

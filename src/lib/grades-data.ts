@@ -327,7 +327,11 @@ async function buildSemester(
   return { semester, assignments, students: rows };
 }
 
-/** Semestr ichida kamida bir kun guruhda bo'lgan (arxivlanmagan) o'quvchilar */
+/**
+ * Semestr ichida kamida bir kun guruhda bo'lgan va HOZIR ham shu guruhda turgan
+ * (arxivlanmagan) o'quvchilar. Guruhdan ketganlar (o'tkazilgan, chiqarilgan) eski guruhda
+ * ko'rinmaydi — ularning tarixi faqat profilda (getStudentSemesters)
+ */
 async function semesterStudents(
   semester: SemesterInfo,
   studentIds?: readonly string[],
@@ -336,6 +340,7 @@ async function semesterStudents(
     where: {
       role: "STUDENT",
       archivedAt: null,
+      groupId: semester.group.id,
       ...(studentIds ? { id: { in: [...studentIds] } } : {}),
       memberships: {
         some: membershipOverlapWhere(
