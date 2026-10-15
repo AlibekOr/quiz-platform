@@ -197,12 +197,19 @@ describe("getSemesterGrades", () => {
     expect(filtered!.students).toHaveLength(1);
   });
 
-  it("avtomatik jarima: uyga vazifaga 0 va sababsiz kelmaslik −1, sababli va 0,5 — jarimasiz", async () => {
+  it("avtomatik jarima: yangi uyga vazifaga 0 — −2, eskisiga −1, sababsiz kelmaslik −1, sababli va 0,5 — jarimasiz", async () => {
     const sid = await semester(groupId, -30, 30);
     const ali = await student("Ali", groupId);
     const bonus = await assignment(sid, "BONUS", 20);
     await grade(bonus, ali, 10);
     await grade(await assignment(sid, "HOMEWORK"), ali, 0);
+    // 2026-10-15 gacha berilgan vazifa (migratsiyada missPenalty = 1)
+    const old = await assignment(sid, "HOMEWORK");
+    await db.assignment.update({
+      where: { id: old },
+      data: { missPenalty: 1 },
+    });
+    await grade(old, ali, 0);
     await grade(await assignment(sid, "HOMEWORK"), ali, 0.5);
     // PRACTICAL ga 0 — jarima emas
     await grade(await assignment(sid, "PRACTICAL", 5), ali, 0);
@@ -224,12 +231,13 @@ describe("getSemesterGrades", () => {
     await mark(-40, "ABSENT");
 
     const a = (await getSemesterGrades(sid))!.students[0];
-    expect(a.result.penalties).toBe(2);
-    // 10 + 0,5 − 2
-    expect(a.result.total).toBe(8.5);
-    expect(a.penalties.map((p) => [p.name, p.auto])).toEqual([
-      ["Darsga sababsiz kelmadi", true],
-      ["Uyga vazifa bajarilmagan", true],
+    expect(a.result.penalties).toBe(4);
+    // 10 + 0,5 − (2 + 1 + 1)
+    expect(a.result.total).toBe(6.5);
+    expect(a.penalties.map((p) => [p.name, p.points, p.auto]).sort()).toEqual([
+      ["Darsga sababsiz kelmadi", 1, true],
+      ["Uyga vazifa bajarilmagan", 1, true],
+      ["Uyga vazifa bajarilmagan", 2, true],
     ]);
   });
 });

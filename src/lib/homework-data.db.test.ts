@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { resetDatabase } from "@/test/db";
 import {
   getHomeworkPrefill,
+  lessonTaskMismatch,
   getMissingHomeworkLessons,
   getStudentAssignments,
   lessonMismatch,
@@ -101,14 +102,17 @@ describe("getMissingHomeworkLessons", () => {
     const without = await lesson(groupId, -1);
     const withHw = await lesson(groupId, -3);
     await assignment({ lessonId: withHw });
-    // Faqat amaliy berilgan dars — uyga vazifa hali yo'q
+    // Amaliy berilgan dars — u uyga vazifa o'rnida, eslatma chiqmaydi
     const practical = await lesson(groupId, -5);
     await assignment({ lessonId: practical, category: "PRACTICAL" });
+    // Faqat bonus berilgan dars — uyga vazifa hali yo'q
+    const bonus = await lesson(groupId, -6);
+    await assignment({ lessonId: bonus, category: "BONUS" });
     // Semestri yo'q guruh darsi — vazifa berib bo'lmaydi
     await lesson(otherGroupId, -1);
 
     const missing = await getMissingHomeworkLessons(14, today);
-    expect(missing.map((m) => m.lessonId)).toEqual([without, practical]);
+    expect(missing.map((m) => m.lessonId)).toEqual([without, bonus]);
     expect(missing[0]).toMatchObject({
       groupId,
       semesterId,
@@ -135,6 +139,37 @@ describe("getMissingHomeworkLessons", () => {
     const lessonId = await lesson(groupId, 0);
     await assignment({ lessonId });
     expect(await getHomeworkPrefill(lessonId)).toBeNull();
+  });
+
+  it("amaliy berilgan darsga taklif chiqmaydi", async () => {
+    const lessonId = await lesson(groupId, 0);
+    await assignment({ lessonId, category: "PRACTICAL" });
+    expect(await getHomeworkPrefill(lessonId)).toBeNull();
+  });
+});
+
+describe("lessonTaskMismatch", () => {
+  it("amaliy bor darsga uyga vazifa, uyga vazifa bor darsga amaliy berilmaydi", async () => {
+    const withPractical = await lesson(groupId, -1);
+    const practical = await assignment({
+      lessonId: withPractical,
+      category: "PRACTICAL",
+    });
+    expect(await lessonTaskMismatch(withPractical, "HOMEWORK")).toMatch(
+      /amaliy topshiriq berilgan/,
+    );
+    // O'zini tahrirlash va boshqa toifalar — mumkin
+    expect(
+      await lessonTaskMismatch(withPractical, "PRACTICAL", practical),
+    ).toBeNull();
+    expect(await lessonTaskMismatch(withPractical, "BONUS")).toBeNull();
+    // Yagona uyga vazifani amaliyga aylantirish — mumkin
+    const withHw = await lesson(groupId, -2);
+    const hw = await assignment({ lessonId: withHw });
+    expect(await lessonTaskMismatch(withHw, "PRACTICAL")).toMatch(
+      /uyga vazifa berilgan/,
+    );
+    expect(await lessonTaskMismatch(withHw, "PRACTICAL", hw)).toBeNull();
   });
 });
 

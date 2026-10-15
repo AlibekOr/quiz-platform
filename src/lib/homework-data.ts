@@ -1,7 +1,12 @@
 import "server-only";
 import { db } from "@/lib/db";
 import type { AssignmentCategory } from "@/lib/grades";
-import { defaultHomeworkTitle } from "@/lib/homework";
+import {
+  defaultHomeworkTitle,
+  isLessonTask,
+  LESSON_TASK_CATEGORIES,
+  lessonTaskConflict,
+} from "@/lib/homework";
 import {
   addDays,
   fromDbDate,
@@ -37,6 +42,27 @@ export async function lessonMismatch(
   if (lesson.date < semester.startDate || lesson.date > semester.endDate)
     return "Dars semestr sanalaridan tashqarida";
   return null;
+}
+
+/** Darsga uyga vazifa va amaliy birga berilmaydi (lib/homework.ts). excludeId — tahrirlanayotgani */
+export async function lessonTaskMismatch(
+  lessonId: string,
+  category: AssignmentCategory,
+  excludeId?: string,
+): Promise<string | null> {
+  if (!isLessonTask(category)) return null;
+  const existing = await db.assignment.findMany({
+    where: {
+      lessonId,
+      category: { in: [...LESSON_TASK_CATEGORIES] },
+      ...(excludeId ? { id: { not: excludeId } } : {}),
+    },
+    select: { category: true },
+  });
+  return lessonTaskConflict(
+    category,
+    existing.map((a) => a.category),
+  );
 }
 
 export type HomeworkPrefill = {
@@ -105,14 +131,14 @@ function prefill(lesson: LessonRow): HomeworkPrefill | null {
   };
 }
 
-/** Bitta dars uchun (uyga vazifa hali berilmagan bo'lsa) tayyor qiymatlar */
+/** Bitta dars uchun (uyga vazifa ham, amaliy ham hali berilmagan bo'lsa) tayyor qiymatlar */
 export async function getHomeworkPrefill(
   lessonId: string,
 ): Promise<HomeworkPrefill | null> {
   const lesson = await db.lesson.findFirst({
     where: {
       id: lessonId,
-      assignments: { none: { category: "HOMEWORK" } },
+      assignments: { none: { category: { in: [...LESSON_TASK_CATEGORIES] } } },
     },
     select: lessonSelect,
   });
@@ -120,7 +146,7 @@ export async function getHomeworkPrefill(
 }
 
 /**
- * Uyga vazifa berilmagan o'tgan darslar (oxirgi `days` kun, bugun ham kiradi), yangilari
+ * Uyga vazifa ham, amaliy ham berilmagan o'tgan darslar (oxirgi `days` kun, bugun ham kiradi), yangilari
  * birinchi. Faqat semestr ichidagi darslar — semestrsiz darsga vazifa berib bo'lmaydi
  */
 export async function getMissingHomeworkLessons(
@@ -133,7 +159,7 @@ export async function getMissingHomeworkLessons(
         gte: toDbDate(addDays(today, -(days - 1))),
         lte: toDbDate(today),
       },
-      assignments: { none: { category: "HOMEWORK" } },
+      assignments: { none: { category: { in: [...LESSON_TASK_CATEGORIES] } } },
     },
     orderBy: [{ date: "desc" }, { group: { name: "asc" } }],
     select: lessonSelect,

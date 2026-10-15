@@ -43,6 +43,7 @@ const data: SemesterGrades = {
       title: "UV",
       dueDate: "2026-10-02",
       maxPoints: 1,
+      missPenalty: 2,
     },
   ],
   students: [student("a", "Anvar", 1), student("b", "Bobur", 0.5)],

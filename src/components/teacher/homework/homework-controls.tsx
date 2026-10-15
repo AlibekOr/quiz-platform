@@ -39,6 +39,7 @@ import {
   CATEGORY_LABEL,
   type AssignmentCategory,
 } from "@/lib/grades";
+import { defaultHomeworkTitle } from "@/lib/homework";
 import { formatDate, type DateStr } from "@/lib/time";
 import {
   assignmentSchema,
@@ -273,7 +274,18 @@ function HomeworkForm({
           {...form.register("category", {
             // Uyga vazifa doim 0 / 0.5 / 1
             onChange: (e: React.ChangeEvent<HTMLSelectElement>) => {
-              if (e.target.value === "HOMEWORK") form.setValue("maxPoints", 1);
+              const next = e.target.value as AssignmentCategory;
+              if (next === "HOMEWORK") form.setValue("maxPoints", 1);
+              // Darsdan berilganda default nom turiga moslanadi ("Amaliy — 11.10")
+              if (
+                lessonDate &&
+                ASSIGNMENT_CATEGORIES.some(
+                  (c) =>
+                    form.getValues("title") ===
+                    defaultHomeworkTitle(lessonDate, c),
+                )
+              )
+                form.setValue("title", defaultHomeworkTitle(lessonDate, next));
             },
           })}
         >
@@ -284,6 +296,12 @@ function HomeworkForm({
           ))}
         </NativeSelect>
       </FormField>
+      {lessonDate && category === "PRACTICAL" && (
+        <p className="text-muted-foreground -mt-2 text-xs">
+          Amaliy topshiriq shu darsning uyga vazifasi o&apos;rnida — bu darsga
+          uyga vazifa berilmaydi.
+        </p>
+      )}
       {category === "EXTRA" && (
         <p className="text-muted-foreground -mt-2 text-xs">
           Qo&apos;shimcha ball semestr tugagach faqat &quot;Qo&apos;shimcha

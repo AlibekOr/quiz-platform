@@ -12,7 +12,7 @@ import {
   type AssignmentCategory,
 } from "@/lib/grades";
 import { getSemesterGrades } from "@/lib/grades-data";
-import { lessonMismatch } from "@/lib/homework-data";
+import { lessonMismatch, lessonTaskMismatch } from "@/lib/homework-data";
 import { isNotFound } from "@/lib/prisma-errors";
 import { toDbDate } from "@/lib/time";
 import {
@@ -40,10 +40,15 @@ function revalidate(assignmentId?: string) {
   revalidatePath("/teacher/attendance");
 }
 
-/** Semestr mavjudligi va (berilgan bo'lsa) dars shu semestr guruhida ekanligi */
+/**
+ * Semestr mavjudligi, (berilgan bo'lsa) dars shu semestr guruhida ekanligi va darsga
+ * uyga vazifa bilan amaliy birga berilmasligi
+ */
 async function semesterMissing(
   semesterId: string,
   lessonId: string | null,
+  category: AssignmentCategory,
+  excludeId?: string,
 ): Promise<ActionResult | null> {
   if ((await db.semester.count({ where: { id: semesterId } })) === 0)
     return {
@@ -51,8 +56,17 @@ async function semesterMissing(
       error: "Maydonlarni tekshiring",
       fieldErrors: { semesterId: ["Semestr topilmadi"] },
     };
-  const mismatch = lessonId ? await lessonMismatch(lessonId, semesterId) : null;
-  return mismatch ? { ok: false, error: mismatch } : null;
+  if (!lessonId) return null;
+  const mismatch = await lessonMismatch(lessonId, semesterId);
+  if (mismatch) return { ok: false, error: mismatch };
+  const conflict = await lessonTaskMismatch(lessonId, category, excludeId);
+  return conflict
+    ? {
+        ok: false,
+        error: "Maydonlarni tekshiring",
+        fieldErrors: { category: [conflict] },
+      }
+    : null;
 }
 
 /** Uyga vazifa doim 0 / 0.5 / 1 — maksimal ball 1 */
@@ -75,6 +89,7 @@ export async function createAssignment(
   const missing = await semesterMissing(
     parsed.data.semesterId,
     parsed.data.lessonId,
+    parsed.data.category,
   );
   if (missing) return missing;
   await db.assignment.create({
@@ -94,7 +109,12 @@ export async function updateAssignment(
   if (!parsed.success) return validationFailed(parsed.error);
   const data = assignmentData(parsed.data);
 
-  const missing = await semesterMissing(data.semesterId, data.lessonId);
+  const missing = await semesterMissing(
+    data.semesterId,
+    data.lessonId,
+    data.category,
+    id,
+  );
   if (missing) return missing;
   const current = await db.assignment.findUnique({
     where: { id },

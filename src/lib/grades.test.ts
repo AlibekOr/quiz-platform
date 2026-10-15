@@ -219,14 +219,26 @@ describe("normativ va avtomatik jarimalar", () => {
     expect(isFinalStretch(s, "2027-01-01")).toBe(false);
   });
 
-  it("uyga vazifaga 0 va sababsiz kelmaslik — har biri −1, yangilari birinchi", () => {
+  it("uyga vazifaga 0 — vazifaning jarimasi, sababsiz kelmaslik — −1, yangilari birinchi", () => {
     const list = autoPenalties({
       zeroHomework: [
-        { assignmentId: "h1", title: "CSS", dueDate: "2026-10-05" },
+        {
+          assignmentId: "h1",
+          title: "CSS",
+          dueDate: "2026-10-05",
+          missPenalty: 1,
+        },
+        {
+          assignmentId: "h2",
+          title: "JS",
+          dueDate: "2026-10-16",
+          missPenalty: 2,
+        },
       ],
       absences: [{ lessonId: "l1", date: "2026-10-08" }],
     });
     expect(list.map((p) => [p.id, p.points, p.name, p.note])).toEqual([
+      ["auto:hw:h2", 2, "Uyga vazifa bajarilmagan", "JS"],
       ["auto:abs:l1", 1, "Darsga sababsiz kelmadi", null],
       ["auto:hw:h1", 1, "Uyga vazifa bajarilmagan", "CSS"],
     ]);

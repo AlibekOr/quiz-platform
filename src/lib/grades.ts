@@ -276,8 +276,11 @@ export function isFinalStretch(
   );
 }
 
-/** Avtomatik jarima: uyga vazifaga 0 qo'yilgan yoki darsga sababsiz kelmagan — har biri −1 */
-export const AUTO_PENALTY_POINTS = 1;
+/**
+ * Avtomatik jarima: darsga sababsiz kelmaslik — −1. Uyga vazifaga 0 — vazifaning
+ * missPenalty si (2026-10-15 dan beri −2, undan oldin berilganlarda −1)
+ */
+export const ABSENCE_PENALTY_POINTS = 1;
 
 export type AutoPenalty = {
   id: string;
@@ -293,20 +296,21 @@ export function autoPenalties(input: {
     assignmentId: string;
     title: string;
     dueDate: DateStr;
+    missPenalty: number;
   }[];
   absences: readonly { lessonId: string; date: DateStr }[];
 }): AutoPenalty[] {
   return [
     ...input.zeroHomework.map((h) => ({
       id: `auto:hw:${h.assignmentId}`,
-      points: AUTO_PENALTY_POINTS,
+      points: h.missPenalty,
       name: "Uyga vazifa bajarilmagan",
       note: h.title,
       date: h.dueDate,
     })),
     ...input.absences.map((a) => ({
       id: `auto:abs:${a.lessonId}`,
-      points: AUTO_PENALTY_POINTS,
+      points: ABSENCE_PENALTY_POINTS,
       name: "Darsga sababsiz kelmadi",
       note: null,
       date: a.date,

@@ -1,3 +1,4 @@
+import { CATEGORY_LABEL, type AssignmentCategory } from "@/lib/grades";
 import { formatDayMonth, type DateStr } from "@/lib/time";
 
 // Uyga vazifa holati va eslatmalar (TASKS.md, 4-bo'lim). O'quvchi saytda hech narsa
@@ -24,7 +25,32 @@ export const HOMEWORK_STATUS_LABEL: Record<HomeworkStatus, string> = {
   MISSED: "Bajarilmagan",
 };
 
-/** Darsdan yaratiladigan vazifaning default nomi: "Uyga vazifa — 11.10" */
-export function defaultHomeworkTitle(lessonDate: DateStr): string {
-  return `Uyga vazifa — ${formatDayMonth(lessonDate)}`;
+/** Darsdan yaratiladigan vazifaning default nomi: "Uyga vazifa — 11.10", "Amaliy — 11.10" */
+export function defaultHomeworkTitle(
+  lessonDate: DateStr,
+  category: AssignmentCategory = "HOMEWORK",
+): string {
+  return `${CATEGORY_LABEL[category]} — ${formatDayMonth(lessonDate)}`;
+}
+
+/**
+ * Darsning vazifasi: uyga vazifa yoki amaliy topshiriq. Amaliy berilgan darsga uyga vazifa
+ * berilmaydi (amaliy uning o'rnida), uyga vazifa berilganiga — amaliy
+ */
+export const LESSON_TASK_CATEGORIES = ["HOMEWORK", "PRACTICAL"] as const;
+
+export function isLessonTask(category: AssignmentCategory): boolean {
+  return (LESSON_TASK_CATEGORIES as readonly string[]).includes(category);
+}
+
+/** Darsda boshqa turdagi vazifa bor bo'lsa — xato matni, aks holda null */
+export function lessonTaskConflict(
+  category: AssignmentCategory,
+  existing: readonly AssignmentCategory[],
+): string | null {
+  if (category === "HOMEWORK" && existing.includes("PRACTICAL"))
+    return "Bu darsga amaliy topshiriq berilgan — u uyga vazifa o'rnida, uyga vazifa berilmaydi";
+  if (category === "PRACTICAL" && existing.includes("HOMEWORK"))
+    return "Bu darsga uyga vazifa berilgan. Amaliy uning o'rniga beriladi: uyga vazifaning turini \"Amaliy\" qiling yoki uni o'chiring";
+  return null;
 }

@@ -309,6 +309,8 @@ model Assignment {
   description String?
   dueDate     DateTime           @db.Date
   maxPoints   Int
+  // Uyga vazifaga 0 qo'yilsa avtomatik jarima. 2026-10-15 gacha berilganlarda 1, yangilarida 2
+  missPenalty Int                @default(2)
   createdById String
   grades      AssignmentGrade[]
   createdAt   DateTime           @default(now())

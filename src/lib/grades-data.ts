@@ -46,6 +46,7 @@ const semesterSelect = {
       title: true,
       dueDate: true,
       maxPoints: true,
+      missPenalty: true,
     },
   },
 } satisfies Prisma.SemesterSelect;
@@ -85,6 +86,8 @@ export type AssignmentInfo = {
   title: string;
   dueDate: DateStr;
   maxPoints: number;
+  /** Uyga vazifaga 0 qo'yilsa avtomatik jarima */
+  missPenalty: number;
 };
 
 export type StudentSemester = {
@@ -240,7 +243,14 @@ async function buildSemester(
       zeroHomework: own.flatMap((g) => {
         const a = assignmentById.get(g.assignmentId);
         return a && a.category === "HOMEWORK" && g.points === 0
-          ? [{ assignmentId: a.id, title: a.title, dueDate: a.dueDate }]
+          ? [
+              {
+                assignmentId: a.id,
+                title: a.title,
+                dueDate: a.dueDate,
+                missPenalty: a.missPenalty,
+              },
+            ]
           : [];
       }),
       absences: absences

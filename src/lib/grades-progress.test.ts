@@ -20,6 +20,7 @@ const data = {
       title: "UV",
       dueDate: "2026-10-02",
       maxPoints: 1,
+      missPenalty: 2,
     },
     {
       id: "pr",
@@ -27,6 +28,7 @@ const data = {
       title: "Amaliy",
       dueDate: "2026-10-09",
       maxPoints: 25,
+      missPenalty: 2,
     },
   ],
 };
