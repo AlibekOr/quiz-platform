@@ -28,8 +28,11 @@ const ROW_CLASS: Partial<Record<SemesterStatus, string>> = {
 export function GradeSheetTable({
   students,
   categories,
+  studentHref = (id) => `/teacher/students/${id}`,
 }: {
   students: StudentSemester[];
+  /** O'quvchi kartochkasi havolasi (admin panelida — /admin/students/...) */
+  studentHref?: (id: string) => string;
   /** Semestr kategoriyalari (qo'shimcha — alohida ustunda) */
   categories: CategoryRule[];
 }) {
@@ -83,7 +86,7 @@ export function GradeSheetTable({
                   </span>
                   <Link
                     prefetch={false}
-                    href={`/teacher/students/${s.id}`}
+                    href={studentHref(s.id)}
                     className="hover:underline"
                   >
                     {s.fullName}

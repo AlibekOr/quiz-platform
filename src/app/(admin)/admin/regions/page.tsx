@@ -6,7 +6,7 @@ import { db } from "@/lib/db";
 
 export const metadata: Metadata = { title: "Regionlar" };
 
-// Regionlar: qo'shish va nomini o'zgartirish (action'lar — teacher/managers/actions.ts)
+// Regionlar: qo'shish va nomini o'zgartirish (faqat ADMIN; action'lar — admin/actions.ts)
 export default async function RegionsPage() {
   await requireAdmin();
   const regions = await db.region.findMany({
@@ -14,7 +14,7 @@ export default async function RegionsPage() {
     select: {
       id: true,
       name: true,
-      _count: { select: { groups: true, managers: true } },
+      _count: { select: { groups: true, managers: true, teachers: true } },
     },
   });
 
@@ -23,15 +23,12 @@ export default async function RegionsPage() {
       <div>
         <h1 className="text-2xl font-semibold">Regionlar</h1>
         <p className="text-muted-foreground text-sm">
-          Guruh regioni{" "}
-          <Link prefetch={false} href="/teacher/groups" className="underline">
-            Guruhlar
+          Regionlar o&apos;qituvchilarga{" "}
+          <Link prefetch={false} href="/admin/teachers" className="underline">
+            O&apos;qituvchilar
           </Link>{" "}
-          sahifasida, menejer regioni{" "}
-          <Link prefetch={false} href="/teacher/managers" className="underline">
-            Menejerlar
-          </Link>{" "}
-          sahifasida tanlanadi.
+          sahifasida biriktiriladi. Guruh va menejer regioni o&apos;qituvchi
+          regionlaridan tanlanadi.
         </p>
       </div>
       <RegionsSection

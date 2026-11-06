@@ -17,6 +17,7 @@ import {
   InboxIcon,
   LayoutDashboardIcon,
   LogOutIcon,
+  MapPinIcon,
   SettingsIcon,
   SlidersHorizontalIcon,
   TableIcon,
@@ -50,12 +51,33 @@ type MenuLink = NavLinkItem & { icon: LucideIcon; prefetch?: boolean };
 type MenuGroup = NavGroupItem<MenuLink> & { icon: LucideIcon };
 type MenuItem = MenuLink | MenuGroup;
 
-export type NavVariant = "teacher" | "manager" | "student";
+export type NavVariant = "admin" | "teacher" | "manager" | "student";
 
 const PROFILE: MenuLink = { href: "/profile", label: "Profil", icon: UserIcon };
 
 // Ikonkalar server'dan prop sifatida o'tkazilmaydi — ro'yxatlar shu yerda
 const MENUS: Record<NavVariant, { main: MenuItem[]; footer: MenuLink[] }> = {
+  admin: {
+    main: [
+      {
+        href: "/admin",
+        label: "Statistika",
+        icon: LayoutDashboardIcon,
+        exact: true,
+        prefetch: true,
+      },
+      { href: "/admin/regions", label: "Regionlar", icon: MapPinIcon },
+      {
+        href: "/admin/teachers",
+        label: "O'qituvchilar",
+        icon: GraduationCapIcon,
+      },
+      { href: "/admin/managers", label: "Menejerlar", icon: BriefcaseIcon },
+      { href: "/admin/groups", label: "Guruhlar", icon: UsersRoundIcon },
+      { href: "/admin/students", label: "O'quvchilar", icon: UsersIcon },
+    ],
+    footer: [PROFILE],
+  },
   teacher: {
     main: [
       {

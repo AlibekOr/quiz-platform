@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import {
   createRegion,
   renameRegion,
-} from "@/app/(teacher)/teacher/managers/actions";
+} from "@/app/(admin)/admin/actions";
 import { FormError } from "@/components/common/form-field";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";

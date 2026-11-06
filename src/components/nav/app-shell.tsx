@@ -6,12 +6,14 @@ import { MobileNav } from "./mobile-nav";
 import { NavMenu, type NavVariant } from "./nav-menu";
 
 const TITLES: Record<NavVariant, string> = {
+  admin: "Markaz boshqaruvi",
   teacher: "Test platformasi",
   manager: "Menejer paneli",
   student: "Test platformasi",
 };
 
 function variantFor(user: CurrentUser | null): NavVariant {
+  if (user?.role === "ADMIN") return "admin";
   if (user?.role === "TEACHER") return "teacher";
   if (user?.role === "MANAGER") return "manager";
   return "student";

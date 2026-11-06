@@ -1,11 +1,9 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { CACHE_TAGS, invalidateCache } from "@/lib/cached-data";
 import { z } from "zod";
 import { validationFailed, type ActionResult } from "@/lib/action-result";
 import { hashPassword } from "@/lib/auth/password";
-import { requireAdmin } from "@/lib/auth/guards";
 import { FORBIDDEN } from "@/lib/auth/scope";
 import { requireTeacherScope } from "@/lib/auth/staff";
 import { db } from "@/lib/db";
@@ -15,11 +13,9 @@ import {
   managerCreateSchema,
   managerGroupsSchema,
   managerUpdateSchema,
-  regionSchema,
   type ManagerCreateInput,
   type ManagerGroupsInput,
   type ManagerUpdateInput,
-  type RegionInput,
 } from "@/lib/validators/manager";
 import {
   resetPasswordSchema,
@@ -292,50 +288,4 @@ export async function unlinkManager(managerId: string): Promise<ActionResult> {
   ]);
   revalidate();
   return { ok: true, message: "Menejer bilan ishlash to'xtatildi" };
-}
-
-// ---------- Regionlar ----------
-
-const regionTaken: ActionResult = {
-  ok: false,
-  error: "Maydonlarni tekshiring",
-  fieldErrors: { name: ["Bunday nomli region bor"] },
-};
-
-export async function createRegion(input: RegionInput): Promise<ActionResult> {
-  await requireAdmin();
-  const parsed = regionSchema.safeParse(input);
-  if (!parsed.success) return validationFailed(parsed.error);
-  try {
-    await db.region.create({ data: { name: parsed.data.name } });
-  } catch (e) {
-    if (isUniqueViolation(e)) return regionTaken;
-    throw e;
-  }
-  invalidateCache(CACHE_TAGS.regions);
-  revalidate();
-  return { ok: true, message: "Region qo'shildi" };
-}
-
-export async function renameRegion(
-  regionId: string,
-  input: RegionInput,
-): Promise<ActionResult> {
-  await requireAdmin();
-  const id = idSchema.parse(regionId);
-  const parsed = regionSchema.safeParse(input);
-  if (!parsed.success) return validationFailed(parsed.error);
-  try {
-    await db.region.update({
-      where: { id },
-      data: { name: parsed.data.name },
-    });
-  } catch (e) {
-    if (isNotFound(e)) return { ok: false, error: "Region topilmadi" };
-    if (isUniqueViolation(e)) return regionTaken;
-    throw e;
-  }
-  invalidateCache(CACHE_TAGS.regions);
-  revalidate();
-  return { ok: true, message: "Region nomi o'zgartirildi" };
 }

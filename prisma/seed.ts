@@ -3,6 +3,7 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient, QuestionType } from "../src/generated/prisma/client";
 import { hashPassword } from "../src/lib/auth/password";
 import { groupCode } from "../src/lib/group-code";
+import { DEFAULT_PENALTY_TYPES } from "../src/lib/penalties-defaults";
 import { addDays, toDbDate, todayInTashkent, weekdayOf } from "../src/lib/time";
 
 const db = new PrismaClient({
@@ -27,12 +28,7 @@ const SCHEDULES: Record<
 };
 const STUDENTS_PER_GROUP = 5;
 
-const PENALTY_TYPES = [
-  { name: "Darsga sababsiz kelmaslik", defaultPoints: 2 },
-  { name: "Uyga vazifani ko'chirish", defaultPoints: 2 },
-  { name: "Darsda tartibni buzish", defaultPoints: 1 },
-  { name: "Darsga kechikish", defaultPoints: 1 },
-];
+const PENALTY_TYPES = DEFAULT_PENALTY_TYPES;
 
 type SeedQuestion = {
   text: string;

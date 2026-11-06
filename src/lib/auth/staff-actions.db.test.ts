@@ -52,6 +52,8 @@ const { createPenaltyType, updatePenaltyType, applyPenaltyAction } =
 const { createSemester } =
   await import("@/app/(teacher)/teacher/grades/actions");
 const { FORBIDDEN } = await import("@/lib/auth/scope");
+const { createTeacher, setGroupRegionAdmin, setTeacherRegions } =
+  await import("@/app/(admin)/admin/actions");
 
 const today = todayInTashkent();
 
@@ -369,5 +371,58 @@ describe("davomat, semestr va jarimalar", () => {
       where: { ownerId: bobur.id },
     });
     expect(await apply(boburSem.id, boburType.id)).toMatchObject({ ok: true });
+  });
+});
+
+describe("ADMIN", () => {
+  it("o'qituvchi yaratadi: regionlari, standart shablon va jarima shablonlari bilan", async () => {
+    as(await user("admin", "ADMIN"));
+    expect(
+      await createTeacher({
+        fullName: "Karimov Bobur",
+        username: "karimov",
+        password: "parol1234",
+        regionIds: [north, south],
+      }),
+    ).toMatchObject({ ok: true });
+    const t = await db.user.findUniqueOrThrow({
+      where: { username: "karimov" },
+      include: {
+        teacherRegions: true,
+        gradingTemplates: true,
+        penaltyTypes: true,
+      },
+    });
+    expect(t.role).toBe("TEACHER");
+    expect(t.teacherRegions.map((r) => r.regionId).sort()).toEqual(
+      [north, south].sort(),
+    );
+    expect(t.gradingTemplates).toHaveLength(1);
+    expect(t.penaltyTypes).toHaveLength(4);
+  });
+
+  it("guruhi bor regionni olib tashlamaydi; guruhga faqat o'qituvchi regioni", async () => {
+    as(await user("admin", "ADMIN"));
+    expect(
+      await setTeacherRegions(alibek.id, { regionIds: [south] }),
+    ).toMatchObject({ ok: false });
+    expect(await setGroupRegionAdmin(aFree, south)).toMatchObject({
+      ok: false,
+    });
+    expect(await setGroupRegionAdmin(aFree, north)).toMatchObject({ ok: true });
+    const g = await db.group.findUniqueOrThrow({ where: { id: aFree } });
+    expect(g.regionId).toBe(north);
+  });
+
+  it("o'qituvchi admin amallarini bajara olmaydi", async () => {
+    as(alibek);
+    await expect(
+      createTeacher({
+        fullName: "X Y",
+        username: "xy",
+        password: "parol1234",
+        regionIds: [],
+      }),
+    ).rejects.toThrow(/REDIRECT/);
   });
 });
