@@ -9,6 +9,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { groupScopeWhere } from "@/lib/auth/scope";
 import { requireTeacherScope } from "@/lib/auth/staff";
 import { semesterInfo } from "@/lib/grades-data";
+import { groupLabel } from "@/lib/group-label";
 import { db } from "@/lib/db";
 import { formatSchedule } from "@/lib/time";
 
@@ -26,6 +27,7 @@ export default async function GroupPage({
     select: {
       id: true,
       name: true,
+      code: true,
       schedules: {
         orderBy: { weekday: "asc" },
         select: { weekday: true, startTime: true, endTime: true },
@@ -71,6 +73,11 @@ export default async function GroupPage({
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="text-2xl font-semibold">{group.name}</h1>
+            {group.code && (
+              <p className="text-muted-foreground font-mono text-sm">
+                {group.code}
+              </p>
+            )}
             <p className="text-muted-foreground text-sm">
               {formatSchedule(group.schedules) || "Dars jadvali kiritilmagan"}
             </p>
@@ -120,7 +127,7 @@ export default async function GroupPage({
                       {!s.isActive && " · bloklangan"}
                     </span>
                     <RemoveFromGroupButton
-                      student={{ ...s, groupName: group.name }}
+                      student={{ ...s, groupName: groupLabel(group) }}
                     />
                   </div>
                 </li>

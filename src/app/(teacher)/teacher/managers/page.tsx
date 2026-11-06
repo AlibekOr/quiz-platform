@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import {
   AddManagerButton,
+  LinkManagerButton,
   ManagerRowActions,
 } from "@/components/teacher/managers/manager-controls";
 import { Badge } from "@/components/ui/badge";
@@ -15,6 +16,7 @@ import {
 } from "@/components/ui/table";
 import { requireTeacherScope } from "@/lib/auth/staff";
 import { db } from "@/lib/db";
+import { groupLabel } from "@/lib/group-label";
 import { getTeacherRegionOptions } from "@/lib/groups-data";
 
 export const metadata: Metadata = { title: "Menejerlar" };
@@ -23,7 +25,7 @@ export default async function ManagersPage() {
   const { user } = await requireTeacherScope();
 
   // Faqat shu o'qituvchi bilan ishlaydigan menejerlar va ularga U bergan guruhlar
-  const [managers, regions, groups] = await Promise.all([
+  const [managers, regions, groups, candidates] = await Promise.all([
     db.user.findMany({
       where: { role: "MANAGER", teachers: { some: { teacherId: user.id } } },
       orderBy: { fullName: "asc" },
@@ -33,11 +35,12 @@ export default async function ManagersPage() {
         username: true,
         isActive: true,
         regionId: true,
+        createdById: true,
         region: { select: { name: true } },
         managedGroups: {
           where: { group: { teacherId: user.id } },
           orderBy: { group: { name: "asc" } },
-          select: { group: { select: { id: true, name: true } } },
+          select: { group: { select: { id: true, name: true, code: true } } },
         },
       },
     }),
@@ -46,23 +49,53 @@ export default async function ManagersPage() {
     db.group.findMany({
       where: { teacherId: user.id, regionId: { not: null } },
       orderBy: { name: "asc" },
-      select: { id: true, name: true },
+      select: { id: true, name: true, code: true },
+    }),
+    // O'z regionidagi, hali u bilan ishlamaydigan faol menejerlar (faqat ism va login)
+    db.user.findMany({
+      where: {
+        role: "MANAGER",
+        isActive: true,
+        region: { teachers: { some: { teacherId: user.id } } },
+        teachers: { none: { teacherId: user.id } },
+      },
+      orderBy: { fullName: "asc" },
+      select: {
+        id: true,
+        fullName: true,
+        username: true,
+        region: { select: { name: true } },
+      },
     }),
   ]);
+  const groupOptions = groups.map((g) => ({ id: g.id, name: groupLabel(g) }));
   const regionOptions = regions.map((r) => ({ id: r.id, name: r.name }));
 
   return (
     <>
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-2xl font-semibold">Menejerlar</h1>
-        <AddManagerButton regions={regionOptions} />
+        <div className="flex flex-wrap gap-2">
+          <LinkManagerButton
+            candidates={candidates.map((c) => ({
+              id: c.id,
+              fullName: c.fullName,
+              username: c.username,
+              regionName: c.region?.name ?? "",
+            }))}
+          />
+          <AddManagerButton regions={regionOptions} />
+        </div>
       </div>
 
       <p className="text-muted-foreground text-sm">
-        Menejer o&apos;z regionidagi guruhlarni va unga qo&apos;shimcha
-        biriktirilgan guruhlarni ko&apos;radi: o&apos;quvchilarni qo&apos;shadi,
-        tahrirlaydi, davomat hisobotlarini ko&apos;radi. O&apos;quvchini
-        o&apos;chirish uchun so&apos;rov yuboradi. Guruh regionini{" "}
+        Menejer faqat siz biriktirgan guruhlarni ko&apos;radi:
+        o&apos;quvchilarni qo&apos;shadi, tahrirlaydi, davomat hisobotlarini
+        ko&apos;radi. O&apos;quvchini o&apos;chirish uchun sizga so&apos;rov
+        yuboradi. Bir menejer bir nechta o&apos;qituvchi bilan ishlashi mumkin —
+        siz faqat o&apos;zingiz bergan guruhlarni ko&apos;rasiz. Tahrirlash va
+        parolni faqat menejerni yaratgan o&apos;qituvchi o&apos;zgartiradi.
+        Guruh regionini{" "}
         <Link prefetch={false} href="/teacher/groups" className="underline">
           Guruhlar
         </Link>{" "}
@@ -81,7 +114,7 @@ export default async function ManagersPage() {
                 <TableHead>Login</TableHead>
                 <TableHead>Region</TableHead>
                 <TableHead className="hidden md:table-cell">
-                  Qo&apos;shimcha guruhlar
+                  Biriktirilgan guruhlar
                 </TableHead>
                 <TableHead>Holat</TableHead>
                 <TableHead className="w-12">
@@ -104,7 +137,9 @@ export default async function ManagersPage() {
                   </TableCell>
                   <TableCell>{m.region?.name ?? "—"}</TableCell>
                   <TableCell className="hidden text-sm md:table-cell">
-                    {m.managedGroups.map((g) => g.group.name).join(", ") || "—"}
+                    {m.managedGroups
+                      .map((g) => groupLabel(g.group))
+                      .join(", ") || "—"}
                   </TableCell>
                   <TableCell>
                     {m.isActive ? (
@@ -116,7 +151,7 @@ export default async function ManagersPage() {
                   <TableCell>
                     <ManagerRowActions
                       regions={regionOptions}
-                      groups={groups}
+                      groups={groupOptions}
                       manager={{
                         id: m.id,
                         fullName: m.fullName,
@@ -124,6 +159,7 @@ export default async function ManagersPage() {
                         isActive: m.isActive,
                         regionId: m.regionId,
                         groupIds: m.managedGroups.map((g) => g.group.id),
+                        isOwn: m.createdById === user.id,
                       }}
                     />
                   </TableCell>

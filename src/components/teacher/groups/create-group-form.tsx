@@ -25,7 +25,8 @@ export function CreateGroupForm({
     resolver: zodResolver(groupFormSchema),
     defaultValues: { name: "" },
   });
-  const [regionId, setRegionId] = useState("");
+  // Odatda region bilan: regionsiz guruh kodida region harfi bo'lmaydi (keyin ham qo'shilmaydi)
+  const [regionId, setRegionId] = useState(regions[0]?.id ?? "");
   const { errors } = form.formState;
 
   const onSubmit = form.handleSubmit((values) =>
@@ -71,6 +72,12 @@ export function CreateGroupForm({
       <FormError
         message={errors.name?.message ?? errors.root?.server?.message}
       />
+      {regions.length > 0 && regionId === "" && (
+        <p className="text-muted-foreground text-xs">
+          Regionsiz guruh faqat sizga ko&apos;rinadi (menejerga
+          biriktirilmaydi), kodida region harfi bo&apos;lmaydi.
+        </p>
+      )}
     </form>
   );
 }

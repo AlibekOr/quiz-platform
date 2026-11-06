@@ -4,6 +4,7 @@ import { StudentsTable } from "@/components/teacher/students/students-table";
 import type { StudentRow } from "@/components/teacher/students/types";
 import { groupScopeWhere, studentScopeWhere } from "@/lib/auth/scope";
 import { requireTeacherScope } from "@/lib/auth/staff";
+import { groupLabel } from "@/lib/group-label";
 import { db } from "@/lib/db";
 import { teacherProfileSelect } from "@/lib/students/profile-select";
 import { studentListWhere } from "@/lib/students/search";
@@ -23,11 +24,11 @@ export default async function ArchivePage({
   const q = param(params.q).slice(0, 100);
   const group = param(params.group);
 
-  const [groups, students] = await Promise.all([
+  const [groupRows, students] = await Promise.all([
     db.group.findMany({
       where: groupScopeWhere(scope),
       orderBy: { name: "asc" },
-      select: { id: true, name: true },
+      select: { id: true, name: true, code: true },
     }),
     db.user.findMany({
       where: {
@@ -41,16 +42,17 @@ export default async function ArchivePage({
         username: true,
         isActive: true,
         groupId: true,
-        group: { select: { name: true } },
+        group: { select: { name: true, code: true } },
         profile: { select: teacherProfileSelect },
       },
     }),
   ]);
+  const groups = groupRows.map((g) => ({ id: g.id, name: groupLabel(g) }));
 
   const rows: StudentRow[] = students.map(({ group, ...s }) => ({
     ...s,
     archived: true,
-    groupName: group?.name ?? null,
+    groupName: group ? groupLabel(group) : null,
   }));
 
   return (

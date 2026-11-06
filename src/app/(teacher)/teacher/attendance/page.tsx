@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { canAccessGroup, groupScopeWhere } from "@/lib/auth/scope";
 import { requireTeacherScope } from "@/lib/auth/staff";
 import { getScheduleRows, schedulesOf } from "@/lib/cached-data";
+import { groupLabel } from "@/lib/group-label";
 import { db } from "@/lib/db";
 import { isPresent } from "@/lib/attendance";
 import {
@@ -51,6 +52,7 @@ export default async function AttendancePage({
       select: {
         id: true,
         name: true,
+        code: true,
         lessons: {
           where: { date: toDbDate(date) },
           select: { topic: true, attendances: { select: { status: true } } },
@@ -85,7 +87,8 @@ export default async function AttendancePage({
 
   // Davomat saqlangandan keyin (?homework=<groupId>): shu darsga vazifa berish taklifi
   const savedGroup =
-    typeof params.homework === "string" && canAccessGroup(scope, params.homework)
+    typeof params.homework === "string" &&
+    canAccessGroup(scope, params.homework)
       ? params.homework
       : null;
   const savedLesson = savedGroup
@@ -141,7 +144,7 @@ export default async function AttendancePage({
                   )}
                 >
                   <div className="flex items-center justify-between gap-2">
-                    <span className="font-semibold">{g.name}</span>
+                    <span className="font-semibold">{groupLabel(g)}</span>
                     {time ? (
                       <span className="text-muted-foreground text-sm tabular-nums">
                         {time.startTime}–{time.endTime}
@@ -175,7 +178,7 @@ export default async function AttendancePage({
 
       <ExtraLesson
         date={date}
-        groups={others.map((g) => ({ id: g.id, name: g.name }))}
+        groups={others.map((g) => ({ id: g.id, name: groupLabel(g) }))}
       />
     </>
   );

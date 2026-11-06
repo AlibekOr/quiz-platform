@@ -3,13 +3,20 @@
 import { useState, useTransition } from "react";
 import { FormProvider, useForm, useFormContext } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { MoreHorizontalIcon, PlusIcon, RefreshCwIcon } from "lucide-react";
+import {
+  MoreHorizontalIcon,
+  PlusIcon,
+  RefreshCwIcon,
+  UserPlusIcon,
+} from "lucide-react";
 import { toast } from "sonner";
 import {
   createManager,
+  linkManager,
   resetManagerPassword,
   setManagerActive,
   setManagerGroups,
+  unlinkManager,
   updateManager,
 } from "@/app/(teacher)/teacher/managers/actions";
 import { ConfirmAction } from "@/components/common/confirm-action";
@@ -53,6 +60,16 @@ export type ManagerRow = {
   isActive: boolean;
   regionId: string | null;
   groupIds: string[];
+  /** Shu o'qituvchi yaratgan: tahrirlash, parol va bloklash faqat shunda */
+  isOwn: boolean;
+};
+
+/** O'qituvchi regionidagi, u bilan hali ishlamaydigan menejer (aloqa ma'lumotlarisiz) */
+export type ManagerCandidate = {
+  id: string;
+  fullName: string;
+  username: string;
+  regionName: string;
 };
 
 export function AddManagerButton({ regions }: { regions: Option[] }) {
@@ -68,11 +85,83 @@ export function AddManagerButton({ regions }: { regions: Option[] }) {
           <DialogHeader>
             <DialogTitle>Yangi menejer</DialogTitle>
             <DialogDescription>
-              Menejer o&apos;z regionidagi va unga biriktirilgan guruhlar
-              o&apos;quvchilarini boshqaradi.
+              Menejer siz biriktirgan guruhlar o&apos;quvchilarini boshqaradi.
+              Region — sizning regionlaringizdan biri.
             </DialogDescription>
           </DialogHeader>
           <CreateManagerForm regions={regions} onDone={() => setOpen(false)} />
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
+/** O'z regionidagi mavjud menejer bilan ishlashni boshlash */
+export function LinkManagerButton({
+  candidates,
+}: {
+  candidates: ManagerCandidate[];
+}) {
+  const [open, setOpen] = useState(false);
+  const [managerId, setManagerId] = useState("");
+  const [error, setError] = useState<string>();
+  const [pending, startTransition] = useTransition();
+
+  function submit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!managerId) return setError("Menejerni tanlang");
+    startTransition(async () => {
+      const result = await linkManager(managerId);
+      if (result.ok) {
+        toast.success(result.message);
+        setOpen(false);
+        setManagerId("");
+      } else setError(result.error);
+    });
+  }
+
+  if (candidates.length === 0) return null;
+  return (
+    <>
+      <Button variant="outline" onClick={() => setOpen(true)}>
+        <UserPlusIcon />
+        Mavjud menejerni qo&apos;shish
+      </Button>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Mavjud menejer</DialogTitle>
+            <DialogDescription>
+              Regionlaringizdagi boshqa o&apos;qituvchilar bilan ishlayotgan
+              menejer. Qo&apos;shgandan keyin unga o&apos;z guruhlaringizni
+              biriktirasiz — u boshqa o&apos;qituvchilarning guruhlarini ham
+              ko&apos;rishda davom etadi.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={submit} className="flex flex-col gap-4" noValidate>
+            <FormField id="link-manager" label="Menejer" error={error}>
+              <NativeSelect
+                id="link-manager"
+                value={managerId}
+                onChange={(e) => {
+                  setManagerId(e.target.value);
+                  setError(undefined);
+                }}
+              >
+                <NativeSelectOption value="">Tanlang</NativeSelectOption>
+                {candidates.map((c) => (
+                  <NativeSelectOption key={c.id} value={c.id}>
+                    {c.fullName} ({c.username}) · {c.regionName}
+                  </NativeSelectOption>
+                ))}
+              </NativeSelect>
+            </FormField>
+            <DialogFooter>
+              <Button type="submit" disabled={pending}>
+                Qo&apos;shish
+              </Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
     </>
@@ -89,7 +178,7 @@ export function ManagerRowActions({
   groups: Option[];
 }) {
   const [dialog, setDialog] = useState<
-    "edit" | "password" | "groups" | "block" | null
+    "edit" | "password" | "groups" | "block" | "unlink" | null
   >(null);
   const close = (open: boolean) => !open && setDialog(null);
 
@@ -108,21 +197,33 @@ export function ManagerRowActions({
           <MoreHorizontalIcon />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          <DropdownMenuItem onClick={() => setDialog("edit")}>
-            Tahrirlash
-          </DropdownMenuItem>
           <DropdownMenuItem onClick={() => setDialog("groups")}>
-            Qo&apos;shimcha guruhlar
+            Guruhlarni biriktirish
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => setDialog("password")}>
-            Parolni tiklash
-          </DropdownMenuItem>
+          {manager.isOwn && (
+            <>
+              <DropdownMenuItem onClick={() => setDialog("edit")}>
+                Tahrirlash
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setDialog("password")}>
+                Parolni tiklash
+              </DropdownMenuItem>
+            </>
+          )}
           <DropdownMenuSeparator />
+          {manager.isOwn && (
+            <DropdownMenuItem
+              variant={manager.isActive ? "destructive" : "default"}
+              onClick={() => setDialog("block")}
+            >
+              {manager.isActive ? "Bloklash" : "Blokdan chiqarish"}
+            </DropdownMenuItem>
+          )}
           <DropdownMenuItem
-            variant={manager.isActive ? "destructive" : "default"}
-            onClick={() => setDialog("block")}
+            variant="destructive"
+            onClick={() => setDialog("unlink")}
           >
-            {manager.isActive ? "Bloklash" : "Blokdan chiqarish"}
+            Ishlashni to&apos;xtatish
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -132,8 +233,8 @@ export function ManagerRowActions({
           <DialogHeader>
             <DialogTitle>Menejerni tahrirlash</DialogTitle>
             <DialogDescription>
-              Region o&apos;zgarsa, menejer keyingi sahifadanoq yangi guruhlarni
-              ko&apos;radi.
+              Region — sizning regionlaringizdan biri. Menejer ko&apos;radigan
+              guruhlar regionga emas, biriktirishga bog&apos;liq.
             </DialogDescription>
           </DialogHeader>
           <EditManagerForm
@@ -147,10 +248,11 @@ export function ManagerRowActions({
       <Dialog open={dialog === "groups"} onOpenChange={close}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Qo&apos;shimcha guruhlar</DialogTitle>
+            <DialogTitle>Guruhlarni biriktirish</DialogTitle>
             <DialogDescription>
-              {manager.fullName} region guruhlaridan tashqari shu guruhlarni ham
-              ko&apos;radi.
+              {manager.fullName} sizning guruhlaringizdan faqat
+              belgilanganlarini ko&apos;radi. Regionsiz guruhlar ro&apos;yxatda
+              yo&apos;q — ular faqat sizga ko&apos;rinadi.
             </DialogDescription>
           </DialogHeader>
           <GroupsForm
@@ -188,6 +290,16 @@ export function ManagerRowActions({
         destructive={manager.isActive}
         action={() => setManagerActive(manager.id, !manager.isActive)}
       />
+
+      <ConfirmAction
+        open={dialog === "unlink"}
+        onOpenChange={close}
+        title="Menejer bilan ishlashni to'xtatish"
+        description={`${manager.fullName} sizning guruhlaringizni boshqa ko'rmaydi. Akkaunti va boshqa o'qituvchilar bergan guruhlari qoladi.`}
+        confirmLabel="To'xtatish"
+        destructive
+        action={() => unlinkManager(manager.id)}
+      />
     </>
   );
 }
@@ -220,8 +332,12 @@ function ManagerFields({ regions }: { regions: Option[] }) {
         />
       </FormField>
       <FormField id="m-region" label="Region" error={errors.regionId?.message}>
-        <NativeSelect id="m-region" {...register("regionId")}>
-          <NativeSelectOption value="">Regionsiz</NativeSelectOption>
+        <NativeSelect
+          id="m-region"
+          aria-invalid={!!errors.regionId}
+          {...register("regionId")}
+        >
+          <NativeSelectOption value="">Regionni tanlang</NativeSelectOption>
           {regions.map((r) => (
             <NativeSelectOption key={r.id} value={r.id}>
               {r.name}
@@ -397,7 +513,9 @@ function GroupsForm({
   return (
     <form onSubmit={submit} className="flex flex-col gap-4" noValidate>
       {groups.length === 0 ? (
-        <p className="text-muted-foreground text-sm">Guruhlar yo&apos;q.</p>
+        <p className="text-muted-foreground text-sm">
+          Regionli guruhlaringiz yo&apos;q.
+        </p>
       ) : (
         <div className="flex max-h-72 flex-col gap-2 overflow-y-auto">
           {groups.map((g) => (

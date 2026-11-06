@@ -22,6 +22,7 @@ import {
   studentScopeWhere,
 } from "@/lib/auth/scope";
 import { requireTeacherScope } from "@/lib/auth/staff";
+import { groupLabel } from "@/lib/group-label";
 import { db } from "@/lib/db";
 import { getStudentSemesters } from "@/lib/grades-data";
 import { getActivePenaltyTypes } from "@/lib/penalties";
@@ -48,7 +49,7 @@ export default async function StudentCardPage({
   if (!(await canAccessStudent(scope, id))) notFound();
   await finalizeExpiredAttempts({ userId: id });
 
-  const [student, groups] = await Promise.all([
+  const [student, groupRows] = await Promise.all([
     db.user.findFirst({
       where: { id, role: "STUDENT", ...studentScopeWhere(scope) },
       select: {
@@ -59,7 +60,7 @@ export default async function StudentCardPage({
         archivedAt: true,
         groupId: true,
         createdAt: true,
-        group: { select: { name: true } },
+        group: { select: { name: true, code: true } },
         profile: { select: teacherProfileSelect },
         attendances: { select: { status: true } },
         memberships: {
@@ -69,7 +70,7 @@ export default async function StudentCardPage({
             joinedAt: true,
             leftAt: true,
             note: true,
-            group: { select: { id: true, name: true } },
+            group: { select: { id: true, name: true, code: true } },
           },
         },
         attempts: {
@@ -90,10 +91,11 @@ export default async function StudentCardPage({
     db.group.findMany({
       where: groupScopeWhere(scope),
       orderBy: { name: "asc" },
-      select: { id: true, name: true },
+      select: { id: true, name: true, code: true },
     }),
   ]);
   if (!student) notFound();
+  const groups = groupRows.map((g) => ({ id: g.id, name: groupLabel(g) }));
 
   const [semesters, penaltyTypes] = await Promise.all([
     getStudentSemesters(student.id),
@@ -108,7 +110,7 @@ export default async function StudentCardPage({
     isActive: student.isActive,
     archived: student.archivedAt !== null,
     groupId: student.groupId,
-    groupName: student.group?.name ?? null,
+    groupName: student.group ? groupLabel(student.group) : null,
     profile,
   };
   const attendance = computeStats(student.attendances.map((a) => a.status));
@@ -152,7 +154,7 @@ export default async function StudentCardPage({
             </div>
             <p className="text-muted-foreground text-sm">
               <span className="font-mono">{student.username}</span> ·{" "}
-              {student.group?.name ?? "Guruhsiz"}
+              {student.group ? groupLabel(student.group) : "Guruhsiz"}
             </p>
           </div>
           <StudentRowActions student={row} groups={groups} onCard />
@@ -259,7 +261,7 @@ export default async function StudentCardPage({
                         href={`/teacher/groups/${m.group.id}`}
                         className="hover:underline"
                       >
-                        {m.group.name}
+                        {groupLabel(m.group)}
                       </Link>
                       {m.note && (
                         <span className="text-muted-foreground block text-xs font-normal sm:hidden">

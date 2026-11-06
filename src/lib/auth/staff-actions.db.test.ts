@@ -35,8 +35,13 @@ vi.mock("@/lib/auth/guards", () => {
 
 const { createGroup, renameGroup, deleteGroup } =
   await import("@/app/(teacher)/teacher/groups/actions");
-const { createManager, resetManagerPassword, setManagerGroups } =
-  await import("@/app/(teacher)/teacher/managers/actions");
+const {
+  createManager,
+  linkManager,
+  resetManagerPassword,
+  setManagerGroups,
+  unlinkManager,
+} = await import("@/app/(teacher)/teacher/managers/actions");
 const { setStudentArchived, deleteStudent } =
   await import("@/app/(teacher)/teacher/students/actions");
 const { saveAttendance } =
@@ -220,6 +225,43 @@ describe("menejerlar", () => {
     expect(
       await resetManagerPassword(byBobur.id, { password: "yangi12345" }),
     ).toMatchObject({ ok: true });
+  });
+});
+
+describe("mavjud menejer bilan ishlash", () => {
+  it("faqat o'z regionidagi menejer qo'shiladi; to'xtatilsa faqat o'z guruhlari olinadi", async () => {
+    const m = await user("m", "MANAGER", {
+      regionId: north,
+      createdById: bobur.id,
+    });
+    await db.teacherManager.create({
+      data: { teacherId: bobur.id, managerId: m.id },
+    });
+    await db.managerGroup.create({
+      data: { managerId: m.id, groupId: b1, assignedById: bobur.id },
+    });
+    const far = await user("far", "MANAGER", { regionId: south });
+
+    as(alibek);
+    expect(await linkManager(far.id)).toEqual(FORBIDDEN);
+    expect(await linkManager(m.id)).toMatchObject({ ok: true });
+    expect(await setManagerGroups(m.id, { groupIds: [a1] })).toMatchObject({
+      ok: true,
+    });
+
+    expect(await unlinkManager(m.id)).toMatchObject({ ok: true });
+    expect(
+      await db.teacherManager.count({
+        where: { teacherId: alibek.id, managerId: m.id },
+      }),
+    ).toBe(0);
+    // Boburning guruhi va bog'lanishi joyida
+    expect(
+      (await db.managerGroup.findMany({ where: { managerId: m.id } })).map(
+        (g) => g.groupId,
+      ),
+    ).toEqual([b1]);
+    expect(await unlinkManager(m.id)).toEqual(FORBIDDEN);
   });
 });
 

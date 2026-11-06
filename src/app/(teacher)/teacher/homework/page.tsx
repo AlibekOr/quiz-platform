@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/table";
 import { groupScopeWhere } from "@/lib/auth/scope";
 import { requireTeacherScope } from "@/lib/auth/staff";
+import { groupLabel } from "@/lib/group-label";
 import { db } from "@/lib/db";
 import { CATEGORY_LABEL } from "@/lib/grades";
 import { getSemesterGrades } from "@/lib/grades-data";
@@ -35,11 +36,12 @@ export default async function HomeworkPage({
   const { scope } = await requireTeacherScope();
   const params = await searchParams;
 
-  const groups = await db.group.findMany({
+  const groupRows = await db.group.findMany({
     where: groupScopeWhere(scope),
     orderBy: { name: "asc" },
-    select: { id: true, name: true },
+    select: { id: true, name: true, code: true },
   });
+  const groups = groupRows.map((g) => ({ id: g.id, name: groupLabel(g) }));
   const groupId =
     groups.find((g) => g.id === param(params.group))?.id ?? groups[0]?.id;
 

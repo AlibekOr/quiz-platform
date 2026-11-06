@@ -5,6 +5,7 @@ import { requireManager } from "@/lib/auth/guards";
 import { getScope, groupScopeWhere } from "@/lib/auth/scope";
 import { getScheduleRows, schedulesOf } from "@/lib/cached-data";
 import { db } from "@/lib/db";
+import { groupLabel } from "@/lib/group-label";
 import {
   formatDate,
   formatSchedule,
@@ -15,21 +16,24 @@ import {
 
 export const metadata: Metadata = { title: "Menejer paneli" };
 
-// Qisqa ko'rinish: doiradagi guruhlar, bugungi darslar, kutilayotgan so'rovlar
+// Qisqa ko'rinish: qaysi o'qituvchilar bilan ishlaydi, ular biriktirgan guruhlar,
+// bugungi darslar, kutilayotgan so'rovlar
 export default async function ManagerHomePage() {
   const manager = await requireManager();
   const scope = await getScope(manager);
   const today = todayInTashkent();
   const weekday = weekdayOf(today);
 
-  const [groupRows, pending, scheduleRows] = await Promise.all([
+  const [groupRows, pending, scheduleRows, teachers] = await Promise.all([
     db.group.findMany({
       where: groupScopeWhere(scope),
       orderBy: { name: "asc" },
       select: {
         id: true,
         name: true,
+        code: true,
         region: { select: { name: true } },
+        teacher: { select: { fullName: true } },
         _count: {
           select: { students: { where: { archivedAt: null } } },
         },
@@ -39,6 +43,11 @@ export default async function ManagerHomePage() {
       where: { requestedById: manager.id, status: "PENDING" },
     }),
     getScheduleRows(),
+    db.teacherManager.findMany({
+      where: { managerId: manager.id },
+      orderBy: { teacher: { fullName: "asc" } },
+      select: { teacher: { select: { id: true, fullName: true } } },
+    }),
   ]);
   // Dars jadvali keshdan (lib/cached-data.ts)
   const groups = groupRows.map((g) => ({
@@ -49,7 +58,7 @@ export default async function ManagerHomePage() {
     .flatMap((g) =>
       g.schedules
         .filter((s) => s.weekday === weekday)
-        .map((s) => ({ id: g.id, name: g.name, ...s })),
+        .map((s) => ({ id: g.id, name: groupLabel(g), ...s })),
     )
     .sort((a, b) => a.startTime.localeCompare(b.startTime));
 
@@ -61,6 +70,15 @@ export default async function ManagerHomePage() {
           Bugun {weekdayLong(weekday).toLowerCase()}, {formatDate(today)}
         </p>
       </div>
+
+      {teachers.length > 0 && (
+        <p className="text-sm">
+          <span className="text-muted-foreground">
+            O&apos;qituvchilaringiz:{" "}
+          </span>
+          {teachers.map((t) => t.teacher.fullName).join(", ")}
+        </p>
+      )}
 
       {groups.length === 0 ? (
         <p className="text-muted-foreground">
@@ -113,9 +131,10 @@ export default async function ManagerHomePage() {
                       href={`/manager/students?group=${g.id}`}
                       className="font-medium hover:underline"
                     >
-                      {g.name}
+                      {groupLabel(g)}
                     </Link>
                     <span className="text-muted-foreground text-xs">
+                      {g.teacher.fullName} ·{" "}
                       {formatSchedule(g.schedules) || "jadval yo'q"}
                     </span>
                   </div>

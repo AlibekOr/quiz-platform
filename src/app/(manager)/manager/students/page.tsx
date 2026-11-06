@@ -15,6 +15,7 @@ import {
   studentScopeWhere,
 } from "@/lib/auth/scope";
 import { db } from "@/lib/db";
+import { groupLabel } from "@/lib/group-label";
 import { teacherProfileSelect } from "@/lib/students/profile-select";
 
 export const metadata: Metadata = { title: "O'quvchilar" };
@@ -62,11 +63,11 @@ export default async function ManagerStudentsPage({
   else if (group)
     where.groupId = canAccessGroup(scope, group) ? group : { in: [] };
 
-  const [groups, students] = await Promise.all([
+  const [groupRows, students] = await Promise.all([
     db.group.findMany({
       where: groupScopeWhere(scope),
       orderBy: { name: "asc" },
-      select: { id: true, name: true },
+      select: { id: true, name: true, code: true },
     }),
     db.user.findMany({
       where,
@@ -77,7 +78,7 @@ export default async function ManagerStudentsPage({
         username: true,
         isActive: true,
         groupId: true,
-        group: { select: { name: true } },
+        group: { select: { name: true, code: true } },
         profile: { select: teacherProfileSelect },
         deletionRequests: {
           where: { status: "PENDING" },
@@ -86,12 +87,13 @@ export default async function ManagerStudentsPage({
       },
     }),
   ]);
+  const groups = groupRows.map((g) => ({ id: g.id, name: groupLabel(g) }));
 
   const rows: StudentRow[] = students.map(
     ({ group, deletionRequests, ...s }) => ({
       ...s,
       archived: false,
-      groupName: group?.name ?? null,
+      groupName: group ? groupLabel(group) : null,
       deletionPending: deletionRequests.length > 0,
     }),
   );

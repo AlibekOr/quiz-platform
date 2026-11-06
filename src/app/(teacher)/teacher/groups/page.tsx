@@ -29,6 +29,7 @@ export default async function GroupsPage() {
       select: {
         id: true,
         name: true,
+        code: true,
         regionId: true,
         _count: {
           select: {
@@ -60,6 +61,7 @@ export default async function GroupsPage() {
               <TableRow>
                 <TableHead className="text-muted-foreground w-10">№</TableHead>
                 <TableHead>Nomi</TableHead>
+                <TableHead>Kod</TableHead>
                 <TableHead>Dars jadvali</TableHead>
                 {regions.length > 0 && <TableHead>Region</TableHead>}
                 <TableHead className="text-right">O&apos;quvchilar</TableHead>
@@ -83,6 +85,9 @@ export default async function GroupsPage() {
                     >
                       {g.name}
                     </Link>
+                  </TableCell>
+                  <TableCell className="text-muted-foreground font-mono text-xs">
+                    {g.code ?? "—"}
                   </TableCell>
                   <TableCell className="text-muted-foreground text-sm">
                     {formatSchedule(g.schedules) || "—"}

@@ -248,6 +248,52 @@ export async function setManagerGroups(
   return { ok: true, message: "Guruhlar saqlandi" };
 }
 
+/**
+ * O'z regionidagi mavjud menejer bilan ishlashni boshlash (ROLES.md §4). Guruhlarini keyin
+ * alohida biriktiradi. Menejerning aloqa ma'lumotlari ko'rsatilmaydi — faqat ism va login
+ */
+export async function linkManager(managerId: string): Promise<ActionResult> {
+  const { user } = await requireTeacherScope();
+  const id = idSchema.parse(managerId);
+  const manager = await db.user.findFirst({
+    where: { id, role: "MANAGER" },
+    select: { regionId: true },
+  });
+  if (!manager?.regionId || !(await isTeacherRegion(user.id, manager.regionId)))
+    return FORBIDDEN;
+  await db.teacherManager.upsert({
+    where: { teacherId_managerId: { teacherId: user.id, managerId: id } },
+    update: {},
+    create: { teacherId: user.id, managerId: id },
+  });
+  revalidate();
+  return {
+    ok: true,
+    message: "Menejer qo'shildi. Endi unga guruh biriktiring",
+  };
+}
+
+/**
+ * Menejer bilan ishlashni to'xtatish: faqat shu o'qituvchining biriktirishlari olib tashlanadi,
+ * menejer akkaunti va boshqa o'qituvchilar bergan guruhlar qoladi
+ */
+export async function unlinkManager(managerId: string): Promise<ActionResult> {
+  const { user } = await requireTeacherScope();
+  const id = idSchema.parse(managerId);
+  if ((await db.user.count({ where: linkedManagerWhere(user.id, id) })) === 0)
+    return FORBIDDEN;
+  await db.$transaction([
+    db.managerGroup.deleteMany({
+      where: { managerId: id, group: { teacherId: user.id } },
+    }),
+    db.teacherManager.delete({
+      where: { teacherId_managerId: { teacherId: user.id, managerId: id } },
+    }),
+  ]);
+  revalidate();
+  return { ok: true, message: "Menejer bilan ishlash to'xtatildi" };
+}
+
 // ---------- Regionlar ----------
 
 const regionTaken: ActionResult = {
