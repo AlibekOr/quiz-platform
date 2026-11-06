@@ -169,6 +169,33 @@ describe("natijalar va reyting doirasi", () => {
     expect(all?.rows).toHaveLength(2);
   });
 
+  it("o'quvchining 'O'qituvchim guruhlari' — faqat o'z o'qituvchisi guruhlari; admin — hammasi", async () => {
+    const bobur = await user("bobur", "TEACHER");
+    const foreign = (
+      await db.group.create({ data: { teacherId: bobur.id, name: "B-1" } })
+    ).id;
+    const ali = await user("ali", "STUDENT", { groupId: mine });
+    const vali = await user("vali", "STUDENT", { groupId: other });
+    const begona = await user("begona", "STUDENT", { groupId: foreign });
+    const t = await test(teacher.id, [mine, other]);
+    const t2 = await test(bobur.id, [foreign]);
+    await attempt(ali.id, t, 1);
+    await attempt(vali.id, t, 1);
+    await attempt(begona.id, t2, 1);
+
+    expect(
+      names(
+        await resolveLeaderboard(ali, { scope: "all", board: "tests" }),
+      ).sort(),
+    ).toEqual(["ali", "vali"]);
+    const admin = await user("admin", "ADMIN");
+    expect(
+      names(
+        await resolveLeaderboard(admin, { scope: "all", board: "tests" }),
+      ).sort(),
+    ).toEqual(["ali", "begona", "vali"]);
+  });
+
   it("reyting: umumiy — faqat doiradagilar, boshqa guruh va test — 403", async () => {
     const ali = await user("ali", "STUDENT", { groupId: mine });
     const vali = await user("vali", "STUDENT", { groupId: other });

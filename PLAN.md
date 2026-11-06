@@ -518,11 +518,20 @@ Batafsil talablar `TASKS.md` da. Qisqacha nima qilingan:
 
 Ruxsatlar: ball, jarima, topshiriq va semestr sozlamalari faqat `requireTeacher()`. Menejer reytingni (faqat yig'indilar, doira ichida) va davomat hisobotini ko'radi; baholar, topshiriqlar va jarimalar unga yopiq.
 
+### 22–27-bosqichlar: ADMIN, ko'p o'qituvchi, baholash shablonlari (ROLES.md)
+Batafsil talablar `ROLES.md`, reja va qarorlar `ROLES-PLAN.md` da.
+
+- **22 — model va migratsiya** (`roles`): `ADMIN` roli, `TeacherRegion`, `TeacherManager`, `Group.teacherId`, butun loyiha bo'yicha `Group.seq` va o'zgarmas `Group.code` (`SHOA-1-SH`, `lib/group-code.ts`; regionsiz — region harfisiz), `ManagerGroup.assignedById`, `PenaltyType.ownerId`, `Test.ownerId`/`copiedFromId`, `TestShare`. Migratsiya bitta tranzaksiyada: mavjud hamma narsa yagona o'qituvchiga, menejerlarning region doirasi `ManagerGroup` ga yozilgan. Admin — `pnpm db:seed:admin`
+- **23 — doira:** `getAccessibleGroupIds` — ADMIN hammasi, TEACHER o'z guruhlari, MANAGER faqat biriktirilganlar. `lib/auth/staff.ts` (`requireTeacherScope` va b.), har bir sahifa/action/API doira bilan; tashqari — 404 / `FORBIDDEN` / 403
+- **24 — menejerlar va guruhlar UI:** mavjud menejerni qo'shish, ishlashni to'xtatish, tahrirlash faqat yaratganida; guruh kodi ro'yxatlarda
+- **25 — baholash shablonlari:** `GradingTemplate` + `GradeCategory` (o'qituvchiniki), semestr yaratilganda `SemesterCategory` ga nusxa. Turlar: uyga vazifa, amaliy, o'z topshiriqlari (`ASSIGNMENT`, istalgancha), og'zaki (0/0,5/1), qo'shimcha, bonus. Qo'shimcha ball qoidasi (`extraMode`, `extraBeyondMax`) shablonda. Mavjud semestrlar o'z chegaralari va 2026-11-06 qoidasi bilan
+- **26 — admin paneli:** statistika (Excel), regionlar, o'qituvchilar, menejerlar, guruhlar (regionsizlarga region), o'quvchilar (boshqa o'qituvchiga o'tkazish), testlar
+- **27 — reyting va ulashish:** o'quvchida "Mening guruhim" / "O'qituvchim guruhlari"; admin "Umumiy" — foiz bo'yicha. Test ulashish (region yoki o'qituvchi) — oluvchi nusxa oladi (`lib/tests/sharing.ts`)
+
 ---
 
 ## Keyingi versiyalar (hozir qilinmaydi)
 - Savollarga rasm va kod bloklari
-- Savollar banki (testlar orasida qayta ishlatish)
 - AI orqali savol generatsiyasi
 - O'quvchi o'z davomatini ko'rishi, davomat bo'yicha ota-onaga xabar (Telegram bot)
 - React Native mobil ilova

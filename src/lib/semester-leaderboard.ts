@@ -23,6 +23,8 @@ export type SemesterLeaderboardEntry = {
   total: number;
   /** Semestr oxirgi 2 haftasi va jami o'tish balidan past — qizil, ro'yxat oxirida */
   belowNorm: boolean;
+  /** Jami / maxTotal, % — turli shablonli guruhlarni solishtirish uchun (admin) */
+  percent: number;
 };
 
 export type SemesterLeaderboard = {
@@ -39,6 +41,8 @@ type Filter = {
   groupIds?: readonly string[] | null;
   userId?: string | null;
   limit?: number;
+  /** "percent" — turli shablonlar aralashganda (admin "Umumiy") foiz bo'yicha tartib */
+  rankBy?: "total" | "percent";
 };
 
 async function targetGroups(
@@ -80,6 +84,9 @@ export async function getSemesterLeaderboard(
           penalties: s.result.penalties,
           total: round1(s.result.earned - s.result.penalties),
           belowNorm: finalStretch && s.result.total < s.result.passScore,
+          percent: Math.round(
+            ((s.result.earned - s.result.penalties) / s.result.maxTotal) * 100,
+          ),
         }));
     }),
   );
@@ -98,7 +105,16 @@ export async function getSemesterLeaderboard(
       })
     ).map((u) => u.id),
   );
-  const ranked = rankByTotal(rows.filter((r) => active.has(r.userId)));
+  const visible = rows.filter((r) => active.has(r.userId));
+  const ranked =
+    filter.rankBy === "percent"
+      ? rankByTotal(visible.map((r) => ({ ...r, total: r.percent }))).map(
+          (r) => ({
+            ...r,
+            total: visible.find((v) => v.userId === r.userId)!.total,
+          }),
+        )
+      : rankByTotal(visible);
   const me = filter.userId
     ? (ranked.find((r) => r.userId === filter.userId) ?? null)
     : null;

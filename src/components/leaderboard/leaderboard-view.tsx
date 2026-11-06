@@ -17,20 +17,25 @@ export function LeaderboardView({
   data,
   basePath,
   isTeacher,
+  isAdmin = false,
   groups,
 }: {
   data: ResolvedLeaderboard;
   basePath: string;
   isTeacher: boolean;
+  /** Admin "Umumiy"da turli shablonlar — foiz ustuni va foiz bo'yicha tartib */
+  isAdmin?: boolean;
   /** O'qituvchi uchun guruh tanlagich */
   groups: { id: string; name: string }[];
 }) {
   const { scope } = data;
   const showGroup = scope === "all";
+  const showPercent = isAdmin && scope === "all";
 
+  // O'quvchining "Umumiy"i — faqat o'z o'qituvchisining guruhlari (ROLES.md §7)
   const tabs = [
     { scope: "group", label: isTeacher ? "Guruh" : "Mening guruhim" },
-    { scope: "all", label: "Umumiy" },
+    { scope: "all", label: isTeacher ? "Umumiy" : "O'qituvchim guruhlari" },
   ] as const;
 
   return (
@@ -102,11 +107,16 @@ export function LeaderboardView({
           showGroup={showGroup}
           entries={data.board.entries}
           me={data.board.me}
-          valueHeaders={["To'plagan", "Jarima", "Jami"]}
+          valueHeaders={
+            showPercent
+              ? ["To'plagan", "Jarima", "Jami", "%"]
+              : ["To'plagan", "Jarima", "Jami"]
+          }
           values={(e: SemesterLeaderboardEntry) => [
             formatPoints(e.earned),
             e.penalties > 0 ? `−${formatPoints(e.penalties)}` : "0",
             formatPoints(e.total).replace("-", "−"),
+            ...(showPercent ? [`${e.percent}%`] : []),
           ]}
           danger={(e: SemesterLeaderboardEntry) => e.belowNorm}
           strongLast

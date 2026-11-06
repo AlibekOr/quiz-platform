@@ -1,8 +1,8 @@
 # Test platformasi: loyiha qoidalari
 
-O'quv markaz o'quvchilari uchun onlayn test platformasi. O'qituvchi test yaratadi, o'quvchilar akkauntini ochadi, guruhlar dars jadvali va davomatini yuritadi, semestr ballarini (uyga vazifa, amaliy, og'zaki, bonus, jarimalar) qo'yadi. O'quvchilar login/parol bilan kirib test ishlaydi va reytingni ko'radi. Menejerlar o'z doirasidagi (region + biriktirilgan guruhlar) o'quvchilarni boshqaradi.
+O'quv markaz o'quvchilari uchun onlayn test platformasi. Rollar: **ADMIN** (regionlar, o'qituvchilar, butun markaz), **TEACHER** (o'z guruhlari: test, o'quvchilar, dars jadvali, davomat, o'z baholash shablonlari bo'yicha semestr ballari, menejerlari), **MANAGER** (o'qituvchilar biriktirgan guruhlar o'quvchilari), **STUDENT** (test ishlaydi, reytingni ko'radi).
 
-Batafsil reja va bosqichlar `PLAN.md` faylida (15–21-bosqichlar talablari `TASKS.md` da). Har doim joriy bosqichni o'sha yerdan o'qi.
+Batafsil reja va bosqichlar `PLAN.md` faylida (15–21 — `TASKS.md`, 22–27 — `ROLES.md`, keyingisi — `FEATURES.md`). Har doim joriy bosqichni o'sha yerdan o'qi.
 
 ## Stack (o'zgartirma, avval so'ra)
 
@@ -28,7 +28,10 @@ src/
     (student)/dashboard/  test/[id]/  result/[attemptId]/  leaderboard/  grades/  homework/  tests/leaderboard/
     (teacher)/teacher/tests/  teacher/students/  teacher/groups/  teacher/attendance/  teacher/attendance/report/
     (teacher)/teacher/homework/  teacher/grades/  teacher/penalties/  teacher/managers/  teacher/requests/  teacher/archive/
+    (teacher)/teacher/templates/  teacher/semesters/
     (manager)/manager/  manager/students/  manager/attendance/  manager/requests/  manager/tests/
+    (admin)/admin/  admin/regions/  admin/teachers/  admin/managers/  admin/groups/  admin/students/  admin/tests/
+    api/admin/stats/route.ts
     api/leaderboard/route.ts
     api/attendance/export/route.ts
     api/grades/export/route.ts
@@ -36,7 +39,9 @@ src/
   components/           # umumiy komponentlar (staff/tests — o'qituvchi va menejer test sahifalari)
   lib/
     db.ts               # Prisma client (singleton)
-    auth/               # session.ts, password.ts, guards.ts, scope.ts (menejer doirasi), routes.ts
+    auth/               # session.ts, password.ts, guards.ts, scope.ts (doira), staff.ts (xodim + doira), routes.ts
+    templates.ts        # baholash shablonlari va semestrga nusxa; group-code.ts, groups-data.ts — guruh kodi
+    tests/sharing.ts    # test ulashish va nusxa olish; admin-stats.ts — admin statistikasi
     deletion-requests.ts # o'chirish so'rovlari (menejer so'raydi, o'qituvchi hal qiladi)
     grading.ts          # baholash logikasi
     attendance.ts       # davomat hisobi va Excel eksport
@@ -67,7 +72,7 @@ prisma/
 10. **O'quvchilarning shaxsiy ma'lumotlari** (`StudentProfile`: telefonlar, Telegram, ota-ona) faqat o'qituvchiga va menejerga (faqat o'z doirasidagi o'quvchilar) ko'rinadi. O'quvchi sahifalari, reyting va o'quvchi uchun API javoblarida bu ma'lumotlar hech qachon `select` qilinmaydi. Yagona istisno: `/profile` da o'quvchi faqat O'ZINING telefoni, Telegrami (tahrirlaydi) va ota-ona ma'lumotlarini (faqat ko'rish) ko'radi (`lib/profile-data.ts`); o'qituvchi izohi (`note`) unga ham yuborilmaydi. Ular logga ham yozilmaydi.
 11. Sirlar faqat `.env` da: `DATABASE_URL`, `DIRECT_URL` (ixtiyoriy, migratsiya uchun), `JWT_SECRET`, `SEED_TEACHER_USERNAME`, `SEED_TEACHER_PASSWORD`, `SEED_ADMIN_USERNAME`, `SEED_ADMIN_PASSWORD`. `.env.example` yangilab bor.
 12. **Doira** (`lib/auth/scope.ts`, ROLES.md): `getAccessibleGroupIds(user)` — ADMIN: hammasi; TEACHER: o'z guruhlari (`Group.teacherId`); MANAGER: faqat o'qituvchilar biriktirgan guruhlar (`ManagerGroup`, regiondan avtomatik emas). Server action va sahifalarda `requireTeacherScope()` / `requireStaffScope()` / `requireTeacherOrAdminScope()` (`lib/auth/staff.ts`) va `studentScopeWhere`, `groupScopeWhere`, `canAccessGroup`, `canAccessStudent`, `semesterGroupInScope`. Guruhsiz o'quvchini qo'shgan xodim va uning hamkorlari (`TeacherManager`) ko'radi. Doiradan tashqaridagi id: action'da `FORBIDDEN`, sahifada 404, API'da 403. Menejer o'quvchini arxivlay yoki o'chira olmaydi — `DeletionRequest` yuboradi, uni guruh o'qituvchisi yoki ADMIN hal qiladi. O'qituvchi o'z o'quvchisini tasdiqsiz arxivlaydi. Jarima shablonlari egasi bo'yicha (`ownerId`). Menejerni faqat uni yaratgan o'qituvchi tahrirlaydi; o'qituvchi menejerga faqat o'z regionli guruhlarini biriktiradi. Testlar: `lib/tests/access.ts` (`getTestAccess`). Regionlar — faqat ADMIN. Uyga vazifa, baholar va jarimalar faqat o'qituvchida.
-13. **Semestr bali** (`lib/grades.ts`, `lib/grades-data.ts`): `jami = max(0, min(EXTRA'siz yig'indi, 60) + EXTRA − jarimalar)` (60 dan faqat qo'shimcha ball hisobiga oshadi; o'tish bali 36 = 60 × 60%). EXTRA — alohida loyiha uchun: chegarasiz, istalgan vaqtda (istalgan darsda), istalgan o'quvchiga, testlar kirmaydi. Kategoriya chegaralari, EXTRA qoidalari va avtomatik jarimalar (uyga vazifaga 0 — vazifaning `missPenalty` si: 2026-10-15 dan beri −2, oldingilarida −1; sababsiz kelmaslik — −1; bazaga yozilmaydi) faqat shu yerda hisoblanadi. Darsga amaliy berilsa, u uyga vazifa o'rnida — o'sha darsga uyga vazifa berilmaydi (`lib/homework.ts`). Ball qo'yish, jarima, topshiriq va semestr sozlamalari — faqat `requireTeacher()`. Menejer reytingda faqat yig'indilarni (to'plagan, jarima, jami) ko'radi — kategoriyalar va jarima sabablari unga yopiq.
+13. **Semestr bali** (`lib/grades.ts`, `lib/grades-data.ts`, `lib/templates.ts`): qoidalar o'qituvchining baholash shablonidan semestrga NUSXALANADI (`SemesterCategory`) — shablon keyin o'zgarsa eski semestr o'zgarmaydi. `jami = max(0, (extraBeyondMax ? min(EXTRA'siz, maxTotal) + EXTRA : min(EXTRA'siz + EXTRA, maxTotal)) − jarimalar)`, o'tish = maxTotal × passPercent; testlar kirmaydi. EXTRA kimga — `extraMode` (ANYTIME yoki tugagach [failBelow, o'tish)). Hozirgi o'qituvchi shabloni: 60/36/10, EXTRA chegarasiz, istalgan vaqtda, 60 dan oshadi; yangi o'qituvchilar standarti — eski 30/20/10/40 tizimi. Kategoriya chegaralari, EXTRA qoidalari va avtomatik jarimalar (uyga vazifaga 0 — vazifaning `missPenalty` si: 2026-10-15 dan beri −2, oldingilarida −1; sababsiz kelmaslik — −1; bazaga yozilmaydi) faqat shu yerda hisoblanadi. Darsga amaliy berilsa, u uyga vazifa o'rnida — o'sha darsga uyga vazifa berilmaydi (`lib/homework.ts`). Ball qo'yish, jarima, topshiriq va semestr sozlamalari — faqat `requireTeacher()`. Menejer reytingda faqat yig'indilarni (to'plagan, jarima, jami) ko'radi — kategoriyalar va jarima sabablari unga yopiq.
 
 ## Ish tartibi
 

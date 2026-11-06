@@ -20,11 +20,13 @@ describe("allowedRoles", () => {
 
   it("reyting hamma rolga (menejer doirasi server tomonda)", () => {
     expect(allowedRoles("/leaderboard")).toEqual([
+      "ADMIN",
       "TEACHER",
       "MANAGER",
       "STUDENT",
     ]);
     expect(allowedRoles("/test/abc/leaderboard")).toEqual([
+      "ADMIN",
       "TEACHER",
       "MANAGER",
       "STUDENT",

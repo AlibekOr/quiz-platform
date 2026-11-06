@@ -78,6 +78,21 @@ async function defaultStaffGroup(
   });
 }
 
+/** O'quvchi guruhining o'qituvchisi guruhlari (guruhsiz — bo'sh) */
+async function studentTeacherGroupIds(user: CurrentUser): Promise<string[]> {
+  if (!user.groupId) return [];
+  const group = await db.group.findUnique({
+    where: { id: user.groupId },
+    select: { teacherId: true },
+  });
+  if (!group) return [];
+  const groups = await db.group.findMany({
+    where: { teacherId: group.teacherId },
+    select: { id: true },
+  });
+  return groups.map((g) => g.id);
+}
+
 export async function resolveLeaderboard(
   user: CurrentUser,
   params: {
@@ -144,11 +159,21 @@ export async function resolveLeaderboard(
           : { scope, group: null, kind: "semester", test: null, board: EMPTY };
   }
 
+  // O'quvchining "O'qituvchim guruhlari": faqat o'z o'qituvchisining guruhlari (turli
+  // o'qituvchilarning shablonlari aralashmaydi; butun markaz reytingi o'quvchiga yo'q)
+  const teacherGroupIds =
+    !isStaff && scope === "all" ? await studentTeacherGroupIds(user) : null;
   const filter = {
     groupId: group?.id ?? null,
     // Xodimning "Umumiy" reytingi ham faqat doiradagi o'quvchilar (admin — hammasi)
-    groupIds: access?.kind === "limited" ? access.groupIds : null,
+    groupIds:
+      access?.kind === "limited" ? access.groupIds : (teacherGroupIds ?? null),
     userId: isStaff ? null : user.id,
+    // Admin "Umumiy"da turli shablonlar — foiz bo'yicha
+    rankBy:
+      user.role === "ADMIN" && scope === "all"
+        ? ("percent" as const)
+        : ("total" as const),
   };
   if (test)
     return {

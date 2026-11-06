@@ -7,7 +7,9 @@ import { validationFailed, type ActionResult } from "@/lib/action-result";
 import { cancelAttempt } from "@/lib/attempts";
 import { requireStaff, type CurrentUser } from "@/lib/auth/guards";
 import { canAccessStudent, FORBIDDEN, type Scope } from "@/lib/auth/scope";
+import { requireTeacherScope } from "@/lib/auth/staff";
 import { getTestAccess, outOfScopeGroups, staffBase } from "@/lib/tests/access";
+import { copySharedTest, setTestShares } from "@/lib/tests/sharing";
 import { db } from "@/lib/db";
 import { isNotFound } from "@/lib/prisma-errors";
 import { fromLocalDateTime } from "@/lib/time";
@@ -475,4 +477,41 @@ export async function copyQuestions(
   );
   revalidateTest(id);
   return { ok: true, message: `${questions.length} ta savol qo'shildi` };
+}
+
+// ---------- Ulashish (ROLES.md: oluvchi nusxa oladi) ----------
+
+const shareSchema = z.object({
+  regionIds: z.array(idSchema).max(50),
+  teacherIds: z.array(idSchema).max(200),
+});
+
+/** Faqat test egasi: o'z regionlariga yoki ulardagi o'qituvchilarga */
+export async function shareTestAction(
+  testId: string,
+  input: z.input<typeof shareSchema>,
+): Promise<ActionResult> {
+  const { user } = await requireTeacherScope();
+  const id = idSchema.parse(testId);
+  const parsed = shareSchema.safeParse(input);
+  if (!parsed.success) return validationFailed(parsed.error);
+  const result = await setTestShares(user.id, id, parsed.data);
+  if (!result.ok) return FORBIDDEN;
+  revalidatePath("/teacher/tests", "layout");
+  return {
+    ok: true,
+    message: result.count === 0 ? "Ulashish bekor qilindi" : "Test ulashildi",
+  };
+}
+
+/** Ulashilgan testdan o'z nusxasi; nusxa sahifasiga o'tadi */
+export async function copySharedTestAction(
+  testId: string,
+): Promise<ActionResult> {
+  const { user } = await requireTeacherScope();
+  const id = idSchema.parse(testId);
+  const copyId = await copySharedTest(user.id, id);
+  if (!copyId) return FORBIDDEN;
+  revalidatePath("/teacher/tests");
+  redirect(`/teacher/tests/${copyId}`);
 }

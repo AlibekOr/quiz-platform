@@ -75,6 +75,8 @@ const MENUS: Record<NavVariant, { main: MenuItem[]; footer: MenuLink[] }> = {
       { href: "/admin/managers", label: "Menejerlar", icon: BriefcaseIcon },
       { href: "/admin/groups", label: "Guruhlar", icon: UsersRoundIcon },
       { href: "/admin/students", label: "O'quvchilar", icon: UsersIcon },
+      { href: "/admin/tests", label: "Testlar", icon: ClipboardListIcon },
+      { href: "/leaderboard", label: "Reyting", icon: TrophyIcon },
     ],
     footer: [PROFILE],
   },

@@ -20,7 +20,7 @@ export function allowedRoles(pathname: string): readonly Role[] | null {
     under(pathname, "/leaderboard") ||
     /^\/test\/[^/]+\/leaderboard$/.test(pathname)
   )
-    return ["TEACHER", "MANAGER", "STUDENT"];
+    return ["ADMIN", "TEACHER", "MANAGER", "STUDENT"];
   if (
     under(pathname, "/dashboard") ||
     under(pathname, "/test") ||

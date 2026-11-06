@@ -8,7 +8,9 @@ import { TestStatusBadge } from "@/components/staff/tests/test-status-badge";
 import type { CurrentUser } from "@/lib/auth/guards";
 import { groupScopeWhere } from "@/lib/auth/scope";
 import { db } from "@/lib/db";
+import { ShareTestButton } from "@/components/teacher/tests/share-controls";
 import { getTestAccess, staffBase } from "@/lib/tests/access";
+import { getShareOptions } from "@/lib/tests/sharing";
 import { formatTestWindow } from "@/lib/tests/schedule";
 import { toLocalDateTime } from "@/lib/time";
 
@@ -54,6 +56,11 @@ export async function TestEditView({
   const attemptCount = test._count.attempts;
   const now = new Date();
   const schedule = formatTestWindow(test, now);
+  // Ulashish — faqat test egasi (o'qituvchi)
+  const shareOptions =
+    user.role === "TEACHER" && test.ownerId === user.id
+      ? await getShareOptions(user.id, test.id)
+      : null;
 
   return (
     <>
@@ -78,15 +85,20 @@ export async function TestEditView({
               <p className="text-muted-foreground text-sm">Ochiq: {schedule}</p>
             )}
           </div>
-          <TestHeaderActions
-            testId={test.id}
-            title={test.title}
-            isActive={test.isActive}
-            questionCount={test.questions.length}
-            attemptCount={attemptCount}
-            basePath={base}
-            readOnly={readOnly}
-          />
+          <div className="flex flex-wrap gap-2">
+            {shareOptions && (
+              <ShareTestButton testId={test.id} options={shareOptions} />
+            )}
+            <TestHeaderActions
+              testId={test.id}
+              title={test.title}
+              isActive={test.isActive}
+              questionCount={test.questions.length}
+              attemptCount={attemptCount}
+              basePath={base}
+              readOnly={readOnly}
+            />
+          </div>
         </div>
       </div>
 

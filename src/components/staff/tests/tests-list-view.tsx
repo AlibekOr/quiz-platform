@@ -16,6 +16,8 @@ import { getScope, studentScopeWhere } from "@/lib/auth/scope";
 import { db } from "@/lib/db";
 import { staffBase, testScopeWhere } from "@/lib/tests/access";
 import { formatTestWindow } from "@/lib/tests/schedule";
+import { getSharedTests } from "@/lib/tests/sharing";
+import { CopySharedButton } from "@/components/teacher/tests/share-controls";
 
 /** Testlar ro'yxati (o'qituvchi — hammasi, menejer — doiradagi va o'zi yaratganlari) */
 export async function TestsListView({ user }: { user: CurrentUser }) {
@@ -42,6 +44,8 @@ export async function TestsListView({ user }: { user: CurrentUser }) {
     },
   });
   const now = new Date();
+  // O'qituvchiga ulashilganlar — faqat nusxa olish uchun (savollari ko'rsatilmaydi)
+  const shared = user.role === "TEACHER" ? await getSharedTests(user.id) : [];
 
   return (
     <>
@@ -122,6 +126,33 @@ export async function TestsListView({ user }: { user: CurrentUser }) {
             </TableBody>
           </Table>
         </div>
+      )}
+
+      {shared.length > 0 && (
+        <section className="flex flex-col gap-2">
+          <h2 className="font-semibold">Menga ulashilgan</h2>
+          <p className="text-muted-foreground text-sm">
+            Boshqa o&apos;qituvchilar ulashgan va siz ishlaydigan menejerlar
+            yaratgan testlar. Nusxa olsangiz, test sizniki bo&apos;ladi:
+            tahrirlab, guruhlaringizga berasiz.
+          </p>
+          <ul className="divide-y rounded-lg border text-sm">
+            {shared.map((t) => (
+              <li
+                key={t.id}
+                className="flex flex-wrap items-center justify-between gap-2 p-3"
+              >
+                <span>
+                  <span className="font-medium">{t.title}</span>
+                  <span className="text-muted-foreground block text-xs">
+                    {t.author} · {t.questionCount} ta savol
+                  </span>
+                </span>
+                <CopySharedButton testId={t.id} />
+              </li>
+            ))}
+          </ul>
+        </section>
       )}
     </>
   );

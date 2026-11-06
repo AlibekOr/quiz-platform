@@ -15,7 +15,7 @@ function one(value: string | string[] | undefined): string | null {
 export default async function LeaderboardPage({
   searchParams,
 }: PageProps<"/leaderboard">) {
-  const user = await requireRole(["TEACHER", "MANAGER", "STUDENT"]);
+  const user = await requireRole(["ADMIN", "TEACHER", "MANAGER", "STUDENT"]);
   const params = await searchParams;
   const data = await resolveLeaderboard(user, {
     scope: one(params.scope),
@@ -46,6 +46,7 @@ export default async function LeaderboardPage({
         data={data}
         basePath="/leaderboard"
         isTeacher={isTeacher}
+        isAdmin={user.role === "ADMIN"}
         groups={groups}
       />
     </>
