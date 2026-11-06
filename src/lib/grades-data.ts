@@ -36,7 +36,6 @@ const semesterSelect = {
   homeworkCap: true,
   practicalCap: true,
   oralCap: true,
-  extraCap: true,
   group: { select: { id: true, name: true } },
   assignments: {
     orderBy: [{ dueDate: "asc" }, { createdAt: "asc" }],
@@ -138,7 +137,6 @@ export function semesterInfo(
       homeworkCap: s.homeworkCap,
       practicalCap: s.practicalCap,
       oralCap: s.oralCap,
-      extraCap: s.extraCap,
     },
     group: s.group,
   };

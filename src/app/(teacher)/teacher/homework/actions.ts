@@ -8,7 +8,6 @@ import { db } from "@/lib/db";
 import {
   formatPoints,
   isValidPoints,
-  passScore,
   type AssignmentCategory,
 } from "@/lib/grades";
 import { getSemesterGrades } from "@/lib/grades-data";
@@ -179,8 +178,7 @@ function pointsRule(category: AssignmentCategory, maxPoints: number): string {
 
 /**
  * Ballarni saqlash: bo'sh qator — baho o'chiriladi. Faqat semestr ichida guruhda bo'lgan
- * o'quvchilarga. EXTRA (qo'shimcha) — faqat semestr tugagach va EXTRA'siz jami
- * failBelow ≤ ball < o'tish bali bo'lgan o'quvchilarga
+ * o'quvchilarga. EXTRA (qo'shimcha) — istalgan vaqtda, istalgan o'quvchiga
  */
 export async function saveAssignmentGrades(
   assignmentId: string,
@@ -214,21 +212,6 @@ export async function saveAssignmentGrades(
       error:
         "Ba'zi o'quvchilar bu semestrda guruhda bo'lmagan. Sahifani yangilang",
     };
-
-  if (category === "EXTRA") {
-    const denied = sheet.students.filter(
-      (s) =>
-        !s.result.canReceiveExtra &&
-        rows.some((r) => r.studentId === s.id && r.points !== null),
-    );
-    if (denied.length > 0)
-      return {
-        ok: false,
-        error: sheet.semester.ended
-          ? `Qo'shimcha ball faqat ${sheet.semester.rules.failBelow} ≤ jami < ${formatPoints(passScore(sheet.semester.rules))} bo'lganlarga: ${denied.map((s) => s.fullName).join(", ")}`
-          : "Qo'shimcha ball faqat semestr tugagandan keyin qo'yiladi",
-      };
-  }
 
   const toDelete = rows
     .filter((r) => r.points === null)

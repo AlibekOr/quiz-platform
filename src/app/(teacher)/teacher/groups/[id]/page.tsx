@@ -47,7 +47,6 @@ export default async function GroupPage({
           homeworkCap: true,
           practicalCap: true,
           oralCap: true,
-          extraCap: true,
           group: { select: { id: true, name: true } },
           _count: { select: { assignments: true } },
         },

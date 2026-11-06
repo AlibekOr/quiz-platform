@@ -5,9 +5,10 @@ import { addDays, type DateStr } from "@/lib/time";
 //
 //   base      = min(hw, homeworkCap) + min(practical, practicalCap) + min(oral, oralCap)
 //               + bonus + adjustments
-//   withExtra = base + min(extra, extraCap)
-//   capped    = min(withExtra, maxTotal)
-//   total     = max(0, capped − penalties)
+//   capped    = min(base, maxTotal)              // bonus va tuzatishlar ham 60 gacha
+//   total     = max(0, capped + extra − penalties)
+//               // 60 dan faqat qo'shimcha (EXTRA) ball hisobiga oshadi. EXTRA — alohida
+//               // loyiha uchun, chegarasiz, istalgan vaqtda, istalgan o'quvchiga
 //   passScore = maxTotal * passPercent / 100   // 36
 //
 // Testlar semestr baliga kirmaydi.
@@ -16,13 +17,13 @@ export type AssignmentCategory = "HOMEWORK" | "PRACTICAL" | "EXTRA" | "BONUS";
 export type PointCategory = AssignmentCategory | "ORAL";
 
 export type SemesterRules = {
+  /** EXTRA'siz yig'indi chegarasi (o'tish bali ham shundan); EXTRA bilan jami oshishi mumkin */
   maxTotal: number;
   passPercent: number;
   failBelow: number;
   homeworkCap: number;
   practicalCap: number;
   oralCap: number;
-  extraCap: number;
 };
 
 export const DEFAULT_RULES: SemesterRules = {
@@ -32,7 +33,6 @@ export const DEFAULT_RULES: SemesterRules = {
   homeworkCap: 30,
   practicalCap: 20,
   oralCap: 10,
-  extraCap: 40,
 };
 
 /** Har kategoriya bo'yicha yig'ilgan xom ballar (chegarasiz) */
@@ -72,7 +72,7 @@ export type SemesterStatus =
 export type CategoryResult = {
   /** Yig'ilgan xom ball */
   earned: number;
-  /** Chegara (BONUS uchun null — chegarasiz) */
+  /** Chegara (BONUS va EXTRA uchun null — chegarasiz) */
   cap: number | null;
   /** Jamiga kirgan qismi: min(earned, cap) */
   counted: number;
@@ -82,17 +82,15 @@ export type SemesterResult = {
   categories: Record<PointCategory, CategoryResult>;
   adjustments: number;
   penalties: number;
-  /** Jarimalardan oldingi yig'indi (EXTRA bilan, maxTotal gacha) — reytingdagi "To'plagan" */
+  /** Jarimalardan oldingi yig'indi (EXTRA bilan) — reytingdagi "To'plagan" */
   earned: number;
-  /** EXTRA'siz jami (jarimalardan keyin, [0, maxTotal]) — holat va EXTRA ruxsati shundan */
+  /** EXTRA'siz jami (jarimalardan keyin, >= 0) — "Qo'shimcha imkoniyat" / "Yiqildi" shundan */
   withoutExtra: number;
-  /** Yakuniy jami, [0, maxTotal] */
+  /** Yakuniy jami, >= 0 (faqat EXTRA hisobiga maxTotal dan oshishi mumkin) */
   total: number;
   maxTotal: number;
   passScore: number;
   status: SemesterStatus;
-  /** Shu o'quvchiga EXTRA ball qo'yish mumkinmi */
-  canReceiveExtra: boolean;
 };
 
 /** 0.1 gacha yaxlitlash */
@@ -113,24 +111,13 @@ export function isSemesterEnded(
   return semester.closed || today > semester.endDate;
 }
 
-/** EXTRA faqat semestr tugagach va EXTRA'siz jami [failBelow, passScore) oralig'ida bo'lsa */
-export function canReceiveExtra(
-  rules: SemesterRules,
-  withoutExtra: number,
-  ended: boolean,
-): boolean {
-  return (
-    ended && withoutExtra >= rules.failBelow && withoutExtra < passScore(rules)
-  );
-}
-
 function category(earned: number, cap: number | null): CategoryResult {
   const e = round1(earned);
   return { earned: e, cap, counted: cap === null ? e : Math.min(e, cap) };
 }
 
-function finalTotal(sum: number, rules: SemesterRules, penalties: number) {
-  return round1(Math.max(0, Math.min(sum, rules.maxTotal) - penalties));
+function finalTotal(sum: number, penalties: number) {
+  return round1(Math.max(0, sum - penalties));
 }
 
 export function computeSemesterResult(
@@ -142,7 +129,7 @@ export function computeSemesterResult(
     HOMEWORK: category(sums.homework, rules.homeworkCap),
     PRACTICAL: category(sums.practical, rules.practicalCap),
     ORAL: category(sums.oral, rules.oralCap),
-    EXTRA: category(sums.extra, rules.extraCap),
+    EXTRA: category(sums.extra, null),
     BONUS: category(sums.bonus, null),
   };
   const adjustments = round1(sums.adjustments);
@@ -154,28 +141,27 @@ export function computeSemesterResult(
     categories.BONUS.counted +
     adjustments;
 
-  const withoutExtra = finalTotal(base, rules, penalties);
-  const total = finalTotal(base + categories.EXTRA.counted, rules, penalties);
+  const capped = Math.min(base, rules.maxTotal);
+  const withoutExtra = finalTotal(capped, penalties);
+  const total = finalTotal(capped + categories.EXTRA.counted, penalties);
   const pass = passScore(rules);
-  const extraAllowed = canReceiveExtra(rules, withoutExtra, ended);
 
   let status: SemesterStatus;
   if (!ended) status = "IN_PROGRESS";
   else if (total >= pass) status = "PASSED";
-  else if (extraAllowed) status = "EXTRA_CHANCE";
+  else if (withoutExtra >= rules.failBelow) status = "EXTRA_CHANCE";
   else status = "FAILED";
 
   return {
     categories,
     adjustments,
     penalties,
-    earned: round1(Math.min(base + categories.EXTRA.counted, rules.maxTotal)),
+    earned: round1(capped + categories.EXTRA.counted),
     withoutExtra,
     total,
     maxTotal: rules.maxTotal,
     passScore: pass,
     status,
-    canReceiveExtra: extraAllowed,
   };
 }
 

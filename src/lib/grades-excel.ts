@@ -106,7 +106,7 @@ export async function buildGradesWorkbook(
         : `${c.label} / ${data.students[0]?.result.categories[c.category].cap ?? ""}`,
     ),
     "Tuzatish",
-    `Qo'shimcha / ${rules.extraCap}`,
+    "Qo'shimcha",
     "Jarima",
     `Jami / ${rules.maxTotal}`,
     "Holat",

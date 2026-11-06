@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import {
-  canReceiveExtra,
   categoryText,
   computeSemesterResult,
   DEFAULT_RULES,
@@ -21,7 +20,7 @@ const ended = (s: Partial<PointSums>) =>
   computeSemesterResult(rules, sums(s), true);
 
 describe("kategoriya chegaralari", () => {
-  it("30 / 20 / 10 / 40, bonus chegarasiz", () => {
+  it("30 / 20 / 10, bonus va qo'shimcha chegarasiz", () => {
     const r = computeSemesterResult(
       { ...rules, maxTotal: 1000 },
       sums({ homework: 45, practical: 33, oral: 12.5, extra: 50, bonus: 7 }),
@@ -30,14 +29,14 @@ describe("kategoriya chegaralari", () => {
     expect(r.categories.HOMEWORK).toEqual({ earned: 45, cap: 30, counted: 30 });
     expect(r.categories.PRACTICAL.counted).toBe(20);
     expect(r.categories.ORAL.counted).toBe(10);
-    expect(r.categories.EXTRA.counted).toBe(40);
+    expect(r.categories.EXTRA).toEqual({ earned: 50, cap: null, counted: 50 });
     expect(r.categories.BONUS).toEqual({ earned: 7, cap: null, counted: 7 });
-    expect(r.total).toBe(30 + 20 + 10 + 40 + 7);
+    expect(r.total).toBe(30 + 20 + 10 + 50 + 7);
   });
 });
 
-describe("jami 60 dan oshmaydi", () => {
-  it("hammasi to'liq va bonus, tuzatish bilan ham", () => {
+describe("jami 60 dan faqat EXTRA bilan oshadi", () => {
+  it("bonus va tuzatish bilan 60 dan oshmaydi", () => {
     const r = ended({
       homework: 30,
       practical: 20,
@@ -46,18 +45,28 @@ describe("jami 60 dan oshmaydi", () => {
       adjustments: 5,
     });
     expect(r.total).toBe(60);
+    expect(r.earned).toBe(60);
     expect(r.withoutExtra).toBe(60);
     expect(r.status).toBe("PASSED");
   });
 
-  it("EXTRA bilan ham 60 dan oshmaydi", () => {
-    expect(ended({ homework: 30, practical: 20, extra: 40 }).total).toBe(60);
+  it("EXTRA 60 dan oshiradi", () => {
+    const r = ended({
+      homework: 30,
+      practical: 20,
+      oral: 10,
+      bonus: 5,
+      extra: 12,
+    });
+    expect(r.withoutExtra).toBe(60);
+    expect(r.earned).toBe(72);
+    expect(r.total).toBe(72);
   });
 });
 
 describe("jarimalar", () => {
-  it("60 lik chegaradan keyin ayiriladi", () => {
-    // 30 + 20 + 10 + 10 bonus = 70 -> 60, keyin −5 = 55 (70 − 5 = 65 emas)
+  it("to'liq yig'indidan ayiriladi", () => {
+    // 30 + 20 + 10 + 10 bonus = 70 -> 60, keyin −5 = 55
     const r = ended({
       homework: 30,
       practical: 20,
@@ -65,7 +74,20 @@ describe("jarimalar", () => {
       bonus: 10,
       penalties: 5,
     });
+    expect(r.earned).toBe(60);
     expect(r.total).toBe(55);
+  });
+
+  it("EXTRA bilan: 60 + EXTRA − jarima", () => {
+    // 50 + 20 bonus -> 60, +10 EXTRA = 70, −4 = 66
+    const r = ended({
+      homework: 30,
+      practical: 20,
+      bonus: 20,
+      extra: 10,
+      penalties: 4,
+    });
+    expect(r.total).toBe(66);
   });
 
   it("jami 0 dan pastga tushmaydi", () => {
@@ -84,23 +106,25 @@ describe("holat chegaralari", () => {
     expect(passScore(rules)).toBe(36);
   });
 
-  it("9.5 → Yiqildi, EXTRA rad etiladi", () => {
-    const r = ended({ homework: 9.5 });
-    expect(r.status).toBe("FAILED");
-    expect(r.canReceiveExtra).toBe(false);
+  it("9.5 → Yiqildi", () => {
+    expect(ended({ homework: 9.5 }).status).toBe("FAILED");
+  });
+
+  it("Yiqilgan o'quvchi ham qo'shimcha ball bilan o'tadi", () => {
+    const r = ended({ homework: 5, extra: 31 });
+    expect(r.total).toBe(36);
+    expect(r.status).toBe("PASSED");
   });
 
   it("10 → Qo'shimcha imkoniyat", () => {
     const r = ended({ homework: 10 });
     expect(r.status).toBe("EXTRA_CHANCE");
-    expect(r.canReceiveExtra).toBe(true);
   });
 
   it("36 → O'tdi", () => {
     const r = ended({ homework: 30, oral: 6 });
     expect(r.total).toBe(36);
     expect(r.status).toBe("PASSED");
-    expect(r.canReceiveExtra).toBe(false);
   });
 
   it("EXTRA'dan keyin qayta hisoblanadi; EXTRA'siz jami o'zgarmaydi", () => {
@@ -108,8 +132,6 @@ describe("holat chegaralari", () => {
     expect(r.withoutExtra).toBe(20);
     expect(r.total).toBe(36);
     expect(r.status).toBe("PASSED");
-    // Qo'yilgan EXTRA'ni tahrirlash mumkin bo'lib qoladi
-    expect(r.canReceiveExtra).toBe(true);
   });
 
   it("EXTRA yetmasa — hali ham qo'shimcha imkoniyat", () => {
@@ -122,12 +144,14 @@ describe("holat chegaralari", () => {
 });
 
 describe("EXTRA vaqti", () => {
-  it("semestr tugamaguncha EXTRA qo'yib bo'lmaydi", () => {
-    const r = computeSemesterResult(rules, sums({ homework: 15 }), false);
+  it("semestr davomida ham jamiga qo'shiladi", () => {
+    const r = computeSemesterResult(
+      rules,
+      sums({ homework: 30, practical: 20, oral: 10, extra: 8 }),
+      false,
+    );
     expect(r.status).toBe("IN_PROGRESS");
-    expect(r.canReceiveExtra).toBe(false);
-    expect(canReceiveExtra(rules, 15, false)).toBe(false);
-    expect(canReceiveExtra(rules, 15, true)).toBe(true);
+    expect(r.total).toBe(68);
   });
 
   it("semestr yopilsa yoki oxirgi kuni o'tsa tugagan", () => {

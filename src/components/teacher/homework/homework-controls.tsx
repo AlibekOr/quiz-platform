@@ -304,8 +304,9 @@ function HomeworkForm({
       )}
       {category === "EXTRA" && (
         <p className="text-muted-foreground -mt-2 text-xs">
-          Qo&apos;shimcha ball semestr tugagach faqat &quot;Qo&apos;shimcha
-          imkoniyat&quot; holatidagi o&apos;quvchilarga qo&apos;yiladi.
+          Qo&apos;shimcha ball alohida loyiha uchun: istalgan darsda, istalgan
+          o&apos;quvchiga, chegarasiz. Jami 60 dan faqat shu ball hisobiga
+          oshadi.
         </p>
       )}
       <FormField

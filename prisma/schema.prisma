@@ -276,6 +276,7 @@ model Semester {
   homeworkCap  Int               @default(30)
   practicalCap Int               @default(20)
   oralCap      Int               @default(10)
+  // Ishlatilmaydi: qo'shimcha ball chegarasiz (2026-11-06)
   extraCap     Int               @default(40)
   assignments  Assignment[]
   adjustments  PointAdjustment[]

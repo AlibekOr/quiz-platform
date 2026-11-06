@@ -6,7 +6,7 @@ import { GradeEntryForm } from "@/components/teacher/homework/grade-entry-form";
 import { Badge } from "@/components/ui/badge";
 import { requireTeacher } from "@/lib/auth/guards";
 import { db } from "@/lib/db";
-import { CATEGORY_LABEL, formatPoints, STATUS_LABEL } from "@/lib/grades";
+import { CATEGORY_LABEL } from "@/lib/grades";
 import { getSemesterGrades } from "@/lib/grades-data";
 import { homeworkStatus } from "@/lib/homework";
 import { departureLabel } from "@/lib/memberships";
@@ -65,11 +65,6 @@ export default async function AssignmentGradesPage({
     label: s.departure ? departureLabel(s.departure) : null,
     points: s.grades[assignment.id]?.points ?? null,
     note: s.grades[assignment.id]?.note ?? null,
-    // Qo'shimcha ball faqat semestr tugagach va "Qo'shimcha imkoniyat"dagilarga
-    blocked:
-      isExtra && !s.result.canReceiveExtra
-        ? `${STATUS_LABEL[s.result.status]} · ${formatPoints(s.result.withoutExtra)} ball`
-        : null,
   }));
 
   return (
@@ -99,13 +94,6 @@ export default async function AssignmentGradesPage({
         {assignment.description && (
           <p className="text-sm whitespace-pre-wrap">
             {assignment.description}
-          </p>
-        )}
-        {isExtra && !semester.ended && (
-          <p className="rounded-lg border border-amber-500/50 bg-amber-500/10 p-3 text-sm">
-            Qo&apos;shimcha ball semestr tugagandan keyin qo&apos;yiladi
-            (semestr {formatDate(semester.endDate)} da tugaydi yoki guruh
-            sahifasida yopiladi).
           </p>
         )}
       </div>

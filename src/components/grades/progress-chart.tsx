@@ -29,7 +29,9 @@ export function ProgressChart({
   const days = points.map((p) => Date.parse(p.date) / DAY_MS);
   const span = days[days.length - 1] - days[0] || 1;
   const x = (i: number) => PAD.left + (innerW * (days[i] - days[0])) / span;
-  const y = (v: number) => PAD.top + innerH * (1 - v / maxTotal);
+  // Jami maxTotal dan oshsa, shkala eng katta qiymatgacha kengayadi
+  const top = Math.max(maxTotal, ...points.map((p) => p.total));
+  const y = (v: number) => PAD.top + innerH * (1 - v / top);
   const line = points.map((p, i) => `${x(i)},${y(p.total)}`).join(" ");
   const area = `${x(0)},${y(0)} ${line} ${x(points.length - 1)},${y(0)}`;
   const lastIndex = points.length - 1;

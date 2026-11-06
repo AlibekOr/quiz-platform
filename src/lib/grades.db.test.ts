@@ -150,7 +150,7 @@ describe("getSemesterGrades", () => {
     expect(a.oral).toHaveLength(2);
   });
 
-  it("tugagan semestr: holat va EXTRA ruxsati", async () => {
+  it("tugagan semestr: holat", async () => {
     const sid = await semester(groupId, -60, -1);
     await student("Ali", groupId, 90);
     const vali = await student("Vali", groupId, 90);
@@ -171,12 +171,10 @@ describe("getSemesterGrades", () => {
     expect(byName.get("Ali")!.result).toMatchObject({
       total: 12,
       status: "EXTRA_CHANCE",
-      canReceiveExtra: true,
     });
     expect(byName.get("Vali")!.result).toMatchObject({
       total: 9.5,
       status: "FAILED",
-      canReceiveExtra: false,
     });
   });
 

@@ -154,7 +154,6 @@ const RULE_FIELDS: { name: keyof SemesterRules; label: string }[] = [
   { name: "homeworkCap", label: "Uyga vazifa" },
   { name: "practicalCap", label: "Amaliy" },
   { name: "oralCap", label: "Og'zaki" },
-  { name: "extraCap", label: "Qo'shimcha" },
 ];
 
 function SemesterForm({

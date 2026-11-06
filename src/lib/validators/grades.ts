@@ -53,7 +53,6 @@ export const semesterSchema = z
     homeworkCap: intField(0, 1000),
     practicalCap: intField(0, 1000),
     oralCap: intField(0, 1000),
-    extraCap: intField(0, 1000),
   })
   .superRefine((s, ctx) => {
     if (s.endDate < s.startDate)

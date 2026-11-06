@@ -134,9 +134,10 @@ export default async function GradesPage({
                   <GradeSheetTable students={data.students} />
                   <p className="text-muted-foreground text-xs">
                     Har katakda: yig&apos;ilgan / chegara. Jami{" "}
-                    {data.semester.rules.maxTotal} dan oshmaydi, jarimalar
-                    chegaradan keyin ayiriladi. Holat semestr tugagach chiqadi.
-                    Testlar semestr baliga kirmaydi.
+                    {data.semester.rules.maxTotal} dan faqat qo&apos;shimcha
+                    ball hisobiga oshadi, jarimalar chegaradan keyin ayiriladi.
+                    O&apos;tish bali {passScore(data.semester.rules)}. Holat
+                    semestr tugagach chiqadi. Testlar semestr baliga kirmaydi.
                   </p>
                 </>
               )}
