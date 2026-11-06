@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { usePathname, useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { PlusIcon } from "lucide-react";
@@ -19,21 +18,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { createTestSchema } from "@/lib/validators/test";
 
-/** defaultOpen — yon paneldagi "Test yaratish" (?new=1) bilan kelganda darhol ochiladi */
-export function CreateTestButton({
-  defaultOpen = false,
-}: {
-  defaultOpen?: boolean;
-}) {
-  const router = useRouter();
-  const pathname = usePathname();
-  const [open, setOpen] = useState(defaultOpen);
-
-  function onOpenChange(next: boolean) {
-    setOpen(next);
-    // Yopilganda ?new=1 olib tashlanadi: yangilansa qayta ochilmasin
-    if (!next && defaultOpen) router.replace(pathname);
-  }
+export function CreateTestButton() {
+  const [open, setOpen] = useState(false);
 
   return (
     <>
@@ -41,7 +27,7 @@ export function CreateTestButton({
         <PlusIcon />
         Yangi test
       </Button>
-      <Dialog open={open} onOpenChange={onOpenChange}>
+      <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Yangi test</DialogTitle>

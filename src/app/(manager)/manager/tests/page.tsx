@@ -5,10 +5,7 @@ import { requireManager } from "@/lib/auth/guards";
 export const metadata: Metadata = { title: "Testlar" };
 
 // Umumiy ko'rinish: o'qituvchi va menejer (ruxsat va doira view ichida tekshiriladi)
-export default async function Page({
-  searchParams,
-}: PageProps<"/manager/tests">) {
+export default async function Page() {
   const user = await requireManager();
-  const { new: openCreate } = await searchParams;
-  return <TestsListView user={user} openCreate={openCreate === "1"} />;
+  return <TestsListView user={user} />;
 }

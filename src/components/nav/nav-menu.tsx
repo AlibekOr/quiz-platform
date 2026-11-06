@@ -26,7 +26,6 @@ import {
   UsersIcon,
   UsersRoundIcon,
   type LucideIcon,
-  FilePlusIcon,
   LibraryIcon,
   MedalIcon,
   SirenIcon,
@@ -143,11 +142,6 @@ const MENUS: Record<NavVariant, { main: MenuItem[]; footer: MenuLink[] }> = {
             icon: ClipboardListIcon,
           },
           {
-            href: "/teacher/tests?new=1",
-            label: "Test yaratish",
-            icon: FilePlusIcon,
-          },
-          {
             href: "/teacher/tests/leaderboard",
             label: "Test reytingi",
             icon: MedalIcon,
@@ -239,11 +233,6 @@ const MENUS: Record<NavVariant, { main: MenuItem[]; footer: MenuLink[] }> = {
             href: "/manager/tests",
             label: "Barcha testlar",
             icon: ClipboardListIcon,
-          },
-          {
-            href: "/manager/tests?new=1",
-            label: "Test yaratish",
-            icon: FilePlusIcon,
           },
           {
             href: "/manager/tests/leaderboard",
