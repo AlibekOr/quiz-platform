@@ -1,7 +1,12 @@
+import {
+  assignmentCategoryOptions,
+  type AssignmentCategory,
+  type AssignmentCategoryOption,
+  type GradeKind,
+} from "@/lib/grades";
 import { groupScopeWhere, type Scope } from "@/lib/auth/scope";
 import "server-only";
 import { db } from "@/lib/db";
-import type { AssignmentCategory } from "@/lib/grades";
 import {
   defaultHomeworkTitle,
   isLessonTask,
@@ -73,6 +78,8 @@ export type HomeworkPrefill = {
   groupName: string;
   semesterId: string;
   semesterName: string;
+  /** Semestrning topshiriq kategoriyalari (formadagi tanlov uchun) */
+  categories: AssignmentCategoryOption[];
   title: string;
   /** Jadval bo'yicha keyingi dars; jadval bo'lmasa — bir haftadan keyin */
   dueDate: DateStr;
@@ -90,6 +97,12 @@ type LessonRow = {
       name: string;
       startDate: Date;
       endDate: Date;
+      categories: {
+        id: string;
+        name: string;
+        kind: GradeKind;
+        itemMax: number;
+      }[];
     }[];
   };
 };
@@ -103,7 +116,16 @@ const lessonSelect = {
       name: true,
       schedules: { select: { weekday: true } },
       semesters: {
-        select: { id: true, name: true, startDate: true, endDate: true },
+        select: {
+          id: true,
+          name: true,
+          startDate: true,
+          endDate: true,
+          categories: {
+            orderBy: { order: "asc" },
+            select: { id: true, name: true, kind: true, itemMax: true },
+          },
+        },
       },
     },
   },
@@ -123,7 +145,11 @@ function prefill(lesson: LessonRow): HomeworkPrefill | null {
     groupName: lesson.group.name,
     semesterId: semester.id,
     semesterName: semester.name,
-    title: defaultHomeworkTitle(date),
+    categories: assignmentCategoryOptions(semester.categories),
+    title: defaultHomeworkTitle(
+      date,
+      semester.categories.find((c) => c.kind === "HOMEWORK")?.name,
+    ),
     dueDate:
       nextLessonDate(
         lesson.group.schedules.map((s) => s.weekday),
@@ -176,6 +202,8 @@ export async function getMissingHomeworkLessons(
 export type StudentAssignment = {
   id: string;
   category: AssignmentCategory;
+  /** Kategoriya nomi (o'qituvchi shablonidan) */
+  categoryName: string;
   title: string;
   description: string | null;
   dueDate: DateStr;
@@ -217,6 +245,7 @@ export async function getStudentAssignments(
     select: {
       id: true,
       category: true,
+      categoryRef: { select: { name: true } },
       title: true,
       description: true,
       dueDate: true,
@@ -231,6 +260,7 @@ export async function getStudentAssignments(
   return rows.map((a) => ({
     id: a.id,
     category: a.category,
+    categoryName: a.categoryRef.name,
     title: a.title,
     description: a.description,
     dueDate: fromDbDate(a.dueDate),

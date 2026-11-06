@@ -15,6 +15,7 @@ import {
   studentScopeWhere,
   type ScopeUser,
 } from "./scope";
+import { standardCategories } from "@/test/grading";
 
 // Doira (ROLES.md §3, §9): ADMIN — hammasi, TEACHER — o'z guruhlari, MANAGER — unga
 // biriktirilganlar (regiondan avtomatik emas). Ikki o'qituvchi bitta regionda
@@ -176,6 +177,7 @@ describe("o'quvchilar doirasi", () => {
   it("semestr faqat guruh o'qituvchisi doirasida", async () => {
     const sem = await db.semester.create({
       data: {
+        categories: standardCategories,
         groupId: b1,
         name: "1-semestr",
         startDate: new Date("2026-09-01"),

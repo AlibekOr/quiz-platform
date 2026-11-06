@@ -66,11 +66,14 @@ export function AttendanceSheet({
   date,
   topic,
   students,
+  oralLabel,
 }: {
   groupId: string;
   date: string;
   topic: string | null;
   students: SheetStudent[];
+  /** Semestrdagi og'zaki kategoriya nomi; null — semestrda og'zaki yo'q (ustun chiqmaydi) */
+  oralLabel: string | null;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -205,10 +208,10 @@ export function AttendanceSheet({
                   </button>
                 ))}
               </div>
-              {status !== "ABSENT" && status !== "EXCUSED" && (
+              {oralLabel && status !== "ABSENT" && status !== "EXCUSED" && (
                 <div className="flex items-center gap-2">
                   <span className="text-muted-foreground text-sm">
-                    Og&apos;zaki:
+                    {oralLabel}:
                   </span>
                   <div
                     role="radiogroup"

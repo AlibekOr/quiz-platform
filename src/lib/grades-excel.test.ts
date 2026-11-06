@@ -1,8 +1,11 @@
 import ExcelJS from "exceljs";
 import { describe, expect, it } from "vitest";
-import { computeSemesterResult, DEFAULT_RULES, EMPTY_SUMS } from "./grades";
+import { computeSemesterResult, DEFAULT_TEMPLATE, rulesOf } from "./grades";
 import type { SemesterGrades } from "./grades-data";
 import { buildGradesWorkbook, GRADES_HEADER_ROW } from "./grades-excel";
+
+// c0 — uyga vazifa, c2 — og'zaki
+const RULES = rulesOf(DEFAULT_TEMPLATE);
 
 function student(
   id: string,
@@ -18,8 +21,8 @@ function student(
     adjustments: [],
     penalties: [],
     result: computeSemesterResult(
-      DEFAULT_RULES,
-      { ...EMPTY_SUMS, homework, oral: 1 },
+      RULES,
+      { byCategory: { c0: homework, c2: 1 }, adjustments: 0, penalties: 0 },
       false,
     ),
   };
@@ -33,13 +36,14 @@ const data: SemesterGrades = {
     endDate: "2026-12-31",
     closed: false,
     ended: false,
-    rules: DEFAULT_RULES,
-    group: { id: "g1", name: "Frontend-1" },
+    rules: RULES,
+    group: { id: "g1", name: "Frontend-1", code: null },
   },
   assignments: [
     {
       id: "hw",
       category: "HOMEWORK",
+      categoryId: "c0",
       title: "UV",
       dueDate: "2026-10-02",
       maxPoints: 1,
@@ -65,7 +69,7 @@ describe("buildGradesWorkbook", () => {
     ]);
 
     const head = values(summary, GRADES_HEADER_ROW);
-    expect(head.slice(0, 3)).toEqual(["№", "O'quvchi", "Uy vazifa / 30"]);
+    expect(head.slice(0, 3)).toEqual(["№", "O'quvchi", "Uyga vazifa / 30"]);
     expect(head.at(-1)).toBe("Holat");
     const anvar = values(summary, GRADES_HEADER_ROW + 1);
     expect(anvar.slice(0, 3)).toEqual([1, "Anvar", 1]);

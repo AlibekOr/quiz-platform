@@ -4,19 +4,12 @@ import {
   categoryText,
   formatPoints,
   signedPoints,
-  type PointCategory,
+  type CategoryRule,
   type SemesterStatus,
 } from "@/lib/grades";
 import type { StudentSemester } from "@/lib/grades-data";
 import { departureLabel } from "@/lib/memberships";
 import { cn } from "@/lib/utils";
-
-const COLUMNS: { category: PointCategory; label: string }[] = [
-  { category: "HOMEWORK", label: "Uy vazifa" },
-  { category: "PRACTICAL", label: "Amaliy" },
-  { category: "ORAL", label: "Og'zaki" },
-  { category: "BONUS", label: "Bonus" },
-];
 
 /** "Yiqildi" va "Qo'shimcha imkoniyat" tepada, keyin qolganlar (ichida mavjud tartib) */
 const STATUS_ORDER: Record<SemesterStatus, number> = {
@@ -32,7 +25,18 @@ const ROW_CLASS: Partial<Record<SemesterStatus, string>> = {
 };
 
 /** O'qituvchi uchun semestr jadvali: o'quvchilar × kategoriyalar, jami va holat */
-export function GradeSheetTable({ students }: { students: StudentSemester[] }) {
+export function GradeSheetTable({
+  students,
+  categories,
+}: {
+  students: StudentSemester[];
+  /** Semestr kategoriyalari (qo'shimcha — alohida ustunda) */
+  categories: CategoryRule[];
+}) {
+  const columns = categories.filter((c) => c.kind !== "EXTRA");
+  const extraIds = new Set(
+    categories.filter((c) => c.kind === "EXTRA").map((c) => c.id),
+  );
   const rows = [...students].sort(
     (a, b) => STATUS_ORDER[a.result.status] - STATUS_ORDER[b.result.status],
   );
@@ -44,12 +48,9 @@ export function GradeSheetTable({ students }: { students: StudentSemester[] }) {
             <th className="bg-muted sticky left-0 z-10 px-3 py-2 text-left font-medium">
               O&apos;quvchi
             </th>
-            {COLUMNS.map((c) => (
-              <th
-                key={c.category}
-                className="px-2 py-2 text-center font-medium"
-              >
-                {c.label}
+            {columns.map((c) => (
+              <th key={c.id} className="px-2 py-2 text-center font-medium">
+                {c.name}
               </th>
             ))}
             <th className="px-2 py-2 text-center font-medium">Tuzatish</th>
@@ -64,6 +65,9 @@ export function GradeSheetTable({ students }: { students: StudentSemester[] }) {
         <tbody>
           {rows.map((s, i) => {
             const r = s.result;
+            const byId = new Map(r.categories.map((c) => [c.id, c]));
+            const extra = r.categories.filter((c) => extraIds.has(c.id));
+            const extraEarned = extra.reduce((sum, c) => sum + c.earned, 0);
             return (
               <tr
                 key={s.id}
@@ -90,14 +94,17 @@ export function GradeSheetTable({ students }: { students: StudentSemester[] }) {
                     </span>
                   )}
                 </td>
-                {COLUMNS.map((c) => (
-                  <td
-                    key={c.category}
-                    className="px-2 py-1.5 text-center whitespace-nowrap tabular-nums"
-                  >
-                    {categoryText(r.categories[c.category])}
-                  </td>
-                ))}
+                {columns.map((c) => {
+                  const result = byId.get(c.id);
+                  return (
+                    <td
+                      key={c.id}
+                      className="px-2 py-1.5 text-center whitespace-nowrap tabular-nums"
+                    >
+                      {result ? categoryText(result) : ""}
+                    </td>
+                  );
+                })}
                 <td
                   className="px-2 py-1.5 text-center tabular-nums"
                   title={
@@ -109,9 +116,11 @@ export function GradeSheetTable({ students }: { students: StudentSemester[] }) {
                   {r.adjustments === 0 ? "" : signedPoints(r.adjustments)}
                 </td>
                 <td className="px-2 py-1.5 text-center whitespace-nowrap tabular-nums">
-                  {r.categories.EXTRA.earned === 0
+                  {extraEarned === 0
                     ? ""
-                    : categoryText(r.categories.EXTRA)}
+                    : extra.length === 1
+                      ? categoryText(extra[0])
+                      : formatPoints(extraEarned)}
                 </td>
                 <td className="text-destructive px-2 py-1.5 text-center tabular-nums">
                   {r.penalties === 0 ? "" : `−${formatPoints(r.penalties)}`}

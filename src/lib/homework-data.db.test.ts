@@ -15,6 +15,7 @@ import {
   todayInTashkent,
   weekdayOf,
 } from "./time";
+import { categoryIdOf, standardCategories } from "@/test/grading";
 
 const today = todayInTashkent();
 const day = (offset: number) => toDbDate(addDays(today, offset));
@@ -41,6 +42,10 @@ async function assignment(
       data: {
         semesterId: data.semesterId ?? semesterId,
         category: data.category ?? "HOMEWORK",
+        categoryId: await categoryIdOf(
+          data.semesterId ?? semesterId,
+          data.category ?? "HOMEWORK",
+        ),
         lessonId: data.lessonId,
         title: "Vazifa",
         dueDate: day(2),
@@ -71,6 +76,7 @@ beforeEach(async () => {
   semesterId = (
     await db.semester.create({
       data: {
+        categories: standardCategories,
         groupId,
         name: "1-semestr",
         startDate: day(-20),
@@ -188,6 +194,7 @@ describe("getStudentAssignments", () => {
     const extra = await assignment({ category: "EXTRA" });
     const otherSemester = await db.semester.create({
       data: {
+        categories: standardCategories,
         groupId: otherGroupId,
         name: "Boshqa",
         startDate: day(-20),

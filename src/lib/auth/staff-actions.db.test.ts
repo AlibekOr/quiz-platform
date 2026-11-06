@@ -3,6 +3,7 @@ import type { CurrentUser } from "@/lib/auth/guards";
 import { db } from "@/lib/db";
 import { resetDatabase } from "@/test/db";
 import { addDays, toDbDate, todayInTashkent } from "@/lib/time";
+import { standardCategories } from "@/test/grading";
 
 // Server action'lar doirasi (ROLES.md §9): o'qituvchi URL yoki id'ni o'zgartirib boshqa
 // o'qituvchining guruhi, o'quvchisi, semestri yoki shabloniga tega olmaydi.
@@ -298,12 +299,7 @@ describe("davomat, semestr va jarimalar", () => {
         startDate: addDays(today, -10),
         endDate: addDays(today, 80),
         closed: false,
-        maxTotal: 60,
-        passPercent: 60,
-        failBelow: 10,
-        homeworkCap: 30,
-        practicalCap: 20,
-        oralCap: 10,
+        templateId: "x",
       }),
     ).toEqual(FORBIDDEN);
   });
@@ -340,6 +336,7 @@ describe("davomat, semestr va jarimalar", () => {
     });
     const boburSem = await db.semester.create({
       data: {
+        categories: standardCategories,
         groupId: b1,
         name: "1-semestr",
         startDate: toDbDate(addDays(today, -20)),
@@ -348,6 +345,7 @@ describe("davomat, semestr va jarimalar", () => {
     });
     const alibekSem = await db.semester.create({
       data: {
+        categories: standardCategories,
         groupId: a1,
         name: "1-semestr",
         startDate: toDbDate(addDays(today, -20)),

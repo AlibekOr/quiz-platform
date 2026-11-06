@@ -1,4 +1,4 @@
-import { CATEGORY_LABEL, type AssignmentCategory } from "@/lib/grades";
+import type { AssignmentCategory } from "@/lib/grades";
 import { formatDayMonth, type DateStr } from "@/lib/time";
 
 // Uyga vazifa holati va eslatmalar (TASKS.md, 4-bo'lim). O'quvchi saytda hech narsa
@@ -28,9 +28,9 @@ export const HOMEWORK_STATUS_LABEL: Record<HomeworkStatus, string> = {
 /** Darsdan yaratiladigan vazifaning default nomi: "Uyga vazifa — 11.10", "Amaliy — 11.10" */
 export function defaultHomeworkTitle(
   lessonDate: DateStr,
-  category: AssignmentCategory = "HOMEWORK",
+  categoryName = "Uyga vazifa",
 ): string {
-  return `${CATEGORY_LABEL[category]} — ${formatDayMonth(lessonDate)}`;
+  return `${categoryName} — ${formatDayMonth(lessonDate)}`;
 }
 
 /**

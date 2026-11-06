@@ -5,6 +5,7 @@ import { resolveLeaderboard } from "@/lib/leaderboard-access";
 import { resetDatabase } from "@/test/db";
 import { getSemesterLeaderboard } from "./semester-leaderboard";
 import { addDays, toDbDate, todayInTashkent } from "./time";
+import { categoryIdOf, standardCategories } from "@/test/grading";
 
 const today = todayInTashkent();
 const day = (offset: number) => toDbDate(addDays(today, offset));
@@ -21,6 +22,7 @@ async function group(
   if (semester)
     await db.semester.create({
       data: {
+        categories: standardCategories,
         groupId: g.id,
         name: `${name} semestr`,
         startDate: day(semester.from),
@@ -58,6 +60,7 @@ async function student(fullName: string, gid: string | null, points = 0) {
       data: {
         semesterId: semester.id,
         category: "BONUS",
+        categoryId: await categoryIdOf(semester.id, "BONUS"),
         title: `Bonus ${fullName}`,
         dueDate: day(-1),
         maxPoints: 60,

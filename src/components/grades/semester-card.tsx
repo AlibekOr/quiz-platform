@@ -1,23 +1,9 @@
 import Link from "next/link";
 import { ChevronRightIcon } from "lucide-react";
-import {
-  CATEGORY_LABEL,
-  categoryText,
-  formatPoints,
-  signedPoints,
-  type PointCategory,
-} from "@/lib/grades";
+import { categoryText, formatPoints, signedPoints } from "@/lib/grades";
 import type { SemesterGrades, StudentSemester } from "@/lib/grades-data";
 import { formatDate } from "@/lib/time";
 import { StatusBadge } from "./status-badge";
-
-const BREAKDOWN: PointCategory[] = [
-  "HOMEWORK",
-  "PRACTICAL",
-  "ORAL",
-  "BONUS",
-  "EXTRA",
-];
 
 /**
  * Bitta o'quvchining bitta semestri. summary — bosh sahifa uchun: jami, holat va
@@ -37,6 +23,10 @@ export function SemesterCard({
   const r = student.result;
   const graded = assignments.filter((a) => student.grades[a.id]);
   const pending = assignments.filter((a) => !student.grades[a.id]);
+  // Kategoriya nomlari semestr nusxasidan (o'qituvchi o'zi nomlagan bo'lishi mumkin)
+  const categoryName = new Map(
+    semester.rules.categories.map((c) => [c.id, c.name]),
+  );
 
   return (
     <section className="flex flex-col gap-3 rounded-lg border p-4">
@@ -60,18 +50,14 @@ export function SemesterCard({
       </div>
 
       <dl className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-3">
-        {BREAKDOWN.filter(
-          (c) => c !== "EXTRA" || r.categories.EXTRA.earned > 0,
-        ).map((c) => (
-          <div key={c} className="bg-muted/50 rounded-md px-3 py-2">
-            <dt className="text-muted-foreground text-xs">
-              {CATEGORY_LABEL[c]}
-            </dt>
-            <dd className="font-medium tabular-nums">
-              {categoryText(r.categories[c])}
-            </dd>
-          </div>
-        ))}
+        {r.categories
+          .filter((c) => c.kind !== "EXTRA" || c.earned > 0)
+          .map((c) => (
+            <div key={c.id} className="bg-muted/50 rounded-md px-3 py-2">
+              <dt className="text-muted-foreground text-xs">{c.name}</dt>
+              <dd className="font-medium tabular-nums">{categoryText(c)}</dd>
+            </div>
+          ))}
         {r.adjustments !== 0 && (
           <div className="bg-muted/50 rounded-md px-3 py-2">
             <dt className="text-muted-foreground text-xs">Tuzatish</dt>
@@ -109,7 +95,7 @@ export function SemesterCard({
                   <Item
                     key={a.id}
                     title={a.title}
-                    meta={`${CATEGORY_LABEL[a.category]} · muddat ${formatDate(a.dueDate)}${g.note ? ` · ${g.note}` : ""}`}
+                    meta={`${categoryName.get(a.categoryId) ?? ""} · muddat ${formatDate(a.dueDate)}${g.note ? ` · ${g.note}` : ""}`}
                     value={`${formatPoints(g.points)} / ${a.maxPoints}`}
                   />
                 );
@@ -123,7 +109,7 @@ export function SemesterCard({
                 <Item
                   key={a.id}
                   title={a.title}
-                  meta={`${CATEGORY_LABEL[a.category]} · muddat ${formatDate(a.dueDate)}`}
+                  meta={`${categoryName.get(a.categoryId) ?? ""} · muddat ${formatDate(a.dueDate)}`}
                   value="—"
                   muted
                 />

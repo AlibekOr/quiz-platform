@@ -20,7 +20,7 @@ import { groupScopeWhere } from "@/lib/auth/scope";
 import { requireTeacherScope } from "@/lib/auth/staff";
 import { groupLabel } from "@/lib/group-label";
 import { db } from "@/lib/db";
-import { CATEGORY_LABEL } from "@/lib/grades";
+import { assignmentCategoryOptions } from "@/lib/grades";
 import { getSemesterGrades } from "@/lib/grades-data";
 import { formatDate, fromDbDate, todayInTashkent } from "@/lib/time";
 
@@ -54,12 +54,18 @@ export default async function HomeworkPage({
           name: true,
           startDate: true,
           endDate: true,
+          categories: {
+            orderBy: { order: "asc" },
+            select: { id: true, name: true, kind: true, itemMax: true },
+          },
           assignments: {
             orderBy: [{ dueDate: "desc" }, { createdAt: "desc" }],
             select: {
               id: true,
               semesterId: true,
               category: true,
+              categoryId: true,
+              categoryRef: { select: { name: true } },
               lesson: { select: { id: true, date: true } },
               title: true,
               description: true,
@@ -71,7 +77,11 @@ export default async function HomeworkPage({
         },
       })
     : [];
-  const periodOptions = periods.map((p) => ({ id: p.id, name: p.name }));
+  const periodOptions = periods.map((p) => ({
+    id: p.id,
+    name: p.name,
+    categories: assignmentCategoryOptions(p.categories),
+  }));
   const today = todayInTashkent();
   // Yangi topshiriq uchun default: bugun ichiga tushadigan semestr, bo'lmasa eng yangisi
   const current = periods.find(
@@ -210,7 +220,7 @@ export default async function HomeworkPage({
                               </TableCell>
                               <TableCell>
                                 <Badge variant="secondary">
-                                  {CATEGORY_LABEL[h.category]}
+                                  {h.categoryRef.name}
                                 </Badge>
                               </TableCell>
                               <TableCell className="whitespace-nowrap">
@@ -234,6 +244,7 @@ export default async function HomeworkPage({
                                     id: h.id,
                                     semesterId: h.semesterId,
                                     category: h.category,
+                                    categoryId: h.categoryId,
                                     title: h.title,
                                     description: h.description,
                                     dueDate: due,

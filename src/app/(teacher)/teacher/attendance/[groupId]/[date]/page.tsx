@@ -42,9 +42,17 @@ export default async function AttendanceSheetPage({
   const semester = semesterId
     ? await db.semester.findUnique({
         where: { id: semesterId },
-        select: { id: true, name: true },
+        select: {
+          id: true,
+          name: true,
+          categories: { where: { kind: "ORAL" }, select: { name: true } },
+        },
       })
     : null;
+  // Semestr shablonida og'zaki bo'lmasa — ustun chiqmaydi (semestrsiz kunda — chiqadi)
+  const oralLabel = semester
+    ? (semester.categories[0]?.name ?? null)
+    : "Og'zaki";
 
   return (
     <>
@@ -96,6 +104,7 @@ export default async function AttendanceSheetPage({
           date={date}
           topic={sheet.lesson?.topic ?? null}
           students={sheet.rows}
+          oralLabel={oralLabel}
         />
       )}
     </>

@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_RULES } from "./grades";
+import { DEFAULT_TEMPLATE, rulesOf } from "./grades";
+
+// rulesOf: c0 — uyga vazifa, c1 — amaliy, c2 — og'zaki, c3 — qo'shimcha, c4 — bonus
+const RULES = rulesOf(DEFAULT_TEMPLATE);
 import { semesterProgress } from "./grades-progress";
 
 const data = {
@@ -10,13 +13,14 @@ const data = {
     endDate: "2026-12-31",
     closed: false,
     ended: false,
-    rules: DEFAULT_RULES,
-    group: { id: "g1", name: "Frontend-1" },
+    rules: RULES,
+    group: { id: "g1", name: "Frontend-1", code: null },
   },
   assignments: [
     {
       id: "hw",
       category: "HOMEWORK" as const,
+      categoryId: "c0",
       title: "UV",
       dueDate: "2026-10-02",
       maxPoints: 1,
@@ -25,6 +29,7 @@ const data = {
     {
       id: "pr",
       category: "PRACTICAL" as const,
+      categoryId: "c1",
       title: "Amaliy",
       dueDate: "2026-10-09",
       maxPoints: 25,

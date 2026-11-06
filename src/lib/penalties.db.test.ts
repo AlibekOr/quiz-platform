@@ -4,6 +4,7 @@ import { resetDatabase } from "@/test/db";
 import { getSemesterGrades } from "./grades-data";
 import { applyPenalty, getActivePenaltyTypes } from "./penalties";
 import { addDays, toDbDate, todayInTashkent } from "./time";
+import { categoryIdOf, standardCategories } from "@/test/grading";
 
 const today = todayInTashkent();
 const day = (offset: number) => toDbDate(addDays(today, offset));
@@ -58,6 +59,7 @@ beforeEach(async () => {
   semesterId = (
     await db.semester.create({
       data: {
+        categories: standardCategories,
         groupId,
         name: "1-semestr",
         startDate: day(-30),
@@ -153,6 +155,7 @@ describe("jarima semestr jamida", () => {
       data: {
         semesterId,
         category: "BONUS",
+        categoryId: await categoryIdOf(semesterId, "BONUS"),
         title: "Bonus",
         dueDate: day(-1),
         maxPoints: 100,

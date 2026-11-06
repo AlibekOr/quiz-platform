@@ -13,7 +13,9 @@ function GiveButton({ p, label }: { p: HomeworkPrefill; label: string }) {
     <AddHomeworkButton
       size="sm"
       label={label}
-      periods={[{ id: p.semesterId, name: p.semesterName }]}
+      periods={[
+        { id: p.semesterId, name: p.semesterName, categories: p.categories },
+      ]}
       initial={{
         semesterId: p.semesterId,
         lessonId: p.lessonId,

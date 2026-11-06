@@ -4,7 +4,6 @@ import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { requireStudent } from "@/lib/auth/guards";
 import {
-  CATEGORY_LABEL,
   formatPoints,
   type AssignmentCategory,
 } from "@/lib/grades";
@@ -95,7 +94,7 @@ export default async function MyHomeworkPage({
                   </Badge>
                 </div>
                 <p className="text-muted-foreground text-sm">
-                  {CATEGORY_LABEL[a.category]} · muddat {formatDate(a.dueDate)}
+                  {a.categoryName} · muddat {formatDate(a.dueDate)}
                   {a.dueDate === today && " (bugun)"} · {a.semesterName}
                 </p>
                 {a.description && (

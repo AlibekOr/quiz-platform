@@ -3,7 +3,6 @@ import type { Prisma } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
 import {
   autoPenalties,
-  CATEGORY_SUM_KEY,
   computeSemesterResult,
   round1,
   isSemesterEnded,
@@ -33,15 +32,27 @@ const semesterSelect = {
   maxTotal: true,
   passPercent: true,
   failBelow: true,
-  homeworkCap: true,
-  practicalCap: true,
-  oralCap: true,
-  group: { select: { id: true, name: true } },
+  extraMode: true,
+  extraBeyondMax: true,
+  categories: {
+    orderBy: { order: "asc" },
+    select: {
+      id: true,
+      name: true,
+      kind: true,
+      cap: true,
+      itemMin: true,
+      itemMax: true,
+      step: true,
+    },
+  },
+  group: { select: { id: true, name: true, code: true } },
   assignments: {
     orderBy: [{ dueDate: "asc" }, { createdAt: "asc" }],
     select: {
       id: true,
       category: true,
+      categoryId: true,
       title: true,
       dueDate: true,
       maxPoints: true,
@@ -76,12 +87,14 @@ export type SemesterInfo = {
   /** Yopilgan yoki oxirgi kuni o'tgan — EXTRA shundan keyin */
   ended: boolean;
   rules: SemesterRules;
-  group: { id: string; name: string };
+  group: { id: string; name: string; code: string | null };
 };
 
 export type AssignmentInfo = {
   id: string;
+  /** Kategoriya turi (SemesterCategory.kind) */
   category: AssignmentCategory;
+  categoryId: string;
   title: string;
   dueDate: DateStr;
   maxPoints: number;
@@ -134,9 +147,9 @@ export function semesterInfo(
       maxTotal: s.maxTotal,
       passPercent: s.passPercent,
       failBelow: s.failBelow,
-      homeworkCap: s.homeworkCap,
-      practicalCap: s.practicalCap,
-      oralCap: s.oralCap,
+      extraMode: s.extraMode,
+      extraBeyondMax: s.extraBeyondMax,
+      categories: s.categories,
     },
     group: s.group,
   };
@@ -230,7 +243,9 @@ async function buildSemester(
         }),
   ]);
 
-  const categoryOf = new Map(assignments.map((a) => [a.id, a.category]));
+  const categoryOf = new Map(assignments.map((a) => [a.id, a.categoryId]));
+  // Og'zaki ballar semestrning ORAL kategoriyasiga (bo'lmasa hisobga kirmaydi)
+  const oralCategory = semester.rules.categories.find((c) => c.kind === "ORAL");
   const assignmentById = new Map(assignments.map((a) => [a.id, a]));
 
   const rows = students.map((st): StudentSemester => {
@@ -272,19 +287,19 @@ async function buildSemester(
       ...ownAuto.map((p) => ({ ...p, auto: true })),
     ].sort((a, b) => b.date.localeCompare(a.date));
 
+    const byCategory: Record<string, number> = {};
+    for (const g of own) {
+      const categoryId = categoryOf.get(g.assignmentId);
+      if (categoryId)
+        byCategory[categoryId] = (byCategory[categoryId] ?? 0) + g.points;
+    }
+    if (oralCategory)
+      byCategory[oralCategory.id] = ownOral.reduce((sum, o) => sum + o.points, 0);
     const sums: PointSums = {
-      homework: 0,
-      practical: 0,
-      oral: ownOral.reduce((sum, o) => sum + o.points, 0),
-      extra: 0,
-      bonus: 0,
+      byCategory,
       adjustments: ownAdj.reduce((sum, a) => sum + a.points, 0),
       penalties: ownPen.reduce((sum, p) => sum + p.points, 0),
     };
-    for (const g of own) {
-      const category = categoryOf.get(g.assignmentId);
-      if (category) sums[CATEGORY_SUM_KEY[category]] += g.points;
-    }
 
     return {
       id: st.id,

@@ -80,6 +80,7 @@ model User {
   teachers           TeacherManager[]  @relation("TeacherManagerManager")
   assignedGroups     ManagerGroup[]    @relation("ManagerGroupAssigner")
   penaltyTypes       PenaltyType[]
+  gradingTemplates   GradingTemplate[]
   ownedTests         Test[]            @relation("TestOwner")
   testShares         TestShare[]
   // O'quvchini kim qo'shgan (menejer guruhsiz o'quvchini faqat o'zi qo'shgan bo'lsa ko'radi)
@@ -289,39 +290,124 @@ model GroupMembership {
 // Semestr bali (PLAN.md, 17-bosqich): har guruhga alohida semestrlar.
 // Jadval nomi eskicha ("Period") — ma'lumot ko'chirilmaydi
 model Semester {
-  id           String            @id @default(cuid())
-  groupId      String
-  group        Group             @relation(fields: [groupId], references: [id], onDelete: Cascade)
-  name         String
-  startDate    DateTime          @db.Date
-  endDate      DateTime          @db.Date
+  id             String             @id @default(cuid())
+  groupId        String
+  group          Group              @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  name           String
+  startDate      DateTime           @db.Date
+  endDate        DateTime           @db.Date
   // O'qituvchi semestrni muddatidan oldin yopishi mumkin (EXTRA shundan keyin qo'yiladi)
-  closed       Boolean           @default(false)
-  maxTotal     Int               @default(60)
+  closed         Boolean            @default(false)
+  // Qaysi shablondan yaratilgan (ma'lumot uchun; qoidalar shu yerdagi nusxadan olinadi)
+  templateId     String?
+  template       GradingTemplate?   @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  categories     SemesterCategory[]
+  extraMode      ExtraMode          @default(AFTER_END_BAND)
+  extraBeyondMax Boolean            @default(false)
+  maxTotal       Int                @default(60)
   // O'tish: jami >= maxTotal * passPercent / 100 (60 dan 36)
-  passPercent  Int               @default(60)
+  passPercent    Int                @default(60)
   // EXTRA'siz jami shundan kam bo'lsa — yiqildi, qo'shimcha imkoniyat yo'q
-  failBelow    Int               @default(10)
-  homeworkCap  Int               @default(30)
-  practicalCap Int               @default(20)
-  oralCap      Int               @default(10)
+  failBelow      Int                @default(10)
+  // Eski ustunlar (ishlatilmaydi): chegaralar endi SemesterCategory.cap da
+  homeworkCap    Int                @default(30)
+  practicalCap   Int                @default(20)
+  oralCap        Int                @default(10)
   // Ishlatilmaydi: qo'shimcha ball chegarasiz (2026-11-06)
-  extraCap     Int               @default(40)
-  assignments  Assignment[]
-  adjustments  PointAdjustment[]
-  penalties    Penalty[]
-  createdAt    DateTime          @default(now())
+  extraCap       Int                @default(40)
+  assignments    Assignment[]
+  adjustments    PointAdjustment[]
+  penalties      Penalty[]
+  createdAt      DateTime           @default(now())
 
   @@unique([groupId, name])
   @@index([groupId, startDate])
   @@map("Period")
 }
 
+// Topshiriq turi = uning semestr kategoriyasining turi (SemesterCategory.kind bilan bir xil;
+// eski kod shu maydon orqali ishlaydi). ASSIGNMENT — o'qituvchi o'zi nomlagan kategoriya
 enum AssignmentCategory {
   HOMEWORK
   PRACTICAL
   EXTRA
   BONUS
+  ASSIGNMENT
+}
+
+// Baholash kategoriyasi turi (ROLES.md §5). HOMEWORK — darsga beriladi, 0 qo'yilsa avtomatik
+// jarima; PRACTICAL — darsga, uyga vazifa o'rnida; ASSIGNMENT — o'qituvchi o'ylab topgan
+// (loyiha, nazorat...); ORAL — davomat varag'ida; EXTRA — qo'shimcha; BONUS
+enum GradeKind {
+  HOMEWORK
+  PRACTICAL
+  ASSIGNMENT
+  ORAL
+  EXTRA
+  BONUS
+}
+
+// Qo'shimcha ball kimga: ANYTIME — istalgan vaqtda, istalgan o'quvchiga;
+// AFTER_END_BAND — semestr tugagach, failBelow <= jami < o'tish bali bo'lganlarga
+enum ExtraMode {
+  ANYTIME
+  AFTER_END_BAND
+}
+
+// O'qituvchining baholash shabloni. Semestr yaratilganda qiymatlari semestrga nusxalanadi
+// (Semester + SemesterCategory) — shablon keyin o'zgarsa, eski semestrlar o'zgarmaydi
+model GradingTemplate {
+  id             String          @id @default(cuid())
+  ownerId        String
+  owner          User            @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  name           String
+  maxTotal       Int
+  passPercent    Int
+  failBelow      Int
+  extraMode      ExtraMode
+  // true — 60 dan faqat qo'shimcha ball hisobiga oshishi mumkin
+  extraBeyondMax Boolean
+  isDefault      Boolean         @default(false)
+  categories     GradeCategory[]
+  semesters      Semester[]
+  createdAt      DateTime        @default(now())
+
+  @@unique([ownerId, name])
+}
+
+model GradeCategory {
+  id         String          @id @default(cuid())
+  templateId String
+  template   GradingTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  name       String
+  kind       GradeKind
+  // Jamiga kiradigan eng ko'p ball; null — chegarasiz
+  cap        Float?
+  // Bitta topshiriq (og'zaki — bitta dars) uchun ball oralig'i va qadami
+  itemMin    Float
+  itemMax    Float
+  step       Float
+  order      Int
+
+  @@unique([templateId, name])
+}
+
+// Semestrdagi kategoriya — shablondan nusxa (snapshot)
+model SemesterCategory {
+  id          String       @id @default(cuid())
+  semesterId  String
+  semester    Semester     @relation(fields: [semesterId], references: [id], onDelete: Cascade)
+  name        String
+  kind        GradeKind
+  cap         Float?
+  itemMin     Float
+  itemMax     Float
+  step        Float
+  order       Int
+  assignments Assignment[]
+
+  @@unique([semesterId, name])
+  @@index([semesterId, order])
 }
 
 // Topshiriq (uyga vazifa, amaliy, qo'shimcha, bonus). O'quvchi saytda hech narsa topshirmaydi:
@@ -332,6 +418,8 @@ model Assignment {
   semesterId  String             @map("periodId")
   semester    Semester           @relation(fields: [semesterId], references: [id], onDelete: Cascade)
   category    AssignmentCategory @default(HOMEWORK)
+  categoryId  String
+  categoryRef SemesterCategory   @relation(fields: [categoryId], references: [id], onDelete: NoAction)
   // Qaysi darsda berilgan (uyga vazifa); eski topshiriqlarda null
   lessonId    String?
   lesson      Lesson?            @relation(fields: [lessonId], references: [id], onDelete: SetNull)

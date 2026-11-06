@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Link from "next/link";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { LockIcon, PencilIcon, PlusIcon, Trash2Icon } from "lucide-react";
@@ -19,12 +20,17 @@ import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { DEFAULT_RULES, passScore, type SemesterRules } from "@/lib/grades";
+import {
+  NativeSelect,
+  NativeSelectOption,
+} from "@/components/ui/native-select";
+import { passScore, rulesSummary, type SemesterRules } from "@/lib/grades";
 import { formatDate, type DateStr } from "@/lib/time";
 import { semesterSchema, type SemesterInput } from "@/lib/validators/grades";
 
@@ -35,17 +41,22 @@ export type SemesterRow = {
   endDate: DateStr;
   closed: boolean;
   ended: boolean;
+  /** Semestrning o'z nusxasi (shablondan) — tahrirlanmaydi */
   rules: SemesterRules;
   assignmentCount: number;
 };
 
-/** Guruh sahifasida: semestrlar ro'yxati, qo'shish, tahrirlash, yopish va o'chirish */
+export type TemplateOption = { id: string; name: string; isDefault: boolean };
+
+/** Guruh sahifasida: semestrlar ro'yxati, qo'shish (shablondan), tahrirlash, yopish, o'chirish */
 export function SemestersSection({
   groupId,
   semesters,
+  templates,
 }: {
   groupId: string;
   semesters: SemesterRow[];
+  templates: TemplateOption[];
 }) {
   const [editing, setEditing] = useState<SemesterRow | "new" | null>(null);
   const [deleting, setDeleting] = useState<SemesterRow | null>(null);
@@ -88,6 +99,9 @@ export function SemestersSection({
                   {s.rules.maxTotal}, o&apos;tish {passScore(s.rules)} ·{" "}
                   {s.assignmentCount} ta topshiriq
                 </span>
+                <span className="text-muted-foreground text-xs">
+                  {rulesSummary(s.rules)}
+                </span>
               </div>
               <div className="flex shrink-0 gap-1">
                 <Button
@@ -121,11 +135,17 @@ export function SemestersSection({
             <DialogTitle>
               {editing === "new" ? "Yangi semestr" : "Semestrni tahrirlash"}
             </DialogTitle>
+            <DialogDescription>
+              {editing === "new"
+                ? "Ball qoidalari tanlangan shablondan semestrga nusxalanadi: shablon keyin o'zgarsa ham bu semestr o'zgarmaydi."
+                : "Ball qoidalari semestr yaratilganda shablondan olingan va o'zgarmaydi."}
+            </DialogDescription>
           </DialogHeader>
           {editing !== null && (
             <SemesterForm
               groupId={groupId}
               semester={editing === "new" ? null : editing}
+              templates={templates}
               onDone={() => setEditing(null)}
             />
           )}
@@ -147,22 +167,15 @@ export function SemestersSection({
   );
 }
 
-const RULE_FIELDS: { name: keyof SemesterRules; label: string }[] = [
-  { name: "maxTotal", label: "Jami ball" },
-  { name: "passPercent", label: "O'tish (%)" },
-  { name: "failBelow", label: "Yiqilish (dan kam)" },
-  { name: "homeworkCap", label: "Uyga vazifa" },
-  { name: "practicalCap", label: "Amaliy" },
-  { name: "oralCap", label: "Og'zaki" },
-];
-
 function SemesterForm({
   groupId,
   semester,
+  templates,
   onDone,
 }: {
   groupId: string;
   semester: SemesterRow | null;
+  templates: TemplateOption[];
   onDone: () => void;
 }) {
   const [pending, startTransition] = useTransition();
@@ -172,14 +185,14 @@ function SemesterForm({
         startDate: semester.startDate,
         endDate: semester.endDate,
         closed: semester.closed,
-        ...semester.rules,
+        templateId: null,
       }
     : {
         name: "",
         startDate: "",
         endDate: "",
         closed: false,
-        ...DEFAULT_RULES,
+        templateId: (templates.find((t) => t.isDefault) ?? templates[0])?.id,
       };
   const form = useForm({
     resolver: zodResolver(semesterSchema),
@@ -251,33 +264,37 @@ function SemesterForm({
         </FormField>
       </div>
 
-      <fieldset className="flex flex-col gap-2">
-        <legend className="mb-2 text-sm font-medium">
-          Ball qoidalari{" "}
-          <span className="text-muted-foreground font-normal">
-            (kategoriya chegaralari)
-          </span>
-        </legend>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-          {RULE_FIELDS.map((f) => (
-            <FormField
-              key={f.name}
-              id={`semester-${f.name}`}
-              label={f.label}
-              error={errors[f.name]?.message}
-            >
-              <Input
-                id={`semester-${f.name}`}
-                type="number"
-                inputMode="numeric"
-                min={0}
-                aria-invalid={!!errors[f.name]}
-                {...form.register(f.name, { valueAsNumber: true })}
-              />
-            </FormField>
-          ))}
-        </div>
-      </fieldset>
+      {semester ? (
+        <p className="text-muted-foreground text-sm">
+          {rulesSummary(semester.rules)}
+        </p>
+      ) : (
+        <FormField
+          id="semester-template"
+          label="Baholash shabloni"
+          error={errors.templateId?.message}
+        >
+          <NativeSelect
+            id="semester-template"
+            aria-invalid={!!errors.templateId}
+            {...form.register("templateId")}
+          >
+            {templates.map((t) => (
+              <NativeSelectOption key={t.id} value={t.id}>
+                {t.name}
+                {t.isDefault ? " (asosiy)" : ""}
+              </NativeSelectOption>
+            ))}
+          </NativeSelect>
+          <Link
+            prefetch={false}
+            href="/teacher/templates"
+            className="text-muted-foreground text-xs underline"
+          >
+            Shablonlarni sozlash
+          </Link>
+        </FormField>
+      )}
 
       <label className="flex items-start gap-2 text-sm">
         <input
@@ -288,9 +305,7 @@ function SemesterForm({
         <span>
           Semestr yopilgan
           <span className="text-muted-foreground block text-xs">
-            Muddatidan oldin yopish. Yopilgach yakuniy holat chiqadi va
-            &quot;Qo&apos;shimcha imkoniyat&quot;dagilarga qo&apos;shimcha ball
-            qo&apos;yish mumkin bo&apos;ladi.
+            Muddatidan oldin yopish. Yopilgach yakuniy holat chiqadi.
           </span>
         </span>
       </label>

@@ -34,11 +34,7 @@ import {
   NativeSelectOption,
 } from "@/components/ui/native-select";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  ASSIGNMENT_CATEGORIES,
-  CATEGORY_LABEL,
-  type AssignmentCategory,
-} from "@/lib/grades";
+import type { AssignmentCategory, SemesterOption } from "@/lib/grades";
 import { defaultHomeworkTitle } from "@/lib/homework";
 import { formatDate, type DateStr } from "@/lib/time";
 import {
@@ -46,12 +42,13 @@ import {
   type AssignmentInput,
 } from "@/lib/validators/grades";
 
-export type SemesterOption = { id: string; name: string };
+export type { SemesterOption };
 
 export type HomeworkRow = {
   id: string;
   semesterId: string;
   category: AssignmentCategory;
+  categoryId: string;
   title: string;
   description: string | null;
   dueDate: DateStr;
@@ -216,10 +213,20 @@ function HomeworkForm({
   onDone: () => void;
 }) {
   const [pending, startTransition] = useTransition();
+  const startSemesterId =
+    homework?.semesterId ??
+    initial?.semesterId ??
+    defaultPeriodId ??
+    periods[0]?.id ??
+    "";
+  const categoriesOf = (semesterId: string) =>
+    periods.find((p) => p.id === semesterId)?.categories ?? [];
+  // Yangi topshiriq odatda uyga vazifa (bo'lmasa — birinchi kategoriya)
+  const startCategories = categoriesOf(startSemesterId);
   const defaultValues: AssignmentInput = homework
     ? {
         semesterId: homework.semesterId,
-        category: homework.category,
+        categoryId: homework.categoryId,
         lessonId: homework.lessonId,
         title: homework.title,
         description: homework.description ?? "",
@@ -227,9 +234,12 @@ function HomeworkForm({
         maxPoints: homework.maxPoints,
       }
     : {
-        semesterId:
-          initial?.semesterId ?? defaultPeriodId ?? periods[0]?.id ?? "",
-        category: "HOMEWORK",
+        semesterId: startSemesterId,
+        categoryId:
+          (
+            startCategories.find((c) => c.kind === "HOMEWORK") ??
+            startCategories[0]
+          )?.id ?? "",
         lessonId: initial?.lessonId ?? null,
         title: initial?.title ?? "",
         description: "",
@@ -242,7 +252,18 @@ function HomeworkForm({
     defaultValues,
   });
   const { errors } = form.formState;
-  const category = useWatch({ control: form.control, name: "category" });
+  const semesterId = useWatch({ control: form.control, name: "semesterId" });
+  const categoryId = useWatch({ control: form.control, name: "categoryId" });
+  const categories = categoriesOf(semesterId);
+  const selected = categories.find((c) => c.id === categoryId);
+  const category = selected?.kind;
+  const defaultTitles = lessonDate
+    ? new Set(
+        periods.flatMap((p) =>
+          p.categories.map((c) => defaultHomeworkTitle(lessonDate, c.name)),
+        ),
+      )
+    : new Set<string>();
   const graded = (homework?.gradedCount ?? 0) > 0;
 
   const onSubmit = form.handleSubmit((values) =>
@@ -266,32 +287,37 @@ function HomeworkForm({
           Dars: {formatDate(lessonDate)}
         </p>
       )}
-      <FormField id="hw-category" label="Turi" error={errors.category?.message}>
+      <FormField
+        id="hw-category"
+        label="Kategoriya"
+        error={errors.categoryId?.message}
+      >
         <NativeSelect
           id="hw-category"
           disabled={graded}
-          aria-invalid={!!errors.category}
-          {...form.register("category", {
-            // Uyga vazifa doim 0 / 0.5 / 1
+          aria-invalid={!!errors.categoryId}
+          {...form.register("categoryId", {
             onChange: (e: React.ChangeEvent<HTMLSelectElement>) => {
-              const next = e.target.value as AssignmentCategory;
-              if (next === "HOMEWORK") form.setValue("maxPoints", 1);
-              // Darsdan berilganda default nom turiga moslanadi ("Amaliy — 11.10")
-              if (
-                lessonDate &&
-                ASSIGNMENT_CATEGORIES.some(
-                  (c) =>
-                    form.getValues("title") ===
-                    defaultHomeworkTitle(lessonDate, c),
-                )
-              )
-                form.setValue("title", defaultHomeworkTitle(lessonDate, next));
+              const next = categories.find((c) => c.id === e.target.value);
+              if (!next) return;
+              // Uyga vazifaning maksimal bali — kategoriyaniki (odatda 1)
+              if (next.kind === "HOMEWORK")
+                form.setValue("maxPoints", next.itemMax);
+              // Darsdan berilganda default nom kategoriyaga moslanadi ("Amaliy — 11.10")
+              if (lessonDate && defaultTitles.has(form.getValues("title")))
+                form.setValue(
+                  "title",
+                  defaultHomeworkTitle(lessonDate, next.name),
+                );
             },
           })}
         >
-          {ASSIGNMENT_CATEGORIES.map((c) => (
-            <NativeSelectOption key={c} value={c}>
-              {CATEGORY_LABEL[c]}
+          <NativeSelectOption value="" disabled>
+            Kategoriyani tanlang
+          </NativeSelectOption>
+          {categories.map((c) => (
+            <NativeSelectOption key={c.id} value={c.id}>
+              {c.name}
             </NativeSelectOption>
           ))}
         </NativeSelect>
@@ -304,9 +330,8 @@ function HomeworkForm({
       )}
       {category === "EXTRA" && (
         <p className="text-muted-foreground -mt-2 text-xs">
-          Qo&apos;shimcha ball alohida loyiha uchun: istalgan darsda, istalgan
-          o&apos;quvchiga, chegarasiz. Jami 60 dan faqat shu ball hisobiga
-          oshadi.
+          Qo&apos;shimcha ball semestr qoidasi bo&apos;yicha qo&apos;yiladi
+          (shablonda belgilangan: kimga va qachon).
         </p>
       )}
       <FormField
@@ -316,8 +341,19 @@ function HomeworkForm({
       >
         <NativeSelect
           id="hw-period"
+          disabled={graded}
           aria-invalid={!!errors.semesterId}
-          {...form.register("semesterId")}
+          {...form.register("semesterId", {
+            // Kategoriyalar semestrga xos: shu turdagisi (bo'lmasa birinchisi) tanlanadi
+            onChange: (e: React.ChangeEvent<HTMLSelectElement>) => {
+              const next = categoriesOf(e.target.value);
+              const same =
+                next.find((c) => c.name === selected?.name) ??
+                next.find((c) => c.kind === selected?.kind) ??
+                next[0];
+              form.setValue("categoryId", same?.id ?? "");
+            },
+          })}
         >
           <NativeSelectOption value="" disabled>
             Semestrni tanlang
@@ -367,7 +403,9 @@ function HomeworkForm({
         {category === "HOMEWORK" ? (
           <div className="flex flex-col gap-2">
             <span className="text-sm font-medium">Ball</span>
-            <span className="text-muted-foreground text-sm">0 / 0,5 / 1</span>
+            <span className="text-muted-foreground text-sm">
+              0 dan {selected?.itemMax ?? 1} gacha
+            </span>
           </div>
         ) : (
           <FormField
@@ -379,7 +417,7 @@ function HomeworkForm({
               id="hw-max"
               type="number"
               min={1}
-              max={100}
+              max={selected?.itemMax ?? 100}
               aria-invalid={!!errors.maxPoints}
               {...form.register("maxPoints", { valueAsNumber: true })}
             />

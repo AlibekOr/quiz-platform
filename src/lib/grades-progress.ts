@@ -1,9 +1,4 @@
-import {
-  CATEGORY_SUM_KEY,
-  computeSemesterResult,
-  EMPTY_SUMS,
-  type PointSums,
-} from "@/lib/grades";
+import { computeSemesterResult } from "@/lib/grades";
 import type { SemesterGrades, StudentSemester } from "@/lib/grades-data";
 import { addDays, weekdayOf, type DateStr } from "@/lib/time";
 
@@ -37,18 +32,23 @@ export function semesterProgress(
   const adjustments = student.adjustments.reduce((s, a) => s + a.points, 0);
 
   return checkpoints(semester.startDate, last).map((date) => {
-    const sums: PointSums = { ...EMPTY_SUMS, adjustments };
+    const byCategory: Record<string, number> = {};
     for (const a of data.assignments) {
       const grade = student.grades[a.id];
       if (grade && a.dueDate <= date)
-        sums[CATEGORY_SUM_KEY[a.category]] += grade.points;
+        byCategory[a.categoryId] = (byCategory[a.categoryId] ?? 0) + grade.points;
     }
-    for (const o of student.oral) if (o.date <= date) sums.oral += o.points;
-    for (const p of student.penalties)
-      if (p.date <= date) sums.penalties += p.points;
+    const oral = semester.rules.categories.find((c) => c.kind === "ORAL");
+    if (oral)
+      byCategory[oral.id] = student.oral
+        .filter((o) => o.date <= date)
+        .reduce((s, o) => s + o.points, 0);
+    const penalties = student.penalties
+      .filter((p) => p.date <= date)
+      .reduce((s, p) => s + p.points, 0);
     const { total } = computeSemesterResult(
       semester.rules,
-      sums,
+      { byCategory, adjustments, penalties },
       semester.ended,
     );
     return { date, total };

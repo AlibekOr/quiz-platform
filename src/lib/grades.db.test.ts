@@ -8,6 +8,7 @@ import {
 } from "./grades-data";
 import { moveStudent } from "./memberships-data";
 import { addDays, toDbDate, todayInTashkent } from "./time";
+import { categoryIdOf, standardCategories } from "@/test/grading";
 
 // Sanalar bugungi kunga nisbatan: davom etayotgan va tugagan semestrlar
 const today = todayInTashkent();
@@ -40,6 +41,7 @@ async function semester(gid: string, from: number, to: number, closed = false) {
   return (
     await db.semester.create({
       data: {
+        categories: standardCategories,
         groupId: gid,
         name: `S${from}`,
         startDate: day(from),
@@ -60,6 +62,7 @@ async function assignment(
       data: {
         semesterId,
         category,
+        categoryId: await categoryIdOf(semesterId, category),
         title: `${category}-${Math.random().toString(36).slice(2, 6)}`,
         dueDate: day(-5),
         maxPoints,
@@ -138,14 +141,16 @@ describe("getSemesterGrades", () => {
 
     const data = await getSemesterGrades(sid);
     const a = data!.students[0];
-    expect(a.result.categories.HOMEWORK.earned).toBe(1.5);
-    expect(a.result.categories.PRACTICAL).toEqual({
+    const byKind = (kind: string) =>
+      a.result.categories.find((c) => c.kind === kind)!;
+    expect(byKind("HOMEWORK").earned).toBe(1.5);
+    expect(byKind("PRACTICAL")).toMatchObject({
       earned: 24,
       cap: 20,
       counted: 20,
     });
-    expect(a.result.categories.ORAL.earned).toBe(1.5);
-    expect(a.result.categories.BONUS.earned).toBe(3);
+    expect(byKind("ORAL").earned).toBe(1.5);
+    expect(byKind("BONUS").earned).toBe(3);
     expect(a.result.adjustments).toBe(2.5);
     // 1.5 + 20 + 1.5 + 3 + 2.5
     expect(a.result.total).toBe(28.5);

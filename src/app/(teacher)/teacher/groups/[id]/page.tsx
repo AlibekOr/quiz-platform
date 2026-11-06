@@ -11,6 +11,7 @@ import { requireTeacherScope } from "@/lib/auth/staff";
 import { semesterInfo } from "@/lib/grades-data";
 import { groupLabel } from "@/lib/group-label";
 import { db } from "@/lib/db";
+import { getTemplateOptions } from "@/lib/templates";
 import { formatSchedule } from "@/lib/time";
 
 export const metadata: Metadata = { title: "Guruh" };
@@ -18,7 +19,7 @@ export const metadata: Metadata = { title: "Guruh" };
 export default async function GroupPage({
   params,
 }: PageProps<"/teacher/groups/[id]">) {
-  const { scope } = await requireTeacherScope();
+  const { user, scope } = await requireTeacherScope();
   const { id } = await params;
 
   // Boshqa o'qituvchining guruhi — 404 (borligi ham bilinmaydi)
@@ -48,16 +49,28 @@ export default async function GroupPage({
           maxTotal: true,
           passPercent: true,
           failBelow: true,
-          homeworkCap: true,
-          practicalCap: true,
-          oralCap: true,
-          group: { select: { id: true, name: true } },
+          extraMode: true,
+          extraBeyondMax: true,
+          categories: {
+            orderBy: { order: "asc" },
+            select: {
+              id: true,
+              name: true,
+              kind: true,
+              cap: true,
+              itemMin: true,
+              itemMax: true,
+              step: true,
+            },
+          },
+          group: { select: { id: true, name: true, code: true } },
           _count: { select: { assignments: true } },
         },
       },
     },
   });
   if (!group) notFound();
+  const templates = await getTemplateOptions(user.id);
 
   return (
     <>
@@ -139,6 +152,7 @@ export default async function GroupPage({
         <section className="rounded-lg border p-4 lg:col-span-2">
           <SemestersSection
             groupId={group.id}
+            templates={templates}
             semesters={group.semesters.map(({ _count, ...s }) => {
               const info = semesterInfo(s);
               return {

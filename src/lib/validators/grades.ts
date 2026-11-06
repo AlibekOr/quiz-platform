@@ -37,6 +37,7 @@ const intField = (min: number, max: number) =>
     .min(min, `Kamida ${min}`)
     .max(max, `Ko'pi bilan ${max}`);
 
+/** Semestr: qoidalar shablondan nusxalanadi (yaratishda templateId majburiy — serverda) */
 export const semesterSchema = z
   .object({
     name: z
@@ -47,12 +48,12 @@ export const semesterSchema = z
     startDate: dateSchema,
     endDate: dateSchema,
     closed: z.boolean(),
-    maxTotal: intField(1, 1000),
-    passPercent: intField(1, 100),
-    failBelow: intField(0, 1000),
-    homeworkCap: intField(0, 1000),
-    practicalCap: intField(0, 1000),
-    oralCap: intField(0, 1000),
+    /** Faqat yaratishda: qaysi shablondan */
+    templateId: z
+      .string()
+      .max(64)
+      .nullish()
+      .transform((v) => v || null),
   })
   .superRefine((s, ctx) => {
     if (s.endDate < s.startDate)
@@ -61,28 +62,126 @@ export const semesterSchema = z
         path: ["endDate"],
         message: "Tugash sanasi boshlanishdan oldin bo'lmasin",
       });
-    if (s.failBelow > (s.maxTotal * s.passPercent) / 100)
-      ctx.addIssue({
-        code: "custom",
-        path: ["failBelow"],
-        message: "O'tish balidan katta bo'lmasin",
-      });
   });
 export type SemesterInput = z.input<typeof semesterSchema>;
 
-export const ASSIGNMENT_CATEGORY_VALUES = [
+export const GRADE_KIND_VALUES = [
   "HOMEWORK",
   "PRACTICAL",
+  "ASSIGNMENT",
+  "ORAL",
   "EXTRA",
   "BONUS",
 ] as const;
 
-/** HOMEWORK uchun maxPoints doim 1 — server o'zi qo'yadi */
+/** Bir shablonda bittadan bo'ladigan turlar */
+const SINGLE_KIND_VALUES: readonly string[] = [
+  "HOMEWORK",
+  "PRACTICAL",
+  "ORAL",
+  "EXTRA",
+  "BONUS",
+];
+
+const decimalField = (min: number, max: number) =>
+  z
+    .number({ error: "Son kiriting" })
+    .min(min, `Kamida ${min}`)
+    .max(max, `Ko'pi bilan ${max}`)
+    .refine((v) => Number.isInteger(v * 2), "Butun son yoki .5");
+
+export const categorySchema = z
+  .object({
+    name: z
+      .string()
+      .trim()
+      .min(1, "Nomini kiriting")
+      .max(40, "40 belgidan oshmasin"),
+    kind: z.enum(GRADE_KIND_VALUES, { error: "Turini tanlang" }),
+    /** null — chegarasiz */
+    cap: decimalField(0, 1000).nullable(),
+    itemMin: decimalField(0, 100),
+    /** Topshiriq maksimal bali butun son (Assignment.maxPoints) */
+    itemMax: intField(1, 100),
+    step: z
+      .number({ error: "Qadamni tanlang" })
+      .refine((v) => v === 0.5 || v === 1, "Qadam 0,5 yoki 1"),
+  })
+  .superRefine((c, ctx) => {
+    if (c.itemMin > c.itemMax)
+      ctx.addIssue({
+        code: "custom",
+        path: ["itemMin"],
+        message: "Eng kam ball eng ko'pdan katta bo'lmasin",
+      });
+    // Og'zaki davomat varag'ida 0 / 0,5 / 1 tugmalari bilan qo'yiladi
+    if (c.kind === "ORAL" && (c.itemMin !== 0 || c.itemMax !== 1 || c.step !== 0.5))
+      ctx.addIssue({
+        code: "custom",
+        path: ["itemMax"],
+        message: "Og'zaki: har darsda 0 / 0,5 / 1",
+      });
+    if (!Number.isInteger((c.itemMax - c.itemMin) / c.step))
+      ctx.addIssue({
+        code: "custom",
+        path: ["step"],
+        message: "Oraliq qadamga bo'linsin",
+      });
+  });
+
+/** Baholash shabloni (ROLES.md §5): failBelow < o'tish bali <= maxTotal */
+export const templateSchema = z
+  .object({
+    name: z
+      .string()
+      .trim()
+      .min(1, "Nomini kiriting")
+      .max(60, "Nom 60 belgidan oshmasin"),
+    maxTotal: intField(1, 1000),
+    passPercent: intField(1, 100),
+    failBelow: intField(0, 1000),
+    extraMode: z.enum(["ANYTIME", "AFTER_END_BAND"]),
+    extraBeyondMax: z.boolean(),
+    isDefault: z.boolean(),
+    categories: z
+      .array(categorySchema)
+      .min(1, "Kamida bitta kategoriya")
+      .max(20, "Ko'pi bilan 20 ta kategoriya"),
+  })
+  .superRefine((t, ctx) => {
+    if (t.failBelow >= (t.maxTotal * t.passPercent) / 100)
+      ctx.addIssue({
+        code: "custom",
+        path: ["failBelow"],
+        message: "O'tish balidan kichik bo'lsin",
+      });
+    const names = new Set<string>();
+    const kinds = new Set<string>();
+    t.categories.forEach((c, i) => {
+      const key = c.name.trim().toLowerCase();
+      if (names.has(key))
+        ctx.addIssue({
+          code: "custom",
+          path: ["categories", i, "name"],
+          message: "Nom takrorlanmasin",
+        });
+      names.add(key);
+      if (SINGLE_KIND_VALUES.includes(c.kind) && kinds.has(c.kind))
+        ctx.addIssue({
+          code: "custom",
+          path: ["categories", i, "kind"],
+          message: "Bu turdan bitta bo'ladi",
+        });
+      kinds.add(c.kind);
+    });
+  });
+export type TemplateInput = z.input<typeof templateSchema>;
+export type TemplateData = z.output<typeof templateSchema>;
+
+/** Kategoriya — semestr kategoriyasi (turi undan olinadi). Uyga vazifada maxPoints — kategoriyaniki */
 export const assignmentSchema = z.object({
   semesterId: selectedId("Semestrni tanlang"),
-  category: z.enum(ASSIGNMENT_CATEGORY_VALUES, {
-    error: "Turini tanlang",
-  }),
+  categoryId: selectedId("Kategoriyani tanlang"),
   /** Qaysi darsda berilgan (ixtiyoriy) — dars semestr guruhida bo'lishi serverda tekshiriladi */
   lessonId: z
     .string()

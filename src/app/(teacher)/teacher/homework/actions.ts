@@ -13,7 +13,9 @@ import { db } from "@/lib/db";
 import {
   formatPoints,
   isValidPoints,
+  passScore,
   type AssignmentCategory,
+  type GradeKind,
 } from "@/lib/grades";
 import { getSemesterGrades } from "@/lib/grades-data";
 import { lessonMismatch, lessonTaskMismatch } from "@/lib/homework-data";
@@ -68,9 +70,45 @@ async function semesterMissing(
     ? {
         ok: false,
         error: "Maydonlarni tekshiring",
-        fieldErrors: { category: [conflict] },
+        fieldErrors: { categoryId: [conflict] },
       }
     : null;
+}
+
+type CategoryRuleRow = {
+  kind: GradeKind;
+  itemMin: number;
+  itemMax: number;
+  step: number;
+};
+
+/** Semestrning topshiriq kategoriyasi (og'zaki emas) */
+async function semesterCategory(
+  semesterId: string,
+  categoryId: string,
+): Promise<CategoryRuleRow | null> {
+  return db.semesterCategory.findFirst({
+    where: { id: categoryId, semesterId, kind: { not: "ORAL" } },
+    select: { kind: true, itemMin: true, itemMax: true, step: true },
+  });
+}
+
+const categoryMissing: ActionResult = {
+  ok: false,
+  error: "Maydonlarni tekshiring",
+  fieldErrors: { categoryId: ["Kategoriya topilmadi"] },
+};
+
+function maxPointsError(
+  rule: CategoryRuleRow,
+  maxPoints: number,
+): ActionResult | null {
+  if (rule.kind === "HOMEWORK" || maxPoints <= rule.itemMax) return null;
+  return {
+    ok: false,
+    error: "Maydonlarni tekshiring",
+    fieldErrors: { maxPoints: [`Ko'pi bilan ${rule.itemMax}`] },
+  };
 }
 
 /** Topshiriq doiradagi guruh semestriga tegishlimi */
@@ -85,13 +123,17 @@ async function assignmentInScope(scope: Scope, id: string): Promise<boolean> {
   );
 }
 
-/** Uyga vazifa doim 0 / 0.5 / 1 — maksimal ball 1 */
-function assignmentData(input: z.output<typeof assignmentSchema>) {
+/** Turi kategoriyadan; uyga vazifaning maksimal bali — kategoriyaniki (odatda 1) */
+function assignmentData(
+  input: z.output<typeof assignmentSchema>,
+  rule: CategoryRuleRow,
+) {
   const { dueDate, maxPoints, ...rest } = input;
   return {
     ...rest,
+    category: rule.kind as AssignmentCategory,
     dueDate: toDbDate(dueDate),
-    maxPoints: rest.category === "HOMEWORK" ? 1 : maxPoints,
+    maxPoints: rule.kind === "HOMEWORK" ? rule.itemMax : maxPoints,
   };
 }
 
@@ -103,16 +145,22 @@ export async function createAssignment(
   if (!parsed.success) return validationFailed(parsed.error);
   if (!(await semesterGroupInScope(scope, parsed.data.semesterId)))
     return FORBIDDEN;
+  const rule = await semesterCategory(
+    parsed.data.semesterId,
+    parsed.data.categoryId,
+  );
+  if (!rule) return categoryMissing;
+  const tooMuch = maxPointsError(rule, parsed.data.maxPoints);
+  if (tooMuch) return tooMuch;
+  const data = assignmentData(parsed.data, rule);
 
   const missing = await semesterMissing(
-    parsed.data.semesterId,
-    parsed.data.lessonId,
-    parsed.data.category,
+    data.semesterId,
+    data.lessonId,
+    data.category,
   );
   if (missing) return missing;
-  await db.assignment.create({
-    data: { ...assignmentData(parsed.data), createdById: teacher.id },
-  });
+  await db.assignment.create({ data: { ...data, createdById: teacher.id } });
   revalidate();
   return { ok: true, message: "Topshiriq qo'shildi" };
 }
@@ -125,12 +173,19 @@ export async function updateAssignment(
   const id = idSchema.parse(assignmentId);
   const parsed = assignmentSchema.safeParse(input);
   if (!parsed.success) return validationFailed(parsed.error);
-  const data = assignmentData(parsed.data);
   if (
     !(await assignmentInScope(scope, id)) ||
-    !(await semesterGroupInScope(scope, data.semesterId))
+    !(await semesterGroupInScope(scope, parsed.data.semesterId))
   )
     return FORBIDDEN;
+  const rule = await semesterCategory(
+    parsed.data.semesterId,
+    parsed.data.categoryId,
+  );
+  if (!rule) return categoryMissing;
+  const tooMuch = maxPointsError(rule, parsed.data.maxPoints);
+  if (tooMuch) return tooMuch;
+  const data = assignmentData(parsed.data, rule);
 
   const missing = await semesterMissing(
     data.semesterId,
@@ -141,16 +196,18 @@ export async function updateAssignment(
   if (missing) return missing;
   const current = await db.assignment.findUnique({
     where: { id },
-    select: { category: true, _count: { select: { grades: true } } },
+    select: { categoryId: true, _count: { select: { grades: true } } },
   });
   if (!current) return { ok: false, error: "Topshiriq topilmadi" };
-  // Ball qo'yilgan topshiriqning turi o'zgarsa, ballar boshqa kategoriyaga o'tib ketadi
-  if (current.category !== data.category && current._count.grades > 0)
+  // Ball qo'yilgan topshiriqning kategoriyasi o'zgarsa, ballar boshqa kategoriyaga o'tib ketadi
+  if (current.categoryId !== data.categoryId && current._count.grades > 0)
     return {
       ok: false,
       error: "Maydonlarni tekshiring",
       fieldErrors: {
-        category: ["Ball qo'yilgan topshiriqning turini o'zgartirib bo'lmaydi"],
+        categoryId: [
+          "Ball qo'yilgan topshiriqning kategoriyasini o'zgartirib bo'lmaydi",
+        ],
       },
     };
   // Maksimal ball kamaytirilsa, undan katta qo'yilgan ballar qolmasin
@@ -195,15 +252,16 @@ export async function deleteAssignment(
   return { ok: true, message: "Topshiriq o'chirildi" };
 }
 
-function pointsRule(category: AssignmentCategory, maxPoints: number): string {
-  return category === "HOMEWORK"
-    ? "Uyga vazifa bali faqat 0, 0.5 yoki 1"
-    : `Ball 0 dan ${formatPoints(maxPoints)} gacha, 0.5 qadam bilan`;
+function pointsRule(rule: CategoryRuleRow, maxPoints: number): string {
+  const max =
+    rule.kind === "HOMEWORK" ? rule.itemMax : Math.min(maxPoints, rule.itemMax);
+  return `Ball ${formatPoints(rule.itemMin)} dan ${formatPoints(max)} gacha, ${formatPoints(rule.step)} qadam bilan`;
 }
 
 /**
  * Ballarni saqlash: bo'sh qator — baho o'chiriladi. Faqat semestr ichida guruhda bo'lgan
- * o'quvchilarga. EXTRA (qo'shimcha) — istalgan vaqtda, istalgan o'quvchiga
+ * o'quvchilarga. EXTRA (qo'shimcha) — semestr qoidasi bo'yicha: ANYTIME — istalgan
+ * o'quvchiga, AFTER_END_BAND — semestr tugagach, failBelow ≤ jami < o'tish bo'lganlarga
  */
 export async function saveAssignmentGrades(
   assignmentId: string,
@@ -217,18 +275,24 @@ export async function saveAssignmentGrades(
 
   const assignment = await db.assignment.findUnique({
     where: { id },
-    select: { category: true, maxPoints: true, semesterId: true },
+    select: {
+      maxPoints: true,
+      semesterId: true,
+      categoryRef: {
+        select: { kind: true, itemMin: true, itemMax: true, step: true },
+      },
+    },
   });
   if (!assignment) return { ok: false, error: "Topshiriq topilmadi" };
-  const { category, maxPoints, semesterId } = assignment;
+  const { categoryRef: rule, maxPoints, semesterId } = assignment;
 
   const rows = parsed.data.grades;
   if (
     rows.some(
-      (r) => r.points !== null && !isValidPoints(category, r.points, maxPoints),
+      (r) => r.points !== null && !isValidPoints(rule, r.points, maxPoints),
     )
   )
-    return { ok: false, error: pointsRule(category, maxPoints) };
+    return { ok: false, error: pointsRule(rule, maxPoints) };
 
   const ids = [...new Set(rows.map((r) => r.studentId))];
   const sheet = await getSemesterGrades(semesterId, ids);
@@ -238,6 +302,21 @@ export async function saveAssignmentGrades(
       error:
         "Ba'zi o'quvchilar bu semestrda guruhda bo'lmagan. Sahifani yangilang",
     };
+
+  if (rule.kind === "EXTRA") {
+    const denied = sheet.students.filter(
+      (s) =>
+        !s.result.canReceiveExtra &&
+        rows.some((r) => r.studentId === s.id && r.points !== null),
+    );
+    if (denied.length > 0)
+      return {
+        ok: false,
+        error: sheet.semester.ended
+          ? `Qo'shimcha ball faqat ${sheet.semester.rules.failBelow} ≤ jami < ${formatPoints(passScore(sheet.semester.rules))} bo'lganlarga: ${denied.map((s) => s.fullName).join(", ")}`
+          : "Qo'shimcha ball faqat semestr tugagandan keyin qo'yiladi",
+      };
+  }
 
   const toDelete = rows
     .filter((r) => r.points === null)

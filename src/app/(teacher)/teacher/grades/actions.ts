@@ -11,6 +11,7 @@ import {
 } from "@/lib/auth/scope";
 import { requireTeacherScope } from "@/lib/auth/staff";
 import { db } from "@/lib/db";
+import { createSemesterFromTemplate } from "@/lib/templates";
 import { isNotFound, isUniqueViolation } from "@/lib/prisma-errors";
 import { toDbDate } from "@/lib/time";
 import {
@@ -64,12 +65,13 @@ async function overlapError(
   };
 }
 
+/** Tahrirlashda faqat nom, sanalar va yopilganlik (qoidalar — shablon nusxasi, o'zgarmaydi) */
 function semesterData(input: z.output<typeof semesterSchema>) {
-  const { startDate, endDate, ...rest } = input;
   return {
-    ...rest,
-    startDate: toDbDate(startDate),
-    endDate: toDbDate(endDate),
+    name: input.name,
+    closed: input.closed,
+    startDate: toDbDate(input.startDate),
+    endDate: toDbDate(input.endDate),
   };
 }
 
@@ -77,7 +79,7 @@ export async function createSemester(
   groupId: string,
   input: SemesterInput,
 ): Promise<ActionResult> {
-  const { scope } = await requireTeacherScope();
+  const { user, scope } = await requireTeacherScope();
   const gid = idSchema.parse(groupId);
   const parsed = semesterSchema.safeParse(input);
   if (!parsed.success) return validationFailed(parsed.error);
@@ -87,10 +89,24 @@ export async function createSemester(
     return { ok: false, error: "Guruh topilmadi" };
   const overlap = await overlapError(gid, parsed.data);
   if (overlap) return overlap;
+  const templateMissing: ActionResult = {
+    ok: false,
+    error: "Maydonlarni tekshiring",
+    fieldErrors: { templateId: ["Shablonni tanlang"] },
+  };
+  if (!parsed.data.templateId) return templateMissing;
   try {
-    await db.semester.create({
-      data: { groupId: gid, ...semesterData(parsed.data) },
+    // Qoidalar o'qituvchining shablonidan semestrga nusxalanadi
+    const created = await createSemesterFromTemplate({
+      groupId: gid,
+      ownerId: user.id,
+      templateId: parsed.data.templateId,
+      name: parsed.data.name,
+      startDate: parsed.data.startDate,
+      endDate: parsed.data.endDate,
+      closed: parsed.data.closed,
     });
+    if (!created.ok) return templateMissing;
   } catch (e) {
     if (isUniqueViolation(e)) return nameTaken;
     throw e;

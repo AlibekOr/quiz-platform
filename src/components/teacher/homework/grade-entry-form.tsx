@@ -8,7 +8,7 @@ import { applyServerErrors } from "@/components/common/form-errors";
 import { FormError } from "@/components/common/form-field";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import type { AssignmentCategory } from "@/lib/grades";
+import { formatPoints } from "@/lib/grades";
 import { cn } from "@/lib/utils";
 import type { AssignmentGradesInput } from "@/lib/validators/grades";
 
@@ -21,26 +21,25 @@ export type GradeEntryRow = {
   note: string | null;
 };
 
-const HOMEWORK_POINTS = [
-  { value: "0", label: "0" },
-  { value: "0.5", label: "0,5" },
-  { value: "1", label: "1" },
-] as const;
-
 /**
- * Ball qo'yish ro'yxati: telefonda bir ustunli. Uyga vazifa — 0 / 0,5 / 1 tugmalari
- * (qayta bosilsa olib tashlanadi), qolganlari — 0..maxPoints, 0,5 qadam. Qiymatlar serverda
- * kategoriya bo'yicha tekshiriladi
+ * Ball qo'yish ro'yxati: telefonda bir ustunli. Qiymatlar kam bo'lsa (masalan, uyga vazifa
+ * 0 / 0,5 / 1) — tugmalar (qayta bosilsa olib tashlanadi), aks holda son maydoni. Oraliq va
+ * qadam semestr kategoriyasidan; qiymatlar serverda ham tekshiriladi
  */
 export function GradeEntryForm({
   assignmentId,
-  category,
+  choices,
+  min,
   maxPoints,
+  step,
   rows,
 }: {
   assignmentId: string;
-  category: AssignmentCategory;
+  /** Tugmalar uchun qiymatlar (lib/grades.ts pointChoices); null — son maydoni */
+  choices: number[] | null;
+  min: number;
   maxPoints: number;
+  step: number;
   rows: GradeEntryRow[];
 }) {
   const [pending, startTransition] = useTransition();
@@ -86,24 +85,25 @@ export function GradeEntryForm({
               )}
             </div>
             <div className="flex flex-wrap gap-2">
-              {category === "HOMEWORK" ? (
+              {choices ? (
                 <div
                   role="radiogroup"
                   aria-label={`${r.fullName}: ball`}
                   className="flex gap-1"
                 >
-                  {HOMEWORK_POINTS.map((p) => {
-                    const checked = grades[i]?.points === p.value;
+                  {choices.map((value) => {
+                    const text = String(value);
+                    const checked = grades[i]?.points === text;
                     return (
                       <button
-                        key={p.value}
+                        key={text}
                         type="button"
                         role="radio"
                         aria-checked={checked}
                         onClick={() =>
                           form.setValue(
                             `grades.${i}.points`,
-                            checked ? "" : p.value,
+                            checked ? "" : text,
                             { shouldDirty: true },
                           )
                         }
@@ -113,7 +113,7 @@ export function GradeEntryForm({
                             "border-primary bg-primary text-primary-foreground hover:bg-primary/90",
                         )}
                       >
-                        {p.label}
+                        {formatPoints(value)}
                       </button>
                     );
                   })}
@@ -123,9 +123,9 @@ export function GradeEntryForm({
                   <Input
                     type="number"
                     inputMode="decimal"
-                    min={0}
+                    min={min}
                     max={maxPoints}
-                    step={0.5}
+                    step={step}
                     className="w-20 text-right tabular-nums"
                     aria-label={`${r.fullName}: ball`}
                     {...form.register(`grades.${i}.points`)}

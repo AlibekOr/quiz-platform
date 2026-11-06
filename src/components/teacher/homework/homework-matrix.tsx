@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { CATEGORY_LABEL, formatPoints } from "@/lib/grades";
+import { formatPoints } from "@/lib/grades";
 import type { SemesterGrades } from "@/lib/grades-data";
 import { homeworkStatus } from "@/lib/homework";
 import { departureLabel } from "@/lib/memberships";
@@ -18,6 +18,9 @@ export function HomeworkMatrix({
   today: DateStr;
 }) {
   const items = data.assignments.filter((a) => a.category !== "EXTRA");
+  const categoryName = new Map(
+    data.semester.rules.categories.map((c) => [c.id, c.name]),
+  );
   if (items.length === 0)
     return (
       <p className="text-muted-foreground">
@@ -46,7 +49,7 @@ export function HomeworkMatrix({
                   className="min-w-16 px-1.5 py-2 text-center align-top font-medium"
                 >
                   <span className="text-muted-foreground block text-xs font-normal">
-                    {CATEGORY_LABEL[a.category]}
+                    {(categoryName.get(a.categoryId) ?? "")}
                   </span>
                   <Link
                     prefetch={false}
