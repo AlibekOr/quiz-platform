@@ -1,6 +1,11 @@
-import { BookOpenCheckIcon, TriangleAlertIcon } from "lucide-react";
+import {
+  BookOpenCheckIcon,
+  ChevronDownIcon,
+  TriangleAlertIcon,
+} from "lucide-react";
 import type { HomeworkPrefill } from "@/lib/homework-data";
 import { formatDate } from "@/lib/time";
+import { DismissButton, DismissibleNotice } from "./dismissible-notice";
 import { AddHomeworkButton } from "./homework-controls";
 
 function GiveButton({ p, label }: { p: HomeworkPrefill; label: string }) {
@@ -49,26 +54,36 @@ export function MissingHomeworkList({
   lessons: HomeworkPrefill[];
 }) {
   if (lessons.length === 0) return null;
+  const ids = lessons.map((l) => l.lessonId);
   return (
-    <section className="flex flex-col gap-2 rounded-lg border border-amber-500/50 bg-amber-500/10 p-3">
-      <h2 className="flex items-center gap-2 text-sm font-semibold">
-        <TriangleAlertIcon className="size-4 text-amber-600" />
-        Uyga vazifa yoki amaliy berilmagan darslar
-      </h2>
-      <ul className="flex flex-col divide-y divide-amber-500/20 text-sm">
-        {lessons.map((l) => (
-          <li
-            key={l.lessonId}
-            className="flex items-center justify-between gap-2 py-1.5"
-          >
-            <span>
-              <span className="font-medium">{l.groupName}</span> ·{" "}
-              {formatDate(l.lessonDate)}
-            </span>
-            <GiveButton p={l} label="Berish" />
-          </li>
-        ))}
-      </ul>
-    </section>
+    <DismissibleNotice ids={ids}>
+      <details className="group rounded-lg border border-amber-500/50 bg-amber-500/10 p-3">
+        <summary className="flex cursor-pointer list-none items-center gap-2 text-sm font-semibold select-none [&::-webkit-details-marker]:hidden">
+          <TriangleAlertIcon className="size-4 shrink-0 text-amber-600" />
+          <span className="flex-1">
+            Uyga vazifa yoki amaliy berilmagan darslar
+          </span>
+          <span className="rounded-full bg-amber-500/20 px-2 py-0.5 text-xs tabular-nums">
+            {lessons.length}
+          </span>
+          <ChevronDownIcon className="text-muted-foreground size-4 shrink-0 transition-transform group-open:rotate-180" />
+          <DismissButton ids={ids} />
+        </summary>
+        <ul className="mt-2 flex flex-col divide-y divide-amber-500/20 text-sm">
+          {lessons.map((l) => (
+            <li
+              key={l.lessonId}
+              className="flex items-center justify-between gap-2 py-1.5"
+            >
+              <span>
+                <span className="font-medium">{l.groupName}</span> ·{" "}
+                {formatDate(l.lessonDate)}
+              </span>
+              <GiveButton p={l} label="Berish" />
+            </li>
+          ))}
+        </ul>
+      </details>
+    </DismissibleNotice>
   );
 }
