@@ -4,7 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "prisma generate && prisma migrate deploy && next build",
+    "build": "prisma generate && pnpm migrate:build && next build",
+    "migrate:build": "if [ \"$VERCEL_ENV\" = \"preview\" ]; then echo 'Preview build: skipping prisma migrate deploy'; else prisma migrate deploy; fi",
     "start": "next start",
     "lint": "eslint",
     "typecheck": "next typegen && tsc --noEmit",
