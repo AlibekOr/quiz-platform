@@ -26,6 +26,8 @@ import {
   UsersIcon,
   UsersRoundIcon,
   type LucideIcon,
+  SirenIcon,
+  TriangleAlertIcon,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -92,6 +94,12 @@ const MENUS: Record<NavVariant, { main: MenuItem[]; footer: MenuLink[] }> = {
       { href: "/teacher/groups", label: "Guruhlar", icon: UsersRoundIcon },
       { href: "/teacher/students", label: "O'quvchilar", icon: UsersIcon },
       {
+        href: "/teacher/risk",
+        label: "Xavf ostidagilar",
+        icon: TriangleAlertIcon,
+        exact: true,
+      },
+      {
         id: "attendance",
         label: "Davomat",
         icon: CalendarCheckIcon,
@@ -143,6 +151,11 @@ const MENUS: Record<NavVariant, { main: MenuItem[]; footer: MenuLink[] }> = {
             href: "/teacher/templates",
             label: "Baholash shablonlari",
             icon: SlidersHorizontalIcon,
+          },
+          {
+            href: "/teacher/risk/settings",
+            label: "Xavf sozlamalari",
+            icon: SirenIcon,
           },
           {
             href: "/teacher/penalties",

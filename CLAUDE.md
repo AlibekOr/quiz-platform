@@ -28,7 +28,7 @@ src/
     (student)/dashboard/  test/[id]/  result/[attemptId]/  leaderboard/  grades/  homework/  tests/leaderboard/
     (teacher)/teacher/tests/  teacher/students/  teacher/groups/  teacher/attendance/  teacher/attendance/report/
     (teacher)/teacher/homework/  teacher/grades/  teacher/penalties/  teacher/managers/  teacher/requests/  teacher/archive/
-    (teacher)/teacher/templates/  teacher/semesters/
+    (teacher)/teacher/templates/  teacher/semesters/  teacher/risk/  teacher/risk/settings/
     (manager)/manager/  manager/students/  manager/attendance/  manager/requests/  manager/tests/
     (admin)/admin/  admin/regions/  admin/teachers/  admin/managers/  admin/groups/  admin/students/  admin/tests/
     api/admin/stats/route.ts
@@ -51,6 +51,7 @@ src/
     homework.ts         # topshiriqlar; homework-data.ts. penalties.ts — jarima shablonlari
     nav.ts              # yon panel mantig'i; clock.ts — soat siferblati (vaqt tanlash)
     memberships.ts      # guruh a'zoligi davrlari; memberships-data.ts
+    risk.ts             # xavf signallari (sof); risk-data.ts — doira bo'yicha ro'yxat (menejerga ball signallari yo'q)
     validators/         # Zod sxemalar
   proxy.ts
 prisma/

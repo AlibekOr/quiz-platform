@@ -1,10 +1,12 @@
 import "server-only";
 import ExcelJS from "exceljs";
 import type { Prisma } from "@/generated/prisma/client";
+import type { Scope } from "@/lib/auth/scope";
 import { computeStats } from "@/lib/attendance";
 import { db } from "@/lib/db";
 import { currentSemesterId, getSemesterGrades } from "@/lib/grades-data";
 import { getMissingHomeworkLessons } from "@/lib/homework-data";
+import { getRiskRows } from "@/lib/risk-data";
 import { addDays, toDbDate, todayInTashkent } from "@/lib/time";
 
 // ADMIN statistikasi (ROLES.md §6): o'qituvchilar bo'yicha. "O'tayotgan / qo'shimcha /
@@ -25,6 +27,8 @@ export type TeacherStats = {
   failing: number;
   /** Oxirgi 14 kunda uyga vazifa ham, amaliy ham berilmagan darslar */
   missingHomework: number;
+  /** Xavf ostidagi o'quvchilar (ko'rib chiqilmaganlar) */
+  atRisk: number;
 };
 
 export async function getTeacherStats(filter: {
@@ -55,7 +59,14 @@ export async function getTeacherStats(filter: {
   return Promise.all(
     teachers.map(async (t): Promise<TeacherStats> => {
       const groupIds = t.taughtGroups.map((g) => g.id);
-      const [students, marks, missing, semesters] = await Promise.all([
+      const teacherScope: Scope = {
+        kind: "limited",
+        userId: t.id,
+        role: "TEACHER",
+        groupIds,
+        creatorIds: [t.id],
+      };
+      const [students, marks, missing, semesters, risk] = await Promise.all([
         db.user.count({
           where: {
             role: "STUDENT",
@@ -75,14 +86,9 @@ export async function getTeacherStats(filter: {
           },
           select: { status: true },
         }),
-        getMissingHomeworkLessons({
-          kind: "limited",
-          userId: t.id,
-          role: "TEACHER",
-          groupIds,
-          creatorIds: [t.id],
-        }),
+        getMissingHomeworkLessons(teacherScope),
         Promise.all(groupIds.map((g) => currentSemesterId(g, today))),
+        getRiskRows(teacherScope, { forManager: false }),
       ]);
       let passing = 0;
       let extraChance = 0;
@@ -110,6 +116,7 @@ export async function getTeacherStats(filter: {
         extraChance,
         failing,
         missingHomework: missing.length,
+        atRisk: risk.filter((r) => !r.reviewed).length,
       };
     }),
   );
@@ -125,6 +132,7 @@ export const STATS_COLUMNS = [
   "Qo'shimcha imkoniyat",
   "Yiqilayotgan",
   "Vazifa berilmagan darslar",
+  "Xavf ostida",
 ] as const;
 
 export function statsRow(s: TeacherStats): (string | number | null)[] {
@@ -138,6 +146,7 @@ export function statsRow(s: TeacherStats): (string | number | null)[] {
     s.extraChance,
     s.failing,
     s.missingHomework,
+    s.atRisk,
   ];
 }
 

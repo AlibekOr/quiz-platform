@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeftIcon, PhoneIcon, SendIcon } from "lucide-react";
+import { StudentRiskSection } from "@/components/risk/student-risk-section";
 import { StudentRowActions } from "@/components/teacher/students/student-row-actions";
 import { TransferButton } from "@/components/teacher/students/transfer-button";
 import { StudentGradesSection } from "@/components/teacher/grades/student-grades-section";
@@ -26,6 +27,7 @@ import { groupLabel } from "@/lib/group-label";
 import { db } from "@/lib/db";
 import { getStudentSemesters } from "@/lib/grades-data";
 import { getActivePenaltyTypes } from "@/lib/penalties";
+import { getStudentRisk } from "@/lib/risk-data";
 import { percent } from "@/lib/format";
 import { formatPhone } from "@/lib/students/format";
 import { teacherProfileSelect } from "@/lib/students/profile-select";
@@ -97,9 +99,10 @@ export default async function StudentCardPage({
   if (!student) notFound();
   const groups = groupRows.map((g) => ({ id: g.id, name: groupLabel(g) }));
 
-  const [semesters, penaltyTypes] = await Promise.all([
+  const [semesters, penaltyTypes, risk] = await Promise.all([
     getStudentSemesters(student.id),
     getActivePenaltyTypes(user.id),
+    getStudentRisk(scope, student),
   ]);
 
   const { profile } = student;
@@ -223,6 +226,8 @@ export default async function StudentCardPage({
           </div>
         )}
       </section>
+
+      <StudentRiskSection row={risk.row} history={risk.history} />
 
       <section className="flex flex-col gap-3">
         <div className="flex flex-wrap items-center justify-between gap-2">

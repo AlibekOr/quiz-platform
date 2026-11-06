@@ -147,6 +147,19 @@ export default async function AdminHomePage({
                   <TableCell className="tabular-nums">
                     {r.missingHomework}
                   </TableCell>
+                  <TableCell className="tabular-nums">
+                    {r.atRisk > 0 ? (
+                      <Link
+                        prefetch={false}
+                        href={`/admin/risk?teacher=${r.id}`}
+                        className="text-destructive font-medium hover:underline"
+                      >
+                        {r.atRisk}
+                      </Link>
+                    ) : (
+                      0
+                    )}
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>

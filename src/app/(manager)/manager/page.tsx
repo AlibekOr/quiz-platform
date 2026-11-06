@@ -1,11 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { RiskBlock } from "@/components/risk/risk-block";
 import { Badge } from "@/components/ui/badge";
 import { requireManager } from "@/lib/auth/guards";
 import { getScope, groupScopeWhere } from "@/lib/auth/scope";
 import { getScheduleRows, schedulesOf } from "@/lib/cached-data";
 import { db } from "@/lib/db";
 import { groupLabel } from "@/lib/group-label";
+import { getRiskRows } from "@/lib/risk-data";
 import {
   formatDate,
   formatSchedule,
@@ -16,6 +18,8 @@ import {
 
 export const metadata: Metadata = { title: "Menejer paneli" };
 
+const RISK_LIMIT = 20;
+
 // Qisqa ko'rinish: qaysi o'qituvchilar bilan ishlaydi, ular biriktirgan guruhlar,
 // bugungi darslar, kutilayotgan so'rovlar
 export default async function ManagerHomePage() {
@@ -24,31 +28,34 @@ export default async function ManagerHomePage() {
   const today = todayInTashkent();
   const weekday = weekdayOf(today);
 
-  const [groupRows, pending, scheduleRows, teachers] = await Promise.all([
-    db.group.findMany({
-      where: groupScopeWhere(scope),
-      orderBy: { name: "asc" },
-      select: {
-        id: true,
-        name: true,
-        code: true,
-        region: { select: { name: true } },
-        teacher: { select: { fullName: true } },
-        _count: {
-          select: { students: { where: { archivedAt: null } } },
+  const [groupRows, pending, scheduleRows, teachers, riskRows] =
+    await Promise.all([
+      db.group.findMany({
+        where: groupScopeWhere(scope),
+        orderBy: { name: "asc" },
+        select: {
+          id: true,
+          name: true,
+          code: true,
+          region: { select: { name: true } },
+          teacher: { select: { fullName: true } },
+          _count: {
+            select: { students: { where: { archivedAt: null } } },
+          },
         },
-      },
-    }),
-    db.deletionRequest.count({
-      where: { requestedById: manager.id, status: "PENDING" },
-    }),
-    getScheduleRows(),
-    db.teacherManager.findMany({
-      where: { managerId: manager.id },
-      orderBy: { teacher: { fullName: "asc" } },
-      select: { teacher: { select: { id: true, fullName: true } } },
-    }),
-  ]);
+      }),
+      db.deletionRequest.count({
+        where: { requestedById: manager.id, status: "PENDING" },
+      }),
+      getScheduleRows(),
+      db.teacherManager.findMany({
+        where: { managerId: manager.id },
+        orderBy: { teacher: { fullName: "asc" } },
+        select: { teacher: { select: { id: true, fullName: true } } },
+      }),
+      // Baholar menejerga yopiq: faqat davomat va vazifa signallari
+      getRiskRows(scope, { forManager: true }),
+    ]);
   // Dars jadvali keshdan (lib/cached-data.ts)
   const groups = groupRows.map((g) => ({
     ...g,
@@ -114,6 +121,14 @@ export default async function ManagerHomePage() {
               </ul>
             )}
           </section>
+
+          <RiskBlock
+            rows={riskRows}
+            limit={RISK_LIMIT}
+            description="Joriy semestr: davomat va topshirilmagan vazifalar"
+            fullHref={null}
+            studentHref={null}
+          />
 
           <section className="flex flex-col gap-2">
             <h2 className="text-lg font-semibold">

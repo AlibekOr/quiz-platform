@@ -7,6 +7,7 @@ import {
   UsersIcon,
   UsersRoundIcon,
 } from "lucide-react";
+import { RiskBlock } from "@/components/risk/risk-block";
 import { MissingHomeworkList } from "@/components/teacher/homework/missing-homework";
 import { Badge } from "@/components/ui/badge";
 import { groupScopeWhere, studentScopeWhere } from "@/lib/auth/scope";
@@ -17,6 +18,7 @@ import { getScheduleRows, schedulesOf } from "@/lib/cached-data";
 import { db } from "@/lib/db";
 import { percent } from "@/lib/format";
 import { getMissingHomeworkLessons } from "@/lib/homework-data";
+import { getRiskRows } from "@/lib/risk-data";
 import {
   addDays,
   formatDate,
@@ -33,6 +35,7 @@ export const metadata: Metadata = { title: "O'qituvchi paneli" };
 const RECENT_RESULTS = 8;
 const ABSENT_DAYS = 30;
 const ABSENT_LIMIT = 5;
+const RISK_LIMIT = 5;
 
 export default async function TeacherPage() {
   const { scope } = await requireTeacherScope();
@@ -185,7 +188,10 @@ export default async function TeacherPage() {
       icon: ClipboardListIcon,
     },
   ];
-  const missingHomework = await getMissingHomeworkLessons(scope);
+  const [missingHomework, riskRows] = await Promise.all([
+    getMissingHomeworkLessons(scope),
+    getRiskRows(scope, { forManager: false }),
+  ]);
 
   return (
     <>
@@ -217,6 +223,14 @@ export default async function TeacherPage() {
           </li>
         ))}
       </ul>
+
+      <RiskBlock
+        rows={riskRows}
+        limit={RISK_LIMIT}
+        description="Joriy semestr: davomat, vazifalar, ball sur'ati va jarimalar"
+        fullHref="/teacher/risk"
+        studentHref="/teacher/students"
+      />
 
       <section className="flex flex-col gap-3">
         <div className="flex items-baseline justify-between gap-2">

@@ -81,6 +81,9 @@ model User {
   assignedGroups     ManagerGroup[]    @relation("ManagerGroupAssigner")
   penaltyTypes       PenaltyType[]
   gradingTemplates   GradingTemplate[]
+  riskSettings       RiskSettings?
+  riskReviews        RiskReview[]      @relation("RiskReviewStudent")
+  riskReviewsMade    RiskReview[]      @relation("RiskReviewer")
   ownedTests         Test[]            @relation("TestOwner")
   testShares         TestShare[]
   // O'quvchini kim qo'shgan (menejer guruhsiz o'quvchini faqat o'zi qo'shgan bo'lsa ko'radi)
@@ -597,6 +600,46 @@ model TestShare {
 
 // Menejerning o'quvchini o'chirish so'rovi. Tasdiqlansa o'quvchi arxivlanadi.
 // Bitta o'quvchiga bir vaqtda faqat bitta PENDING: qisman unique indeks (faqat SQL migratsiyada)
+// Xavf signallari sozlamalari (FEATURES.md, A qism) — o'qituvchiniki; yo'q bo'lsa standart
+// (lib/risk.ts DEFAULT_RISK_SETTINGS)
+model RiskSettings {
+  id                   String   @id @default(cuid())
+  teacherId            String   @unique
+  teacher              User     @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  absencesEnabled      Boolean  @default(true)
+  absencesMin          Int      @default(2)
+  attendanceEnabled    Boolean  @default(true)
+  attendanceBelow      Int      @default(70)
+  attendanceMinLessons Int      @default(4)
+  missedEnabled        Boolean  @default(true)
+  missedLastN          Int      @default(3)
+  missedMin            Int      @default(2)
+  paceEnabled          Boolean  @default(true)
+  paceRatio            Float    @default(0.8)
+  paceGraceDays        Int      @default(14)
+  paceHighAfter        Float    @default(0.7)
+  penaltiesEnabled     Boolean  @default(true)
+  penaltiesWindowDays  Int      @default(30)
+  penaltiesMin         Float    @default(5)
+  updatedAt            DateTime @updatedAt
+}
+
+// "Ko'rib chiqildi": hideUntil gacha ro'yxatda kulrang va pastda; ko'rib chiqilgandan keyin
+// yangi signal paydo bo'lsa — darhol yana yuqorida (signalKinds — o'sha paytdagi signallar)
+model RiskReview {
+  id           String   @id @default(cuid())
+  studentId    String
+  student      User     @relation("RiskReviewStudent", fields: [studentId], references: [id], onDelete: Cascade)
+  reviewedById String
+  reviewedBy   User     @relation("RiskReviewer", fields: [reviewedById], references: [id], onDelete: Cascade)
+  note         String?
+  signalKinds  String[]
+  hideUntil    DateTime @db.Date
+  createdAt    DateTime @default(now())
+
+  @@index([studentId, createdAt])
+}
+
 model DeletionRequest {
   id            String         @id @default(cuid())
   studentId     String

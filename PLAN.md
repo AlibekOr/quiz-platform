@@ -528,6 +528,11 @@ Batafsil talablar `ROLES.md`, reja va qarorlar `ROLES-PLAN.md` da.
 - **26 — admin paneli:** statistika (Excel), regionlar, o'qituvchilar, menejerlar, guruhlar (regionsizlarga region), o'quvchilar (boshqa o'qituvchiga o'tkazish), testlar
 - **27 — reyting va ulashish:** o'quvchida "Mening guruhim" / "O'qituvchim guruhlari"; admin "Umumiy" — foiz bo'yicha. Test ulashish (region yoki o'qituvchi) — oluvchi nusxa oladi (`lib/tests/sharing.ts`)
 
+### 28-bosqich: xavf ostidagi o'quvchilar (FEATURES.md, A qism)
+
+- Signallar `lib/risk.ts` (sof), ma'lumot `lib/risk-data.ts` (guruh bo'yicha, 5 daqiqa kesh). `RiskSettings` (o'qituvchiniki, Sozlamalar → Xavf sozlamalari), `RiskReview` ("Ko'rib chiqildi", yangi signal paydo bo'lsa qayta ko'tariladi)
+- O'qituvchi: bosh sahifa bloki, `/teacher/risk` (guruh, daraja filtrlari), o'quvchi kartochkasida signallar va tarix. Menejer: bosh sahifada faqat davomat va vazifa signallari. Admin: statistikada "Xavf ostida" ustuni (Excel), `/admin/risk`
+
 ---
 
 ## Keyingi versiyalar (hozir qilinmaydi)
