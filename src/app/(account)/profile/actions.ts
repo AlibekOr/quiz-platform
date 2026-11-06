@@ -3,7 +3,11 @@
 import { revalidatePath } from "next/cache";
 import { validationFailed, type ActionResult } from "@/lib/action-result";
 import { changePassword, saveOwnContacts } from "@/lib/auth/account";
-import { requireStudent, requireTeacher, requireUser } from "@/lib/auth/guards";
+import {
+  requireRole,
+  requireStudent,
+  requireUser,
+} from "@/lib/auth/guards";
 import {
   clearLoginFailures,
   isLoginLocked,
@@ -27,7 +31,7 @@ import {
 export async function updateOwnProfile(
   input: UpdateProfileInput,
 ): Promise<ActionResult> {
-  const teacher = await requireTeacher();
+  const teacher = await requireRole(["ADMIN", "TEACHER"]);
   const parsed = updateProfileSchema.safeParse(input);
   if (!parsed.success) return validationFailed(parsed.error);
 

@@ -4,16 +4,27 @@ import type { ActionResult } from "@/lib/action-result";
 import { db } from "@/lib/db";
 import type { Role } from "./jwt";
 
-// Ko'rish doirasi (CLAUDE.md, "Majburiy qoidalar"). O'qituvchi hamma narsani ko'radi.
-// Menejer: o'z regionidagi guruhlar ∪ unga qo'lda biriktirilgan guruhlar (ManagerGroup).
-// Guruhsiz o'quvchini menejer faqat o'zi qo'shgan bo'lsa ko'radi.
-// Doira har so'rovda bazadan hisoblanadi: region yoki biriktirish o'zgarsa, eski sessiya ham
-// yangi qoidalar bilan ishlaydi (JWT'da hech narsa saqlanmaydi).
+// Ko'rish doirasi (ROLES.md, §3; CLAUDE.md, "Majburiy qoidalar"):
+//   ADMIN    — hamma narsa
+//   TEACHER  — o'z guruhlari (Group.teacherId)
+//   MANAGER  — o'qituvchilar unga biriktirgan guruhlar (ManagerGroup), regiondan avtomatik emas
+// Guruhsiz o'quvchi: uni qo'shgan xodim ko'radi; o'qituvchi — o'zi va u ishlaydigan menejerlar
+// qo'shganlarini, menejer — o'zi va u ishlaydigan o'qituvchilar qo'shganlarini.
+// Doira har so'rovda bazadan hisoblanadi: biriktirish o'zgarsa, eski sessiya ham yangi
+// qoidalar bilan ishlaydi (JWT'da hech narsa saqlanmaydi).
 
 export type ScopeUser = { id: string; role: Role; regionId: string | null };
 
 export type Scope =
-  { kind: "all" } | { kind: "manager"; managerId: string; groupIds: string[] };
+  | { kind: "all" }
+  | {
+      kind: "limited";
+      userId: string;
+      role: "TEACHER" | "MANAGER";
+      groupIds: string[];
+      /** Guruhsiz o'quvchilari ko'rinadigan xodimlar (o'zi + hamkorlari) */
+      creatorIds: string[];
+    };
 
 /** Doiradan tashqaridagi id bilan kelgan so'rov (server action'lar uchun; API'da 403) */
 export const FORBIDDEN: ActionResult = { ok: false, error: "Ruxsat yo'q" };
@@ -21,29 +32,55 @@ export const FORBIDDEN: ActionResult = { ok: false, error: "Ruxsat yo'q" };
 export async function getAccessibleGroupIds(
   user: ScopeUser,
 ): Promise<string[]> {
-  if (user.role === "TEACHER") {
-    const all = await db.group.findMany({ select: { id: true } });
-    return all.map((g) => g.id);
-  }
-  if (user.role !== "MANAGER") return [];
-  const groups = await db.group.findMany({
-    where: {
-      OR: [
-        ...(user.regionId ? [{ regionId: user.regionId }] : []),
-        { managers: { some: { managerId: user.id } } },
-      ],
-    },
-    select: { id: true },
-  });
+  const where: Prisma.GroupWhereInput | null =
+    user.role === "ADMIN"
+      ? {}
+      : user.role === "TEACHER"
+        ? { teacherId: user.id }
+        : user.role === "MANAGER"
+          ? { managers: { some: { managerId: user.id } } }
+          : null;
+  if (!where) return [];
+  const groups = await db.group.findMany({ where, select: { id: true } });
   return groups.map((g) => g.id);
 }
 
+/** O'qituvchi uchun — u ishlaydigan menejerlar, menejer uchun — o'qituvchilar */
+async function partnerIds(user: ScopeUser): Promise<string[]> {
+  if (user.role === "TEACHER") {
+    const rows = await db.teacherManager.findMany({
+      where: { teacherId: user.id },
+      select: { managerId: true },
+    });
+    return rows.map((r) => r.managerId);
+  }
+  const rows = await db.teacherManager.findMany({
+    where: { managerId: user.id },
+    select: { teacherId: true },
+  });
+  return rows.map((r) => r.teacherId);
+}
+
 export async function getScope(user: ScopeUser): Promise<Scope> {
-  if (user.role === "TEACHER") return { kind: "all" };
+  if (user.role === "ADMIN") return { kind: "all" };
+  if (user.role !== "TEACHER" && user.role !== "MANAGER")
+    return {
+      kind: "limited",
+      userId: user.id,
+      role: "MANAGER",
+      groupIds: [],
+      creatorIds: [],
+    };
+  const [groupIds, partners] = await Promise.all([
+    getAccessibleGroupIds(user),
+    partnerIds(user),
+  ]);
   return {
-    kind: "manager",
-    managerId: user.id,
-    groupIds: user.role === "MANAGER" ? await getAccessibleGroupIds(user) : [],
+    kind: "limited",
+    userId: user.id,
+    role: user.role,
+    groupIds,
+    creatorIds: [user.id, ...partners],
   };
 }
 
@@ -67,7 +104,7 @@ export function studentScopeWhere(scope: Scope): Prisma.UserWhereInput {
       {
         OR: [
           { groupId: { in: scope.groupIds } },
-          { groupId: null, createdById: scope.managerId },
+          { groupId: null, createdById: { in: scope.creatorIds } },
         ],
       },
     ],
@@ -83,9 +120,25 @@ export async function canAccessStudent(
     where: {
       id: studentId,
       role: "STUDENT",
-      ...(scope.kind === "manager" ? { archivedAt: null } : {}),
+      ...(scope.kind === "limited" && scope.role === "MANAGER"
+        ? { archivedAt: null }
+        : {}),
       ...studentScopeWhere(scope),
     },
   });
   return count > 0;
+}
+
+/** Semestr doiradagi guruhniki bo'lsa, uning guruhi; aks holda null */
+export async function semesterGroupInScope(
+  scope: Scope,
+  semesterId: string,
+): Promise<string | null> {
+  const semester = await db.semester.findUnique({
+    where: { id: semesterId },
+    select: { groupId: true },
+  });
+  return semester && canAccessGroup(scope, semester.groupId)
+    ? semester.groupId
+    : null;
 }

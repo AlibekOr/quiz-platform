@@ -1,4 +1,6 @@
 import type { CurrentUser } from "@/lib/auth/guards";
+import { studentScopeWhere } from "@/lib/auth/scope";
+import { getScopeOf } from "@/lib/auth/staff";
 import { db } from "@/lib/db";
 import { MobileNav } from "./mobile-nav";
 import { NavMenu, type NavVariant } from "./nav-menu";
@@ -29,10 +31,13 @@ export async function AppShell({
 }) {
   const variant = variantFor(user);
   const badges: Record<string, number> =
-    variant === "teacher"
+    variant === "teacher" && user
       ? {
           "/teacher/requests": await db.deletionRequest.count({
-            where: { status: "PENDING" },
+            where: {
+              status: "PENDING",
+              student: studentScopeWhere(await getScopeOf(user)),
+            },
           }),
         }
       : {};

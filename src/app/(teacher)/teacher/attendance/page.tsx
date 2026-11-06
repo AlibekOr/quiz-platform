@@ -8,7 +8,8 @@ import {
   MissingHomeworkList,
 } from "@/components/teacher/homework/missing-homework";
 import { Badge } from "@/components/ui/badge";
-import { requireTeacher } from "@/lib/auth/guards";
+import { canAccessGroup, groupScopeWhere } from "@/lib/auth/scope";
+import { requireTeacherScope } from "@/lib/auth/staff";
 import { getScheduleRows, schedulesOf } from "@/lib/cached-data";
 import { db } from "@/lib/db";
 import { isPresent } from "@/lib/attendance";
@@ -31,7 +32,7 @@ export const metadata: Metadata = { title: "Davomat" };
 export default async function AttendancePage({
   searchParams,
 }: PageProps<"/teacher/attendance">) {
-  await requireTeacher();
+  const { scope } = await requireTeacherScope();
   const today = todayInTashkent();
   const params = await searchParams;
   const requested = params.date;
@@ -45,6 +46,7 @@ export default async function AttendancePage({
 
   const [groupRows, scheduleRows] = await Promise.all([
     db.group.findMany({
+      where: groupScopeWhere(scope),
       orderBy: { name: "asc" },
       select: {
         id: true,
@@ -83,7 +85,9 @@ export default async function AttendancePage({
 
   // Davomat saqlangandan keyin (?homework=<groupId>): shu darsga vazifa berish taklifi
   const savedGroup =
-    typeof params.homework === "string" ? params.homework : null;
+    typeof params.homework === "string" && canAccessGroup(scope, params.homework)
+      ? params.homework
+      : null;
   const savedLesson = savedGroup
     ? await db.lesson.findUnique({
         where: { groupId_date: { groupId: savedGroup, date: toDbDate(date) } },
@@ -92,7 +96,7 @@ export default async function AttendancePage({
     : null;
   const [suggestion, missing] = await Promise.all([
     savedLesson ? getHomeworkPrefill(savedLesson.id) : null,
-    getMissingHomeworkLessons(),
+    getMissingHomeworkLessons(scope),
   ]);
 
   return (

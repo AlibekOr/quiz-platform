@@ -1,3 +1,4 @@
+import { groupScopeWhere, type Scope } from "@/lib/auth/scope";
 import "server-only";
 import { db } from "@/lib/db";
 import type { AssignmentCategory } from "@/lib/grades";
@@ -150,11 +151,13 @@ export async function getHomeworkPrefill(
  * birinchi. Faqat semestr ichidagi darslar — semestrsiz darsga vazifa berib bo'lmaydi
  */
 export async function getMissingHomeworkLessons(
+  scope: Scope,
   days = 14,
   today: DateStr = todayInTashkent(),
 ): Promise<HomeworkPrefill[]> {
   const lessons = await db.lesson.findMany({
     where: {
+      group: groupScopeWhere(scope),
       date: {
         gte: toDbDate(addDays(today, -(days - 1))),
         lte: toDbDate(today),

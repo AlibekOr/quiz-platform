@@ -114,7 +114,7 @@ describe("getMissingHomeworkLessons", () => {
     // Semestri yo'q guruh darsi — vazifa berib bo'lmaydi
     await lesson(otherGroupId, -1);
 
-    const missing = await getMissingHomeworkLessons(14, today);
+    const missing = await getMissingHomeworkLessons({ kind: "all" }, 14, today);
     expect(missing.map((m) => m.lessonId)).toEqual([without, bonus]);
     expect(missing[0]).toMatchObject({
       groupId,

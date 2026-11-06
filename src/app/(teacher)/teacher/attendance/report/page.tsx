@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import { AttendanceReportPage } from "@/components/attendance/attendance-report-page";
 import { getAttendanceReportPage } from "@/lib/attendance-data";
-import { requireTeacher } from "@/lib/auth/guards";
-import { getScope } from "@/lib/auth/scope";
+import { requireTeacherScope } from "@/lib/auth/staff";
 
 export const metadata: Metadata = { title: "Davomat hisoboti" };
 
@@ -14,9 +13,9 @@ function param(value: string | string[] | undefined): string {
 export default async function TeacherAttendanceReportPage({
   searchParams,
 }: PageProps<"/teacher/attendance/report">) {
-  const teacher = await requireTeacher();
+  const { scope } = await requireTeacherScope();
   const params = await searchParams;
-  const data = await getAttendanceReportPage(await getScope(teacher), {
+  const data = await getAttendanceReportPage(scope, {
     group: param(params.group),
     month: param(params.month),
   });

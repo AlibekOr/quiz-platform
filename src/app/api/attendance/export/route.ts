@@ -16,7 +16,11 @@ export async function GET(request: NextRequest) {
   const user = await getCurrentUser();
   if (!user)
     return Response.json({ error: "Avtorizatsiya kerak" }, { status: 401 });
-  if (user.role !== "TEACHER" && user.role !== "MANAGER")
+  if (
+    user.role !== "ADMIN" &&
+    user.role !== "TEACHER" &&
+    user.role !== "MANAGER"
+  )
     return Response.json({ error: "Ruxsat yo'q" }, { status: 403 });
 
   const params = request.nextUrl.searchParams;

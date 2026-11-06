@@ -1,13 +1,14 @@
 import type { Metadata } from "next";
 import { PenaltyTypesSection } from "@/components/teacher/penalties/penalty-types-section";
-import { requireTeacher } from "@/lib/auth/guards";
+import { requireTeacherScope } from "@/lib/auth/staff";
 import { db } from "@/lib/db";
 
 export const metadata: Metadata = { title: "Jarima shablonlari" };
 
 export default async function PenaltyTypesPage() {
-  await requireTeacher();
+  const { user } = await requireTeacherScope();
   const types = await db.penaltyType.findMany({
+    where: { ownerId: user.id },
     orderBy: [{ isActive: "desc" }, { name: "asc" }],
     select: {
       id: true,

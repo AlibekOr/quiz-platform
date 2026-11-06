@@ -6,7 +6,8 @@ import { RemoveFromGroupButton } from "@/components/teacher/groups/remove-from-g
 import { ScheduleForm } from "@/components/teacher/groups/schedule-form";
 import { SemestersSection } from "@/components/teacher/grades/semesters-section";
 import { buttonVariants } from "@/components/ui/button";
-import { requireTeacher } from "@/lib/auth/guards";
+import { groupScopeWhere } from "@/lib/auth/scope";
+import { requireTeacherScope } from "@/lib/auth/staff";
 import { semesterInfo } from "@/lib/grades-data";
 import { db } from "@/lib/db";
 import { formatSchedule } from "@/lib/time";
@@ -16,11 +17,12 @@ export const metadata: Metadata = { title: "Guruh" };
 export default async function GroupPage({
   params,
 }: PageProps<"/teacher/groups/[id]">) {
-  await requireTeacher();
+  const { scope } = await requireTeacherScope();
   const { id } = await params;
 
-  const group = await db.group.findUnique({
-    where: { id },
+  // Boshqa o'qituvchining guruhi — 404 (borligi ham bilinmaydi)
+  const group = await db.group.findFirst({
+    where: { id, ...groupScopeWhere(scope) },
     select: {
       id: true,
       name: true,

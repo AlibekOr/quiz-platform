@@ -6,7 +6,8 @@ import { StudentFilters } from "@/components/teacher/students/student-filters";
 import { StudentsTable } from "@/components/teacher/students/students-table";
 import type { StudentRow } from "@/components/teacher/students/types";
 import { buttonVariants } from "@/components/ui/button";
-import { requireTeacher } from "@/lib/auth/guards";
+import { groupScopeWhere, studentScopeWhere } from "@/lib/auth/scope";
+import { requireTeacherScope } from "@/lib/auth/staff";
 import { db } from "@/lib/db";
 import { teacherProfileSelect } from "@/lib/students/profile-select";
 import { studentListWhere } from "@/lib/students/search";
@@ -20,15 +21,19 @@ function param(value: string | string[] | undefined): string {
 export default async function StudentsPage({
   searchParams,
 }: PageProps<"/teacher/students">) {
-  await requireTeacher();
+  const { scope } = await requireTeacherScope();
   const params = await searchParams;
   const q = param(params.q).slice(0, 100);
   const group = param(params.group);
 
-  const where = studentListWhere({ q, group, archived: false });
+  const where = {
+    ...studentListWhere({ q, group, archived: false }),
+    ...studentScopeWhere(scope),
+  };
 
   const [groups, students] = await Promise.all([
     db.group.findMany({
+      where: groupScopeWhere(scope),
       orderBy: { name: "asc" },
       select: { id: true, name: true },
     }),

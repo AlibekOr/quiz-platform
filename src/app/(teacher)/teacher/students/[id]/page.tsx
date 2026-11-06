@@ -16,7 +16,12 @@ import {
 } from "@/components/ui/table";
 import { computeStats } from "@/lib/attendance";
 import { finalizeExpiredAttempts } from "@/lib/attempts";
-import { requireTeacher } from "@/lib/auth/guards";
+import {
+  canAccessStudent,
+  groupScopeWhere,
+  studentScopeWhere,
+} from "@/lib/auth/scope";
+import { requireTeacherScope } from "@/lib/auth/staff";
 import { db } from "@/lib/db";
 import { getStudentSemesters } from "@/lib/grades-data";
 import { getActivePenaltyTypes } from "@/lib/penalties";
@@ -36,13 +41,16 @@ export const metadata: Metadata = { title: "O'quvchi" };
 export default async function StudentCardPage({
   params,
 }: PageProps<"/teacher/students/[id]">) {
-  await requireTeacher();
+  const { user, scope } = await requireTeacherScope();
   const { id } = await params;
+
+  // Boshqa o'qituvchining o'quvchisi — 404 (aloqa ma'lumotlari ham ko'rinmaydi)
+  if (!(await canAccessStudent(scope, id))) notFound();
   await finalizeExpiredAttempts({ userId: id });
 
   const [student, groups] = await Promise.all([
     db.user.findFirst({
-      where: { id, role: "STUDENT" },
+      where: { id, role: "STUDENT", ...studentScopeWhere(scope) },
       select: {
         id: true,
         fullName: true,
@@ -80,6 +88,7 @@ export default async function StudentCardPage({
       },
     }),
     db.group.findMany({
+      where: groupScopeWhere(scope),
       orderBy: { name: "asc" },
       select: { id: true, name: true },
     }),
@@ -88,7 +97,7 @@ export default async function StudentCardPage({
 
   const [semesters, penaltyTypes] = await Promise.all([
     getStudentSemesters(student.id),
-    getActivePenaltyTypes(),
+    getActivePenaltyTypes(user.id),
   ]);
 
   const { profile } = student;

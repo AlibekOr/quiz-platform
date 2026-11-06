@@ -31,3 +31,24 @@ export async function createGroupRecord(input: {
     return { id: group.id, code };
   });
 }
+
+/** O'qituvchining regionlari (faqat ADMIN biriktiradi) — tanlash ro'yxatlari uchun */
+export async function getTeacherRegionOptions(
+  teacherId: string,
+): Promise<{ id: string; name: string }[]> {
+  const rows = await db.teacherRegion.findMany({
+    where: { teacherId },
+    orderBy: { region: { name: "asc" } },
+    select: { region: { select: { id: true, name: true } } },
+  });
+  return rows.map((r) => r.region);
+}
+
+/** Region o'qituvchiniki bo'lsa (null — regionsiz guruh, ruxsat) */
+export async function isTeacherRegion(
+  teacherId: string,
+  regionId: string | null,
+): Promise<boolean> {
+  if (regionId === null) return true;
+  return (await db.teacherRegion.count({ where: { teacherId, regionId } })) > 0;
+}

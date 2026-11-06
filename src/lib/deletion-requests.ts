@@ -9,8 +9,9 @@ import {
 import { db } from "@/lib/db";
 import { isUniqueViolation } from "@/lib/prisma-errors";
 
-// O'chirish so'rovlari (PLAN.md, 13-bosqich). Menejer o'quvchini o'chira olmaydi —
-// faqat so'raydi; o'qituvchi tasdiqlasa o'quvchi arxivlanadi. Bitta o'quvchiga bir vaqtda
+// O'chirish so'rovlari (PLAN.md, 13-bosqich; ROLES.md). Menejer o'quvchini o'chira olmaydi —
+// faqat so'raydi; so'rov o'quvchi guruhining o'qituvchisiga boradi (uning doirasida ko'rinadi),
+// o'qituvchi yoki ADMIN tasdiqlasa o'quvchi arxivlanadi. Bitta o'quvchiga bir vaqtda
 // faqat bitta PENDING so'rov (bazada qisman unique indeks ham bor)
 
 const ALREADY_PENDING: ActionResult = {
@@ -43,15 +44,15 @@ export async function requestDeletion(
 }
 
 /**
- * Faqat o'qituvchi. Tasdiqlash o'quvchini arxivlaydi (sessiyalari ham yopiladi),
- * rad etishda izoh majburiy. Faqat PENDING so'rov hal qilinadi.
+ * O'quvchi doirasidagi o'qituvchi yoki ADMIN. Tasdiqlash o'quvchini arxivlaydi (sessiyalari
+ * ham yopiladi), rad etishda izoh majburiy. Faqat PENDING so'rov hal qilinadi.
  */
 export async function decideDeletionRequest(
   actor: ScopeUser,
   requestId: string,
   decision: { approve: boolean; note: string | null },
 ): Promise<ActionResult> {
-  if (actor.role !== "TEACHER") return FORBIDDEN;
+  if (actor.role !== "TEACHER" && actor.role !== "ADMIN") return FORBIDDEN;
   if (!decision.approve && !decision.note)
     return {
       ok: false,
@@ -64,6 +65,9 @@ export async function decideDeletionRequest(
     select: { status: true, studentId: true },
   });
   if (!request) return { ok: false, error: "So'rov topilmadi" };
+  // Boshqa o'qituvchining o'quvchisi haqidagi so'rov
+  if (!(await canAccessStudent(await getScope(actor), request.studentId)))
+    return FORBIDDEN;
   if (request.status !== "PENDING")
     return { ok: false, error: "So'rov allaqachon hal qilingan" };
 

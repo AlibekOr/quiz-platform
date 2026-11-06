@@ -106,7 +106,7 @@ describe("applyPenalty", () => {
       where: { id: lateId },
       data: { isActive: false },
     });
-    expect(await getActivePenaltyTypes()).toEqual([]);
+    expect(await getActivePenaltyTypes(teacherId)).toEqual([]);
     const r = await applyPenalty({ ...base(), studentIds: [ali] });
     expect(r.ok).toBe(false);
   });

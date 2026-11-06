@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { RequestStatusBadge } from "@/components/manager/request-status-badge";
 import { RequestDecision } from "@/components/teacher/requests/request-decision";
-import { requireTeacher } from "@/lib/auth/guards";
+import { studentScopeWhere } from "@/lib/auth/scope";
+import { requireTeacherScope } from "@/lib/auth/staff";
 import { db } from "@/lib/db";
 import { formatDateTime } from "@/lib/time";
 
@@ -10,8 +11,10 @@ export const metadata: Metadata = { title: "So'rovlar" };
 
 // Menejerlarning o'chirish so'rovlari: kutilayotganlar tepada
 export default async function RequestsPage() {
-  await requireTeacher();
+  const { scope } = await requireTeacherScope();
+  // Faqat o'z o'quvchilari haqidagi so'rovlar
   const requests = await db.deletionRequest.findMany({
+    where: { student: studentScopeWhere(scope) },
     orderBy: [{ status: "asc" }, { createdAt: "desc" }],
     take: 300,
     select: {

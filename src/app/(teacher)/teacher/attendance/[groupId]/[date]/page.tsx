@@ -8,7 +8,8 @@ import { getLessonSheet } from "@/lib/attendance-data";
 import { db } from "@/lib/db";
 import { currentSemesterId } from "@/lib/grades-data";
 import { getActivePenaltyTypes } from "@/lib/penalties";
-import { requireTeacher } from "@/lib/auth/guards";
+import { canAccessGroup } from "@/lib/auth/scope";
+import { requireTeacherScope } from "@/lib/auth/staff";
 import {
   formatDate,
   isValidDateStr,
@@ -22,9 +23,9 @@ export const metadata: Metadata = { title: "Davomat belgilash" };
 export default async function AttendanceSheetPage({
   params,
 }: PageProps<"/teacher/attendance/[groupId]/[date]">) {
-  await requireTeacher();
+  const { user, scope } = await requireTeacherScope();
   const { groupId, date } = await params;
-  if (!isValidDateStr(date)) notFound();
+  if (!isValidDateStr(date) || !canAccessGroup(scope, groupId)) notFound();
 
   const today = todayInTashkent();
   const sheet = await getLessonSheet(groupId, date);
@@ -36,7 +37,7 @@ export default async function AttendanceSheetPage({
   // Jarima: dars sanasi tushadigan semestrga (semestr bo'lmasa tugma chiqmaydi)
   const [semesterId, penaltyTypes] = await Promise.all([
     currentSemesterId(groupId, date),
-    getActivePenaltyTypes(),
+    getActivePenaltyTypes(user.id),
   ]);
   const semester = semesterId
     ? await db.semester.findUnique({

@@ -16,7 +16,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { requireTeacher } from "@/lib/auth/guards";
+import { groupScopeWhere } from "@/lib/auth/scope";
+import { requireTeacherScope } from "@/lib/auth/staff";
 import { db } from "@/lib/db";
 import { CATEGORY_LABEL } from "@/lib/grades";
 import { getSemesterGrades } from "@/lib/grades-data";
@@ -31,10 +32,11 @@ function param(value: string | string[] | undefined): string {
 export default async function HomeworkPage({
   searchParams,
 }: PageProps<"/teacher/homework">) {
-  await requireTeacher();
+  const { scope } = await requireTeacherScope();
   const params = await searchParams;
 
   const groups = await db.group.findMany({
+    where: groupScopeWhere(scope),
     orderBy: { name: "asc" },
     select: { id: true, name: true },
   });

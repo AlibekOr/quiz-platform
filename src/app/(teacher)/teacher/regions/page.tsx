@@ -1,14 +1,14 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { RegionsSection } from "@/components/teacher/managers/regions-section";
-import { requireTeacher } from "@/lib/auth/guards";
+import { requireAdmin } from "@/lib/auth/guards";
 import { db } from "@/lib/db";
 
 export const metadata: Metadata = { title: "Regionlar" };
 
 // Regionlar: qo'shish va nomini o'zgartirish (action'lar — teacher/managers/actions.ts)
 export default async function RegionsPage() {
-  await requireTeacher();
+  await requireAdmin();
   const regions = await db.region.findMany({
     orderBy: { name: "asc" },
     select: {

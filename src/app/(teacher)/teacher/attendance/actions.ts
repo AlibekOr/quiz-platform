@@ -3,7 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { validationFailed, type ActionResult } from "@/lib/action-result";
-import { requireTeacher } from "@/lib/auth/guards";
+import { canAccessGroup, FORBIDDEN } from "@/lib/auth/scope";
+import { requireTeacherScope } from "@/lib/auth/staff";
 import { db } from "@/lib/db";
 import { memberOnWhere } from "@/lib/memberships-data";
 import { isValidDateStr, toDbDate, todayInTashkent } from "@/lib/time";
@@ -19,8 +20,9 @@ export async function saveAttendance(
   date: string,
   input: AttendanceFormInput,
 ): Promise<ActionResult> {
-  const teacher = await requireTeacher();
+  const { user: teacher, scope } = await requireTeacherScope();
   const gid = idSchema.parse(groupId);
+  if (!canAccessGroup(scope, gid)) return FORBIDDEN;
   if (!isValidDateStr(date)) return { ok: false, error: "Sana noto'g'ri" };
   if (date > todayInTashkent())
     return {

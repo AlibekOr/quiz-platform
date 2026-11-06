@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   MAX_IMPORT_ROWS,
+  resolveImportGroup,
   sheetToRows,
   validateImportRows,
   type ImportRow,
@@ -82,7 +83,7 @@ describe("sheetToRows", () => {
 describe("validateImportRows", () => {
   const context = {
     existingUsernames: new Set(["student11"]),
-    groupNames: new Set(["Frontend-1"]),
+    groups: [{ id: "g1", name: "Frontend-1", code: "TO-1-F" }],
   };
 
   it("to'g'ri qatorda xato yo'q", () => {
@@ -131,7 +132,7 @@ describe("validateImportRows", () => {
 describe("aloqa ustunlari", () => {
   const context = {
     existingUsernames: new Set<string>(),
-    groupNames: new Set(["G1"]),
+    groups: [{ id: "g1", name: "G1", code: "TO-1-G" }],
   };
 
   it("sarlavhadan o'qiladi va normallashadi", () => {
@@ -183,5 +184,28 @@ describe("aloqa ustunlari", () => {
     );
     expect(result.errors).toHaveLength(4);
     expect(result.errors[0]).toContain("phone");
+  });
+});
+
+describe("resolveImportGroup", () => {
+  const groups = [
+    { id: "a", name: "Frontend-1", code: "TO-1-F" },
+    { id: "b", name: "Frontend-1", code: "TO-5-F" },
+    { id: "c", name: "Backend", code: "SO-2-B" },
+  ];
+
+  it("kod yoki yagona nom bo'yicha, katta-kichik harf farqsiz", () => {
+    expect(resolveImportGroup("to-5-f", groups)).toEqual({ id: "b" });
+    expect(resolveImportGroup(" backend ", groups)).toEqual({ id: "c" });
+  });
+
+  it("nom takrorlansa — kod so'raladi; yo'q bo'lsa — topilmadi", () => {
+    expect(resolveImportGroup("Frontend-1", groups)).toEqual({
+      error:
+        '"Frontend-1" nomli guruh bir nechta — kodini yozing (TO-1-F, TO-5-F)',
+    });
+    expect(resolveImportGroup("Yo'q", groups)).toEqual({
+      error: `"Yo'q" guruhi topilmadi`,
+    });
   });
 });

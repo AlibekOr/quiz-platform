@@ -4,9 +4,10 @@ import { revalidatePath } from "next/cache";
 import { CACHE_TAGS, invalidateCache } from "@/lib/cached-data";
 import { z } from "zod";
 import { validationFailed, type ActionResult } from "@/lib/action-result";
-import { requireTeacher } from "@/lib/auth/guards";
+import { canAccessGroup, FORBIDDEN } from "@/lib/auth/scope";
+import { requireTeacherScope } from "@/lib/auth/staff";
 import { db } from "@/lib/db";
-import { createGroupRecord } from "@/lib/groups-data";
+import { createGroupRecord, isTeacherRegion } from "@/lib/groups-data";
 import {
   scheduleFormSchema,
   scheduleRowSchema,
@@ -24,22 +25,15 @@ function revalidate() {
   revalidatePath("/teacher/managers");
 }
 
-/** Region tanlansa, u mavjud bo'lsin */
-async function regionMissing(regionId: string | null): Promise<boolean> {
-  return (
-    regionId !== null &&
-    (await db.region.count({ where: { id: regionId } })) === 0
-  );
-}
-
 export async function createGroup(
   input: GroupFormInput & { regionId: string },
 ): Promise<ActionResult> {
-  const user = await requireTeacher();
+  const { user } = await requireTeacherScope();
   const parsed = groupFormSchema.merge(groupRegionSchema).safeParse(input);
   if (!parsed.success) return validationFailed(parsed.error);
   const { name, regionId } = parsed.data;
-  if (await regionMissing(regionId))
+  // Faqat o'qituvchining o'z regionlaridan biri (yoki regionsiz)
+  if (!(await isTeacherRegion(user.id, regionId)))
     return { ok: false, error: "Region topilmadi" };
 
   // Nom takrorlanishi mumkin — guruhni kod farqlaydi
@@ -56,10 +50,11 @@ export async function renameGroup(
   groupId: string,
   input: GroupFormInput,
 ): Promise<ActionResult> {
-  await requireTeacher();
+  const { scope } = await requireTeacherScope();
   const id = idSchema.parse(groupId);
   const parsed = groupFormSchema.safeParse(input);
   if (!parsed.success) return validationFailed(parsed.error);
+  if (!canAccessGroup(scope, id)) return FORBIDDEN;
 
   // Kod o'zgarmaydi
   try {
@@ -72,16 +67,17 @@ export async function renameGroup(
   return { ok: true, message: "Guruh nomi o'zgartirildi" };
 }
 
-/** Guruh regioni o'zgarsa, o'sha regiondagi menejerlarning doirasi ham darhol o'zgaradi */
+/** Guruh regioni o'qituvchi regionlari ichida o'zgaradi; kod o'zgarmaydi */
 export async function setGroupRegion(
   groupId: string,
   regionId: string,
 ): Promise<ActionResult> {
-  await requireTeacher();
+  const { user, scope } = await requireTeacherScope();
   const id = idSchema.parse(groupId);
   const parsed = groupRegionSchema.safeParse({ regionId });
   if (!parsed.success) return validationFailed(parsed.error);
-  if (await regionMissing(parsed.data.regionId))
+  if (!canAccessGroup(scope, id)) return FORBIDDEN;
+  if (!(await isTeacherRegion(user.id, parsed.data.regionId)))
     return { ok: false, error: "Region topilmadi" };
 
   try {
@@ -98,8 +94,9 @@ export async function setGroupRegion(
 }
 
 export async function deleteGroup(groupId: string): Promise<ActionResult> {
-  await requireTeacher();
+  const { scope } = await requireTeacherScope();
   const id = idSchema.parse(groupId);
+  if (!canAccessGroup(scope, id)) return FORBIDDEN;
 
   const students = await db.user.count({
     where: { groupId: id, archivedAt: null },
@@ -143,10 +140,11 @@ export async function saveSchedule(
   groupId: string,
   input: ScheduleFormInput,
 ): Promise<ActionResult> {
-  await requireTeacher();
+  const { scope } = await requireTeacherScope();
   const id = idSchema.parse(groupId);
   const parsed = scheduleFormSchema.safeParse(input);
   if (!parsed.success) return validationFailed(parsed.error);
+  if (!canAccessGroup(scope, id)) return FORBIDDEN;
 
   const days = parsed.data.days
     .filter((d) => d.enabled)

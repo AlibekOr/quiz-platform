@@ -4,7 +4,8 @@ import { notFound } from "next/navigation";
 import { ArrowLeftIcon, PhoneIcon } from "lucide-react";
 import { GradeEntryForm } from "@/components/teacher/homework/grade-entry-form";
 import { Badge } from "@/components/ui/badge";
-import { requireTeacher } from "@/lib/auth/guards";
+import { semesterGroupInScope } from "@/lib/auth/scope";
+import { requireTeacherScope } from "@/lib/auth/staff";
 import { db } from "@/lib/db";
 import { CATEGORY_LABEL } from "@/lib/grades";
 import { getSemesterGrades } from "@/lib/grades-data";
@@ -18,7 +19,7 @@ export const metadata: Metadata = { title: "Ball qo'yish" };
 export default async function AssignmentGradesPage({
   params,
 }: PageProps<"/teacher/homework/[id]">) {
-  await requireTeacher();
+  const { scope } = await requireTeacherScope();
   const { id } = await params;
 
   const assignment = await db.assignment.findUnique({
@@ -33,7 +34,12 @@ export default async function AssignmentGradesPage({
       semesterId: true,
     },
   });
-  if (!assignment) notFound();
+  // Boshqa o'qituvchining topshirig'i — 404
+  if (
+    !assignment ||
+    !(await semesterGroupInScope(scope, assignment.semesterId))
+  )
+    notFound();
   const sheet = await getSemesterGrades(assignment.semesterId);
   if (!sheet) notFound();
   const { semester } = sheet;

@@ -3,7 +3,13 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { validationFailed, type ActionResult } from "@/lib/action-result";
-import { requireTeacher } from "@/lib/auth/guards";
+import {
+  canAccessGroup,
+  canAccessStudent,
+  FORBIDDEN,
+  semesterGroupInScope,
+} from "@/lib/auth/scope";
+import { requireTeacherScope } from "@/lib/auth/staff";
 import { db } from "@/lib/db";
 import { isNotFound, isUniqueViolation } from "@/lib/prisma-errors";
 import { toDbDate } from "@/lib/time";
@@ -71,10 +77,11 @@ export async function createSemester(
   groupId: string,
   input: SemesterInput,
 ): Promise<ActionResult> {
-  await requireTeacher();
+  const { scope } = await requireTeacherScope();
   const gid = idSchema.parse(groupId);
   const parsed = semesterSchema.safeParse(input);
   if (!parsed.success) return validationFailed(parsed.error);
+  if (!canAccessGroup(scope, gid)) return FORBIDDEN;
 
   if ((await db.group.count({ where: { id: gid } })) === 0)
     return { ok: false, error: "Guruh topilmadi" };
@@ -96,10 +103,11 @@ export async function updateSemester(
   semesterId: string,
   input: SemesterInput,
 ): Promise<ActionResult> {
-  await requireTeacher();
+  const { scope } = await requireTeacherScope();
   const id = idSchema.parse(semesterId);
   const parsed = semesterSchema.safeParse(input);
   if (!parsed.success) return validationFailed(parsed.error);
+  if (!(await semesterGroupInScope(scope, id))) return FORBIDDEN;
 
   const current = await db.semester.findUnique({
     where: { id },
@@ -126,8 +134,9 @@ export async function updateSemester(
 export async function deleteSemester(
   semesterId: string,
 ): Promise<ActionResult> {
-  await requireTeacher();
+  const { scope } = await requireTeacherScope();
   const id = idSchema.parse(semesterId);
+  if (!(await semesterGroupInScope(scope, id))) return FORBIDDEN;
   try {
     await db.semester.delete({ where: { id } });
   } catch (e) {
@@ -144,11 +153,16 @@ export async function addPointAdjustment(
   studentId: string,
   input: AdjustmentInput,
 ): Promise<ActionResult> {
-  const teacher = await requireTeacher();
+  const { user: teacher, scope } = await requireTeacherScope();
   const sid = idSchema.parse(studentId);
   const parsed = adjustmentSchema.safeParse(input);
   if (!parsed.success) return validationFailed(parsed.error);
   const { semesterId, points, reason } = parsed.data;
+  if (
+    !(await canAccessStudent(scope, sid)) ||
+    !(await semesterGroupInScope(scope, semesterId))
+  )
+    return FORBIDDEN;
 
   const student = await db.user.count({
     where: { id: sid, role: "STUDENT", archivedAt: null },
@@ -177,8 +191,15 @@ export async function addPointAdjustment(
 export async function deletePointAdjustment(
   adjustmentId: string,
 ): Promise<ActionResult> {
-  await requireTeacher();
+  const { scope } = await requireTeacherScope();
   const id = idSchema.parse(adjustmentId);
+  const adjustment = await db.pointAdjustment.findUnique({
+    where: { id },
+    select: { semesterId: true },
+  });
+  if (!adjustment) return { ok: false, error: "Tuzatish topilmadi" };
+  if (!(await semesterGroupInScope(scope, adjustment.semesterId)))
+    return FORBIDDEN;
   try {
     await db.pointAdjustment.delete({ where: { id } });
   } catch (e) {

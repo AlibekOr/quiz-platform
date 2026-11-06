@@ -101,9 +101,24 @@ beforeEach(async () => {
     await db.group.create({ data: { teacherId, name: "S-1", regionId: south } })
   ).id;
   manager = await user("manager", "MANAGER", { regionId: north });
+  // Menejer doirasi — o'qituvchi biriktirgan guruh (regiondan avtomatik emas)
+  await db.teacherManager.create({
+    data: { teacherId, managerId: manager.id },
+  });
+  await db.managerGroup.create({
+    data: { managerId: manager.id, groupId: mine, assignedById: teacherId },
+  });
 });
 
 describe("getTestAccess", () => {
+  it("boshqa o'qituvchining testi ko'rinmaydi; admin — hammasini tahrirlaydi", async () => {
+    const t = await test(teacher.id, [mine]);
+    const another = await user("bobur", "TEACHER");
+    expect(await getTestAccess(another, t)).toBeNull();
+    const admin = await user("admin", "ADMIN");
+    expect(await getTestAccess(admin, t)).toMatchObject({ canEdit: true });
+  });
+
   it("o'zi yaratgan, guruhlari doirada — tahrirlaydi", async () => {
     const t = await test(manager.id, [mine]);
     expect(await getTestAccess(manager, t)).toMatchObject({ canEdit: true });

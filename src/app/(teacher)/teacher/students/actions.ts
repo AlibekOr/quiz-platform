@@ -4,12 +4,14 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { validationFailed, type ActionResult } from "@/lib/action-result";
 import { hashPassword } from "@/lib/auth/password";
-import { requireStaff, requireTeacher } from "@/lib/auth/guards";
+import {
+  requireStaffScope,
+  requireTeacherOrAdminScope,
+} from "@/lib/auth/staff";
 import {
   canAccessGroup,
   canAccessStudent,
   FORBIDDEN,
-  getScope,
   groupScopeWhere,
   studentScopeWhere,
   type Scope,
@@ -27,6 +29,7 @@ import {
   todayInTashkent,
 } from "@/lib/time";
 import {
+  resolveImportGroup,
   sheetToRows,
   validateImportRows,
   type ImportRow,
@@ -72,15 +75,6 @@ async function usernameTaken(
 
 async function groupExists(groupId: string): Promise<boolean> {
   return (await db.group.count({ where: { id: groupId } })) > 0;
-}
-
-/**
- * O'qituvchi yoki menejer. Menejer faqat o'z doirasidagi o'quvchi va guruhlar bilan ishlaydi
- * (lib/auth/scope.ts); doiradan tashqaridagi id — FORBIDDEN
- */
-async function requireStaffScope() {
-  const user = await requireStaff();
-  return { user, scope: await getScope(user) };
 }
 
 async function forbiddenStudent(
@@ -232,8 +226,9 @@ export async function setStudentActive(
 export async function removeStudentFromGroup(
   studentId: string,
 ): Promise<ActionResult> {
-  await requireTeacher();
+  const { scope } = await requireTeacherOrAdminScope();
   const id = idSchema.parse(studentId);
+  if (await forbiddenStudent(scope, id)) return FORBIDDEN;
 
   const student = await db.user.findFirst({
     where: { id, role: "STUDENT", archivedAt: null },
@@ -306,7 +301,7 @@ export async function transferStudents(
       fieldErrors: { toGroupId: ["Guruh topilmadi"] },
     };
   if (students.length !== studentIds.length) {
-    if (scope.kind === "manager") return FORBIDDEN;
+    if (scope.kind === "limited") return FORBIDDEN;
     return {
       ok: false,
       error: "Ba'zi o'quvchilar topilmadi yoki arxivda. Sahifani yangilang",
@@ -378,9 +373,10 @@ export async function setStudentArchived(
   studentId: string,
   archived: boolean,
 ): Promise<ActionResult> {
-  await requireTeacher();
+  const { scope } = await requireTeacherOrAdminScope();
   const id = idSchema.parse(studentId);
   const archive = z.boolean().parse(archived);
+  if (await forbiddenStudent(scope, id)) return FORBIDDEN;
 
   try {
     await db.user.update({
@@ -399,8 +395,9 @@ export async function setStudentArchived(
 
 /** Butunlay o'chirish: faqat arxivdagi o'quvchi. Urinishlar, davomat va profil ham o'chadi */
 export async function deleteStudent(studentId: string): Promise<ActionResult> {
-  await requireTeacher();
+  const { scope } = await requireTeacherOrAdminScope();
   const id = idSchema.parse(studentId);
+  if (await forbiddenStudent(scope, id)) return FORBIDDEN;
 
   const student = await db.user.findFirst({
     where: { id, role: "STUDENT" },
@@ -442,15 +439,15 @@ async function validateAgainstDb(
       },
       select: { username: true },
     }),
-    // Menejer uchun doiradan tashqaridagi guruh "topilmadi" bo'ladi
+    // Doiradan tashqaridagi guruh "topilmadi" bo'ladi
     db.group.findMany({
       where: groupScopeWhere(scope),
-      select: { name: true },
+      select: { id: true, name: true, code: true },
     }),
   ]);
   return validateImportRows(rows, {
     existingUsernames: new Set(existing.map((u) => u.username)),
-    groupNames: new Set(groups.map((g) => g.name)),
+    groups,
   });
 }
 
@@ -528,18 +525,21 @@ export async function importStudents(
 
   const groups = await db.group.findMany({
     where: groupScopeWhere(scope),
-    select: { id: true, name: true },
+    select: { id: true, name: true, code: true },
   });
-  const groupIdByName = new Map(
-    groups.map((g) => [g.name.toLowerCase(), g.id]),
-  );
+  const groupIdOf = (cell: string) => {
+    const group = resolveImportGroup(cell, groups);
+    // validateImportRows xatosiz o'tgan — guruh aniq topiladi
+    if ("error" in group) throw new Error(group.error);
+    return group.id;
+  };
 
   const data = await Promise.all(
     rows.map(async (r) => ({
       fullName: fullNameSchema.parse(r.fullName),
       username: usernameSchema.parse(r.username),
       passwordHash: await hashPassword(r.password),
-      groupId: groupIdByName.get(r.group.toLowerCase())!,
+      groupId: groupIdOf(r.group),
       role: "STUDENT" as const,
       createdById: user.id,
       profile: { create: r.profile },

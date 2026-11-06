@@ -4,7 +4,8 @@ import { revalidatePath } from "next/cache";
 import { CACHE_TAGS, invalidateCache } from "@/lib/cached-data";
 import { z } from "zod";
 import { validationFailed, type ActionResult } from "@/lib/action-result";
-import { requireTeacher } from "@/lib/auth/guards";
+import { FORBIDDEN, semesterGroupInScope } from "@/lib/auth/scope";
+import { requireTeacherScope } from "@/lib/auth/staff";
 import { db } from "@/lib/db";
 import { formatPoints } from "@/lib/grades";
 import { applyPenalty } from "@/lib/penalties";
@@ -16,7 +17,8 @@ import {
   type PenaltyTypeInput,
 } from "@/lib/validators/penalties";
 
-// Jarima shablonlari va jarimalar: faqat o'qituvchi (TASKS.md, "Huquqlar")
+// Jarima shablonlari va jarimalar: faqat o'qituvchi (TASKS.md, "Huquqlar").
+// Shablonlar o'qituvchining o'ziniki (ownerId); jarima — faqat o'z guruhlari semestrlarida
 
 const idSchema = z.string().min(1).max(64);
 
@@ -44,7 +46,7 @@ const nameTaken: ActionResult = {
 export async function createPenaltyType(
   input: PenaltyTypeInput,
 ): Promise<ActionResult> {
-  const user = await requireTeacher();
+  const { user } = await requireTeacherScope();
   const parsed = penaltyTypeSchema.safeParse(input);
   if (!parsed.success) return validationFailed(parsed.error);
   try {
@@ -64,12 +66,16 @@ export async function updatePenaltyType(
   typeId: string,
   input: PenaltyTypeInput,
 ): Promise<ActionResult> {
-  await requireTeacher();
+  const { user } = await requireTeacherScope();
   const id = idSchema.parse(typeId);
   const parsed = penaltyTypeSchema.safeParse(input);
   if (!parsed.success) return validationFailed(parsed.error);
   try {
-    await db.penaltyType.update({ where: { id }, data: parsed.data });
+    // Boshqa o'qituvchining shabloni "topilmadi"
+    await db.penaltyType.update({
+      where: { id, ownerId: user.id },
+      data: parsed.data,
+    });
   } catch (e) {
     if (isNotFound(e)) return { ok: false, error: "Shablon topilmadi" };
     if (isUniqueViolation(e)) return nameTaken;
@@ -81,8 +87,10 @@ export async function updatePenaltyType(
 
 /** Faqat hali ishlatilmagan shablon o'chadi; aks holda nofaol qilish kerak (nomi saqlanadi) */
 export async function deletePenaltyType(typeId: string): Promise<ActionResult> {
-  await requireTeacher();
+  const { user } = await requireTeacherScope();
   const id = idSchema.parse(typeId);
+  if ((await db.penaltyType.count({ where: { id, ownerId: user.id } })) === 0)
+    return { ok: false, error: "Shablon topilmadi" };
   const used = await db.penalty.count({ where: { typeId: id } });
   if (used > 0)
     return {
@@ -90,7 +98,7 @@ export async function deletePenaltyType(typeId: string): Promise<ActionResult> {
       error: `Shablon ${used} ta jarimada ishlatilgan. O'chirish o'rniga nofaol qiling`,
     };
   try {
-    await db.penaltyType.delete({ where: { id } });
+    await db.penaltyType.delete({ where: { id, ownerId: user.id } });
   } catch (e) {
     if (isNotFound(e)) return { ok: false, error: "Shablon topilmadi" };
     throw e;
@@ -102,9 +110,11 @@ export async function deletePenaltyType(typeId: string): Promise<ActionResult> {
 export async function applyPenaltyAction(
   input: ApplyPenaltyInput,
 ): Promise<ActionResult> {
-  const teacher = await requireTeacher();
+  const { user: teacher, scope } = await requireTeacherScope();
   const parsed = applyPenaltySchema.safeParse(input);
   if (!parsed.success) return validationFailed(parsed.error);
+  if (!(await semesterGroupInScope(scope, parsed.data.semesterId)))
+    return FORBIDDEN;
   const result = await applyPenalty({
     ...parsed.data,
     createdById: teacher.id,
@@ -122,8 +132,15 @@ export async function applyPenaltyAction(
 
 /** Jarimani bekor qilish (o'chirish) */
 export async function deletePenalty(penaltyId: string): Promise<ActionResult> {
-  await requireTeacher();
+  const { scope } = await requireTeacherScope();
   const id = idSchema.parse(penaltyId);
+  const penalty = await db.penalty.findUnique({
+    where: { id },
+    select: { semesterId: true },
+  });
+  if (!penalty) return { ok: false, error: "Jarima topilmadi" };
+  if (!(await semesterGroupInScope(scope, penalty.semesterId)))
+    return FORBIDDEN;
   try {
     const p = await db.penalty.delete({
       where: { id },

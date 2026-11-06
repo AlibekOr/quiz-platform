@@ -2,12 +2,12 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowLeftIcon } from "lucide-react";
 import { ImportStudents } from "@/components/teacher/students/import-students";
-import { requireTeacher } from "@/lib/auth/guards";
+import { requireTeacherScope } from "@/lib/auth/staff";
 
 export const metadata: Metadata = { title: "O'quvchilarni import qilish" };
 
 export default async function ImportStudentsPage() {
-  await requireTeacher();
+  await requireTeacherScope();
 
   return (
     <>

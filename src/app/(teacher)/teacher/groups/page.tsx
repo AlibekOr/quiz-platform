@@ -11,18 +11,20 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { requireTeacher } from "@/lib/auth/guards";
-import { getRegionOptions } from "@/lib/cached-data";
+import { groupScopeWhere } from "@/lib/auth/scope";
+import { requireTeacherScope } from "@/lib/auth/staff";
 import { db } from "@/lib/db";
+import { getTeacherRegionOptions } from "@/lib/groups-data";
 import { formatSchedule } from "@/lib/time";
 
 export const metadata: Metadata = { title: "Guruhlar" };
 
 export default async function GroupsPage() {
-  await requireTeacher();
+  const { user, scope } = await requireTeacherScope();
 
   const [groups, regions] = await Promise.all([
     db.group.findMany({
+      where: groupScopeWhere(scope),
       orderBy: { name: "asc" },
       select: {
         id: true,
@@ -39,7 +41,7 @@ export default async function GroupsPage() {
         },
       },
     }),
-    getRegionOptions(),
+    getTeacherRegionOptions(user.id),
   ]);
 
   return (

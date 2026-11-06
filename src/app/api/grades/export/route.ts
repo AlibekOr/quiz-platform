@@ -1,18 +1,20 @@
 import type { NextRequest } from "next/server";
 import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth/guards";
+import { getScope, semesterGroupInScope } from "@/lib/auth/scope";
 import { getSemesterGrades } from "@/lib/grades-data";
 import { buildGradesWorkbook, gradesFileName } from "@/lib/grades-excel";
 
 const XLSX =
   "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 
-// GET /api/grades/export?periodId=<semestr id> — faqat o'qituvchi (baholar menejerga yopiq)
+// GET /api/grades/export?periodId=<semestr id> — o'z guruhi o'qituvchisi yoki ADMIN
+// (baholar menejerga yopiq). Doiradan tashqari semestr — 403
 export async function GET(request: NextRequest) {
   const user = await getCurrentUser();
   if (!user)
     return Response.json({ error: "Avtorizatsiya kerak" }, { status: 401 });
-  if (user.role !== "TEACHER")
+  if (user.role !== "TEACHER" && user.role !== "ADMIN")
     return Response.json({ error: "Ruxsat yo'q" }, { status: 403 });
 
   const periodId = z
@@ -22,6 +24,9 @@ export async function GET(request: NextRequest) {
     .safeParse(request.nextUrl.searchParams.get("periodId"));
   if (!periodId.success)
     return Response.json({ error: "periodId kerak" }, { status: 400 });
+
+  if (!(await semesterGroupInScope(await getScope(user), periodId.data)))
+    return Response.json({ error: "Ruxsat yo'q" }, { status: 403 });
 
   const data = await getSemesterGrades(periodId.data);
   if (!data)

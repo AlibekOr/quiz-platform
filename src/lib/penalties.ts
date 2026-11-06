@@ -17,8 +17,9 @@ export async function applyPenalty(
   if (input.date > todayInTashkent())
     return { ok: false, error: "Kelajakdagi sana uchun jarima qo'yilmaydi" };
 
+  // Faqat jarima qo'yayotgan o'qituvchining o'z shabloni
   const type = await db.penaltyType.findFirst({
-    where: { id: input.typeId, isActive: true },
+    where: { id: input.typeId, ownerId: input.createdById, isActive: true },
     select: { defaultPoints: true },
   });
   if (!type) return { ok: false, error: "Shablon topilmadi yoki nofaol" };

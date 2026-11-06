@@ -5,7 +5,8 @@ import { ParamSelect } from "@/components/common/param-select";
 import { GradeSheetTable } from "@/components/teacher/grades/grade-sheet-table";
 import { PenaltyDialog } from "@/components/teacher/penalties/penalty-dialog";
 import { buttonVariants } from "@/components/ui/button";
-import { requireTeacher } from "@/lib/auth/guards";
+import { groupScopeWhere } from "@/lib/auth/scope";
+import { requireTeacherScope } from "@/lib/auth/staff";
 import { db } from "@/lib/db";
 import { passScore } from "@/lib/grades";
 import { getSemesterGrades } from "@/lib/grades-data";
@@ -21,10 +22,11 @@ function param(value: string | string[] | undefined): string {
 export default async function GradesPage({
   searchParams,
 }: PageProps<"/teacher/grades">) {
-  await requireTeacher();
+  const { user, scope } = await requireTeacherScope();
   const params = await searchParams;
 
   const groups = await db.group.findMany({
+    where: groupScopeWhere(scope),
     orderBy: { name: "asc" },
     select: { id: true, name: true },
   });
@@ -47,7 +49,7 @@ export default async function GradesPage({
     periods[0]?.id;
   const [data, penaltyTypes] = await Promise.all([
     periodId ? getSemesterGrades(periodId) : null,
-    getActivePenaltyTypes(),
+    getActivePenaltyTypes(user.id),
   ]);
 
   return (

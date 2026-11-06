@@ -39,11 +39,11 @@ export type PenaltyOption = {
   defaultPoints: number;
 };
 
-/** Jarima qo'yish ro'yxati uchun faqat faol shablonlar */
+/** Jarima qo'yish ro'yxati uchun o'qituvchining faqat faol shablonlari (kesh kaliti — egasi) */
 export const getActivePenaltyTypes = unstable_cache(
-  async (): Promise<PenaltyOption[]> =>
+  async (ownerId: string): Promise<PenaltyOption[]> =>
     db.penaltyType.findMany({
-      where: { isActive: true },
+      where: { ownerId, isActive: true },
       orderBy: { name: "asc" },
       select: { id: true, name: true, defaultPoints: true },
     }),

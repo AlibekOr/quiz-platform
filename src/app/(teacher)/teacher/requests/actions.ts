@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { validationFailed, type ActionResult } from "@/lib/action-result";
-import { requireTeacher } from "@/lib/auth/guards";
+import { requireRole } from "@/lib/auth/guards";
 import { decideDeletionRequest } from "@/lib/deletion-requests";
 import {
   deletionDecisionSchema,
@@ -17,7 +17,7 @@ export async function decideRequest(
   requestId: string,
   input: DeletionDecisionInput,
 ): Promise<ActionResult> {
-  const teacher = await requireTeacher();
+  const teacher = await requireRole(["ADMIN", "TEACHER"]);
   const id = idSchema.parse(requestId);
   const parsed = deletionDecisionSchema.safeParse(input);
   if (!parsed.success) return validationFailed(parsed.error);

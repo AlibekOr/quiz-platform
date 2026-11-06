@@ -13,18 +13,19 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { requireTeacher } from "@/lib/auth/guards";
-import { getRegionOptions } from "@/lib/cached-data";
+import { requireTeacherScope } from "@/lib/auth/staff";
 import { db } from "@/lib/db";
+import { getTeacherRegionOptions } from "@/lib/groups-data";
 
 export const metadata: Metadata = { title: "Menejerlar" };
 
 export default async function ManagersPage() {
-  await requireTeacher();
+  const { user } = await requireTeacherScope();
 
+  // Faqat shu o'qituvchi bilan ishlaydigan menejerlar va ularga U bergan guruhlar
   const [managers, regions, groups] = await Promise.all([
     db.user.findMany({
-      where: { role: "MANAGER" },
+      where: { role: "MANAGER", teachers: { some: { teacherId: user.id } } },
       orderBy: { fullName: "asc" },
       select: {
         id: true,
@@ -34,13 +35,16 @@ export default async function ManagersPage() {
         regionId: true,
         region: { select: { name: true } },
         managedGroups: {
+          where: { group: { teacherId: user.id } },
           orderBy: { group: { name: "asc" } },
           select: { group: { select: { id: true, name: true } } },
         },
       },
     }),
-    getRegionOptions(),
+    getTeacherRegionOptions(user.id),
+    // Regionsiz guruh menejerga biriktirilmaydi
     db.group.findMany({
+      where: { teacherId: user.id, regionId: { not: null } },
       orderBy: { name: "asc" },
       select: { id: true, name: true },
     }),

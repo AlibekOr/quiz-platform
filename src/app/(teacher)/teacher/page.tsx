@@ -9,7 +9,9 @@ import {
 } from "lucide-react";
 import { MissingHomeworkList } from "@/components/teacher/homework/missing-homework";
 import { Badge } from "@/components/ui/badge";
-import { requireTeacher } from "@/lib/auth/guards";
+import { groupScopeWhere, studentScopeWhere } from "@/lib/auth/scope";
+import { requireTeacherScope } from "@/lib/auth/staff";
+import { testScopeWhere } from "@/lib/tests/access";
 import { isPresent } from "@/lib/attendance";
 import { getScheduleRows, schedulesOf } from "@/lib/cached-data";
 import { db } from "@/lib/db";
@@ -33,7 +35,7 @@ const ABSENT_DAYS = 30;
 const ABSENT_LIMIT = 5;
 
 export default async function TeacherPage() {
-  await requireTeacher();
+  const { scope } = await requireTeacherScope();
   const today = todayInTashkent();
   const weekday = weekdayOf(today);
   const absentFrom = addDays(today, -(ABSENT_DAYS - 1));
@@ -48,12 +50,18 @@ export default async function TeacherPage() {
   const [studentCount, groupCount, activeTestCount, groupRows, recent, misses] =
     await Promise.all([
       db.user.count({
-        where: { role: "STUDENT", isActive: true, archivedAt: null },
+        where: {
+          role: "STUDENT",
+          isActive: true,
+          archivedAt: null,
+          ...studentScopeWhere(scope),
+        },
       }),
-      db.group.count(),
-      db.test.count({ where: { isActive: true } }),
+      db.group.count({ where: groupScopeWhere(scope) }),
+      db.test.count({ where: { isActive: true, ...testScopeWhere(scope) } }),
       db.group.findMany({
         where: {
+          ...groupScopeWhere(scope),
           OR: [
             { id: { in: scheduledToday } },
             { lessons: { some: { date: toDbDate(today) } } },
@@ -78,7 +86,7 @@ export default async function TeacherPage() {
       db.attempt.findMany({
         where: {
           status: { in: ["FINISHED", "EXPIRED"] },
-          user: { archivedAt: null },
+          user: { archivedAt: null, ...studentScopeWhere(scope) },
         },
         orderBy: { finishedAt: "desc" },
         take: RECENT_RESULTS,
@@ -97,7 +105,10 @@ export default async function TeacherPage() {
       db.attendance.findMany({
         where: {
           status: { in: ["ABSENT", "LATE"] },
-          lesson: { date: { gte: toDbDate(absentFrom), lte: toDbDate(today) } },
+          lesson: {
+            group: groupScopeWhere(scope),
+            date: { gte: toDbDate(absentFrom), lte: toDbDate(today) },
+          },
           student: { role: "STUDENT", isActive: true, archivedAt: null },
         },
         select: {
@@ -174,7 +185,7 @@ export default async function TeacherPage() {
       icon: ClipboardListIcon,
     },
   ];
-  const missingHomework = await getMissingHomeworkLessons();
+  const missingHomework = await getMissingHomeworkLessons(scope);
 
   return (
     <>

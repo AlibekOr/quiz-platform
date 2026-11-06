@@ -3,7 +3,12 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { validationFailed, type ActionResult } from "@/lib/action-result";
-import { requireTeacher } from "@/lib/auth/guards";
+import {
+  FORBIDDEN,
+  semesterGroupInScope,
+  type Scope,
+} from "@/lib/auth/scope";
+import { requireTeacherScope } from "@/lib/auth/staff";
 import { db } from "@/lib/db";
 import {
   formatPoints,
@@ -68,6 +73,18 @@ async function semesterMissing(
     : null;
 }
 
+/** Topshiriq doiradagi guruh semestriga tegishlimi */
+async function assignmentInScope(scope: Scope, id: string): Promise<boolean> {
+  const assignment = await db.assignment.findUnique({
+    where: { id },
+    select: { semesterId: true },
+  });
+  return (
+    assignment !== null &&
+    (await semesterGroupInScope(scope, assignment.semesterId)) !== null
+  );
+}
+
 /** Uyga vazifa doim 0 / 0.5 / 1 — maksimal ball 1 */
 function assignmentData(input: z.output<typeof assignmentSchema>) {
   const { dueDate, maxPoints, ...rest } = input;
@@ -81,9 +98,11 @@ function assignmentData(input: z.output<typeof assignmentSchema>) {
 export async function createAssignment(
   input: AssignmentInput,
 ): Promise<ActionResult> {
-  const teacher = await requireTeacher();
+  const { user: teacher, scope } = await requireTeacherScope();
   const parsed = assignmentSchema.safeParse(input);
   if (!parsed.success) return validationFailed(parsed.error);
+  if (!(await semesterGroupInScope(scope, parsed.data.semesterId)))
+    return FORBIDDEN;
 
   const missing = await semesterMissing(
     parsed.data.semesterId,
@@ -102,11 +121,16 @@ export async function updateAssignment(
   assignmentId: string,
   input: AssignmentInput,
 ): Promise<ActionResult> {
-  await requireTeacher();
+  const { scope } = await requireTeacherScope();
   const id = idSchema.parse(assignmentId);
   const parsed = assignmentSchema.safeParse(input);
   if (!parsed.success) return validationFailed(parsed.error);
   const data = assignmentData(parsed.data);
+  if (
+    !(await assignmentInScope(scope, id)) ||
+    !(await semesterGroupInScope(scope, data.semesterId))
+  )
+    return FORBIDDEN;
 
   const missing = await semesterMissing(
     data.semesterId,
@@ -158,8 +182,9 @@ export async function updateAssignment(
 export async function deleteAssignment(
   assignmentId: string,
 ): Promise<ActionResult> {
-  await requireTeacher();
+  const { scope } = await requireTeacherScope();
   const id = idSchema.parse(assignmentId);
+  if (!(await assignmentInScope(scope, id))) return FORBIDDEN;
   try {
     await db.assignment.delete({ where: { id } });
   } catch (e) {
@@ -184,10 +209,11 @@ export async function saveAssignmentGrades(
   assignmentId: string,
   input: AssignmentGradesInput,
 ): Promise<ActionResult> {
-  await requireTeacher();
+  const { scope } = await requireTeacherScope();
   const id = idSchema.parse(assignmentId);
   const parsed = assignmentGradesSchema.safeParse(input);
   if (!parsed.success) return validationFailed(parsed.error);
+  if (!(await assignmentInScope(scope, id))) return FORBIDDEN;
 
   const assignment = await db.assignment.findUnique({
     where: { id },

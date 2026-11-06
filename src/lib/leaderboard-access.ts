@@ -89,8 +89,9 @@ export async function resolveLeaderboard(
 ): Promise<ResolvedLeaderboard | LeaderboardError> {
   const query = leaderboardQuerySchema.parse(params);
   const scope: LeaderboardScope = query.scope;
-  // O'qituvchi va menejer guruhni tanlaydi; menejer faqat o'z doirasidan
-  const isStaff = user.role === "TEACHER" || user.role === "MANAGER";
+  // Xodim guruhni tanlaydi — faqat o'z doirasidan (admin — hammasidan)
+  const isStaff =
+    user.role === "ADMIN" || user.role === "TEACHER" || user.role === "MANAGER";
   const access = isStaff ? await getScope(user) : null;
 
   let test: { id: string; title: string } | null = null;
@@ -100,7 +101,8 @@ export async function resolveLeaderboard(
       select: { id: true, title: true, groups: { select: { id: true } } },
     });
     if (!found) return { error: "Test topilmadi", status: 404 };
-    if (user.role === "MANAGER") {
+    if (isStaff) {
+      // Boshqa o'qituvchining testi — 403
       if (!(await getTestAccess(user, found.id)))
         return { error: "Bu test reytingini ko'rib bo'lmaydi", status: 403 };
     } else if (!isStaff) {
@@ -144,8 +146,8 @@ export async function resolveLeaderboard(
 
   const filter = {
     groupId: group?.id ?? null,
-    // Menejerning "Umumiy" reytingi ham faqat doiradagi o'quvchilar
-    groupIds: access?.kind === "manager" ? access.groupIds : null,
+    // Xodimning "Umumiy" reytingi ham faqat doiradagi o'quvchilar (admin — hammasi)
+    groupIds: access?.kind === "limited" ? access.groupIds : null,
     userId: isStaff ? null : user.id,
   };
   if (test)

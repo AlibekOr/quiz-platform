@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import { StudentFilters } from "@/components/teacher/students/student-filters";
 import { StudentsTable } from "@/components/teacher/students/students-table";
 import type { StudentRow } from "@/components/teacher/students/types";
-import { requireTeacher } from "@/lib/auth/guards";
+import { groupScopeWhere, studentScopeWhere } from "@/lib/auth/scope";
+import { requireTeacherScope } from "@/lib/auth/staff";
 import { db } from "@/lib/db";
 import { teacherProfileSelect } from "@/lib/students/profile-select";
 import { studentListWhere } from "@/lib/students/search";
@@ -17,18 +18,22 @@ function param(value: string | string[] | undefined): string {
 export default async function ArchivePage({
   searchParams,
 }: PageProps<"/teacher/archive">) {
-  await requireTeacher();
+  const { scope } = await requireTeacherScope();
   const params = await searchParams;
   const q = param(params.q).slice(0, 100);
   const group = param(params.group);
 
   const [groups, students] = await Promise.all([
     db.group.findMany({
+      where: groupScopeWhere(scope),
       orderBy: { name: "asc" },
       select: { id: true, name: true },
     }),
     db.user.findMany({
-      where: studentListWhere({ q, group, archived: true }),
+      where: {
+        ...studentListWhere({ q, group, archived: true }),
+        ...studentScopeWhere(scope),
+      },
       orderBy: [{ archivedAt: "desc" }, { fullName: "asc" }],
       select: {
         id: true,

@@ -133,18 +133,41 @@ function parseProfile(row: ImportRow, errors: string[]): StudentProfileData {
   };
 }
 
+export type ImportGroup = { id: string; name: string; code: string | null };
+
+/**
+ * "Guruh" ustuni: guruh kodi (SHOA-1-SH) yoki nomi, katta-kichik harf farqsiz. Nomlar
+ * takrorlanishi mumkin: doirada shu nomli guruh bir nechta bo'lsa — kod bilan yozish kerak
+ */
+export function resolveImportGroup(
+  cell: string,
+  groups: readonly ImportGroup[],
+): { id: string } | { error: string } {
+  const key = cell.trim().toLowerCase();
+  const byCode = groups.find((g) => g.code?.toLowerCase() === key);
+  if (byCode) return { id: byCode.id };
+  const byName = groups.filter((g) => g.name.toLowerCase() === key);
+  if (byName.length === 1) return { id: byName[0].id };
+  if (byName.length > 1)
+    return {
+      error: `"${cell}" nomli guruh bir nechta — kodini yozing (${byName
+        .map((g) => g.code ?? g.name)
+        .join(", ")})`,
+    };
+  return { error: `"${cell}" guruhi topilmadi` };
+}
+
 /**
  * Har bir qatorni tekshiradi: maydonlar, aloqa ma'lumotlari, fayl ichidagi takror loginlar,
- * bazada bor loginlar va mavjud bo'lmagan guruhlar.
+ * bazada bor loginlar va mavjud bo'lmagan (yoki noaniq) guruhlar.
  */
 export function validateImportRows(
   rows: (ImportRow & { line: number })[],
-  context: { existingUsernames: Set<string>; groupNames: Set<string> },
+  context: { existingUsernames: Set<string>; groups: readonly ImportGroup[] },
 ): ValidatedRow[] {
   const existing = new Set(
     [...context.existingUsernames].map((u) => u.toLowerCase()),
   );
-  const groups = new Set([...context.groupNames].map((g) => g.toLowerCase()));
 
   const seen = new Map<string, number>();
   for (const row of rows) {
@@ -167,8 +190,10 @@ export function validateImportRows(
       errors.push("Login faylda takrorlangan");
     if (row.username && existing.has(key))
       errors.push("Bunday login allaqachon mavjud");
-    if (row.group && !groups.has(row.group.toLowerCase()))
-      errors.push(`"${row.group}" guruhi topilmadi`);
+    if (row.group) {
+      const group = resolveImportGroup(row.group, context.groups);
+      if ("error" in group) errors.push(group.error);
+    }
 
     const profile = parseProfile(row, errors);
     return { ...row, errors, profile };

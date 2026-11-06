@@ -16,7 +16,6 @@ import {
   InboxIcon,
   LayoutDashboardIcon,
   LogOutIcon,
-  MapPinIcon,
   SettingsIcon,
   TableIcon,
   TrophyIcon,
@@ -114,7 +113,6 @@ const MENUS: Record<NavVariant, { main: MenuItem[]; footer: MenuLink[] }> = {
             icon: BriefcaseIcon,
           },
           { href: "/teacher/requests", label: "So'rovlar", icon: InboxIcon },
-          { href: "/teacher/regions", label: "Regionlar", icon: MapPinIcon },
           {
             href: "/teacher/penalties",
             label: "Jarima shablonlari",
