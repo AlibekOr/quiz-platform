@@ -2,6 +2,7 @@ import "dotenv/config";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient, QuestionType } from "../src/generated/prisma/client";
 import { hashPassword } from "../src/lib/auth/password";
+import { groupCode } from "../src/lib/group-code";
 import { addDays, toDbDate, todayInTashkent, weekdayOf } from "../src/lib/time";
 
 const db = new PrismaClient({
@@ -144,8 +145,82 @@ const CSS_QUESTIONS: SeedQuestion[] = [
 
 // Prod: `pnpm db:seed:prod` — faqat o'qituvchi akkaunti, namunaviy ma'lumotlarsiz
 const TEACHER_ONLY = process.argv.includes("--teacher-only");
+// Prod: `pnpm db:seed:admin` — faqat ADMIN akkaunti (SEED_ADMIN_USERNAME, SEED_ADMIN_PASSWORD)
+const ADMIN_ONLY = process.argv.includes("--admin-only");
+
+/** Mavjud bo'lsa tegilmaydi (parol ham o'zgarmaydi) */
+async function upsertUser(data: {
+  username: string;
+  fullName: string;
+  password: string;
+  role: "ADMIN" | "TEACHER" | "MANAGER";
+  regionId?: string;
+  createdById?: string;
+}) {
+  const { password, ...rest } = data;
+  return db.user.upsert({
+    where: { username: data.username },
+    update: {},
+    create: { ...rest, passwordHash: await hashPassword(password) },
+  });
+}
+
+/** O'qituvchining shu nomli guruhi bo'lmasa yaratadi: seq bazadan, kod darhol (lib/groups-data.ts) */
+async function ensureGroup(
+  name: string,
+  teacherId: string,
+  regionId: string | null,
+) {
+  const existing = await db.group.findFirst({ where: { name, teacherId } });
+  if (existing) return existing;
+  const group = await db.group.create({
+    data: { name, teacherId, regionId },
+    include: { region: true, teacher: true },
+  });
+  return db.group.update({
+    where: { id: group.id },
+    data: {
+      code: groupCode({
+        regionName: group.region?.name ?? null,
+        teacherFullName: group.teacher.fullName,
+        seq: group.seq,
+        groupName: name,
+      }),
+    },
+  });
+}
+
+/** Har bir o'qituvchiga namunaviy jarima shablonlari (o'zgartirganiga tegilmaydi) */
+async function ensurePenaltyTypes(ownerId: string) {
+  for (const t of PENALTY_TYPES) {
+    await db.penaltyType.upsert({
+      where: { ownerId_name: { ownerId, name: t.name } },
+      update: {},
+      create: { ...t, ownerId },
+    });
+  }
+}
+
+async function seedAdmin() {
+  const password = requireEnv("SEED_ADMIN_PASSWORD");
+  if (password.length < 8)
+    throw new Error("SEED_ADMIN_PASSWORD kamida 8 belgi bo'lsin");
+  const admin = await upsertUser({
+    username: requireEnv("SEED_ADMIN_USERNAME"),
+    fullName: process.env.SEED_ADMIN_FULLNAME || "Administrator",
+    password,
+    role: "ADMIN",
+  });
+  if (admin.role !== "ADMIN")
+    throw new Error(
+      `"${admin.username}" allaqachon ${admin.role} sifatida bor`,
+    );
+  console.log(`Seed tayyor: admin "${admin.username}"`);
+}
 
 async function main() {
+  if (ADMIN_ONLY) return seedAdmin();
+
   const teacherPassword = requireEnv("SEED_TEACHER_PASSWORD");
   if (TEACHER_ONLY && teacherPassword.length < 8)
     throw new Error("Prod uchun SEED_TEACHER_PASSWORD kamida 8 belgi bo'lsin");
@@ -168,12 +243,18 @@ async function main() {
 
   const studentHash = await hashPassword(requireEnv("SEED_STUDENT_PASSWORD"));
   const groups = [];
+  // Regionlar guruhlardan oldin: kodda region harfi bo'lsin (Frontend-1 → TO-1-F)
+  const GROUP_REGION: Record<string, string> = {
+    "Frontend-1": "Toshkent",
+    "Frontend-2": "Samarqand",
+  };
   for (const [gi, name] of GROUPS.entries()) {
-    const group = await db.group.upsert({
-      where: { name },
+    const region = await db.region.upsert({
+      where: { name: GROUP_REGION[name] },
       update: {},
-      create: { name },
+      create: { name: GROUP_REGION[name] },
     });
+    const group = await ensureGroup(name, teacher.id, region.id);
     groups.push(group);
 
     for (let i = 1; i <= STUDENTS_PER_GROUP; i++) {
@@ -275,6 +356,7 @@ async function main() {
         durationMin: 15,
         isActive: true,
         createdById: teacher.id,
+        ownerId: teacher.id,
         groups: { connect: groups.map((g) => ({ id: g.id })) },
         questions: {
           create: CSS_QUESTIONS.map((q, qi) => ({
@@ -332,29 +414,124 @@ async function main() {
         createdById: teacher.id,
       },
     });
-    const extra = groups.find((g) => g.name === m.extra);
-    if (extra) {
+    await db.teacherRegion.upsert({
+      where: {
+        teacherId_regionId: { teacherId: teacher.id, regionId: region.id },
+      },
+      update: {},
+      create: { teacherId: teacher.id, regionId: region.id },
+    });
+    await db.teacherManager.upsert({
+      where: {
+        teacherId_managerId: { teacherId: teacher.id, managerId: manager.id },
+      },
+      update: {},
+      create: { teacherId: teacher.id, managerId: manager.id },
+    });
+    // Doira: o'z regionidagi guruh + qo'shimcha (boshqa regiondan)
+    for (const name of [m.group, m.extra]) {
+      const group = groups.find((g) => g.name === name);
+      if (!group) continue;
       await db.managerGroup.upsert({
         where: {
-          managerId_groupId: { managerId: manager.id, groupId: extra.id },
+          managerId_groupId: { managerId: manager.id, groupId: group.id },
         },
         update: {},
-        create: { managerId: manager.id, groupId: extra.id },
+        create: {
+          managerId: manager.id,
+          groupId: group.id,
+          assignedById: teacher.id,
+        },
       });
     }
   }
+  await ensurePenaltyTypes(teacher.id);
 
-  // Namunaviy jarima shablonlari (migratsiya ham qo'shadi; o'qituvchi o'zgartirganiga tegilmaydi)
-  for (const t of PENALTY_TYPES) {
-    await db.penaltyType.upsert({
-      where: { name: t.name },
-      update: {},
-      create: t,
+  // Ko'p o'qituvchi (ROLES.md): admin, yana 2 o'qituvchi. teacher2 — Toshkentda (teacher bilan
+  // bitta regionda, guruh nomi ham bir xil — kod farqlaydi), teacher3 — Samarqandda.
+  // manager1 ikki o'qituvchi bilan ishlaydi. Parol — o'quvchilarniki bilan bir xil
+  const admin = await upsertUser({
+    username: "admin",
+    fullName: "Administrator",
+    password: requireEnv("SEED_STUDENT_PASSWORD"),
+    role: "ADMIN",
+  });
+  const manager1 = await db.user.findUniqueOrThrow({
+    where: { username: "manager1" },
+  });
+  const extraTeachers = [
+    {
+      username: "teacher2",
+      fullName: "Karimov Bobur",
+      region: "Toshkent",
+      group: "Frontend-1",
+      manager: manager1,
+    },
+    {
+      username: "teacher3",
+      fullName: "Saidova Malika",
+      region: "Samarqand",
+      group: "Backend-1",
+      manager: null,
+    },
+  ];
+  for (const [ti, t] of extraTeachers.entries()) {
+    const region = await db.region.findUniqueOrThrow({
+      where: { name: t.region },
     });
+    const user = await upsertUser({
+      username: t.username,
+      fullName: t.fullName,
+      password: requireEnv("SEED_STUDENT_PASSWORD"),
+      role: "TEACHER",
+      createdById: admin.id,
+    });
+    await db.teacherRegion.upsert({
+      where: {
+        teacherId_regionId: { teacherId: user.id, regionId: region.id },
+      },
+      update: {},
+      create: { teacherId: user.id, regionId: region.id },
+    });
+    const group = await ensureGroup(t.group, user.id, region.id);
+    for (let i = 1; i <= 3; i++) {
+      const username = `student${ti + 3}${i}`;
+      await db.user.upsert({
+        where: { username },
+        update: {},
+        create: {
+          username,
+          fullName: `O'quvchi ${ti + 3}-${i}`,
+          passwordHash: studentHash,
+          groupId: group.id,
+        },
+      });
+    }
+    if (t.manager) {
+      await db.teacherManager.upsert({
+        where: {
+          teacherId_managerId: { teacherId: user.id, managerId: t.manager.id },
+        },
+        update: {},
+        create: { teacherId: user.id, managerId: t.manager.id },
+      });
+      await db.managerGroup.upsert({
+        where: {
+          managerId_groupId: { managerId: t.manager.id, groupId: group.id },
+        },
+        update: {},
+        create: {
+          managerId: t.manager.id,
+          groupId: group.id,
+          assignedById: user.id,
+        },
+      });
+    }
+    await ensurePenaltyTypes(user.id);
   }
 
   console.log(
-    `Seed tayyor: 1 o'qituvchi, ${GROUPS.length} guruh, ${GROUPS.length * STUDENTS_PER_GROUP} o'quvchi, 1 test (${CSS_QUESTIONS.length} savol), dars jadvali, 2 haftalik davomat, ${managerSetup.length} region va ${managerSetup.length} menejer, ${PENALTY_TYPES.length} jarima shabloni`,
+    `Seed tayyor: admin, ${1 + extraTeachers.length} o'qituvchi, ${GROUPS.length + extraTeachers.length} guruh, ${GROUPS.length * STUDENTS_PER_GROUP} o'quvchi, 1 test (${CSS_QUESTIONS.length} savol), dars jadvali, 2 haftalik davomat, ${managerSetup.length} region va ${managerSetup.length} menejer, ${PENALTY_TYPES.length} jarima shabloni`,
   );
 }
 

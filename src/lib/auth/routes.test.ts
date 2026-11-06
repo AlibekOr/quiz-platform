@@ -3,6 +3,9 @@ import { allowedRoles } from "./routes";
 
 describe("allowedRoles", () => {
   it("har rol o'z bo'limiga", () => {
+    expect(allowedRoles("/admin")).toEqual(["ADMIN"]);
+    expect(allowedRoles("/admin/teachers")).toEqual(["ADMIN"]);
+    expect(allowedRoles("/administrator")).toBeNull();
     expect(allowedRoles("/teacher")).toEqual(["TEACHER"]);
     expect(allowedRoles("/teacher/students/1")).toEqual(["TEACHER"]);
     expect(allowedRoles("/manager/requests")).toEqual(["MANAGER"]);
@@ -29,7 +32,12 @@ describe("allowedRoles", () => {
   });
 
   it("profil hamma rolga", () => {
-    expect(allowedRoles("/profile")).toEqual(["TEACHER", "MANAGER", "STUDENT"]);
+    expect(allowedRoles("/profile")).toEqual([
+      "ADMIN",
+      "TEACHER",
+      "MANAGER",
+      "STUDENT",
+    ]);
     expect(allowedRoles("/profiles")).toBeNull();
   });
 

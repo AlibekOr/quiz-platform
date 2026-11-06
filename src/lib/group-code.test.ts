@@ -75,4 +75,15 @@ describe("groupCode", () => {
       }),
     ).toBe("SHOA-4-O");
   });
+
+  it("regionsiz guruh — region harfisiz", () => {
+    expect(
+      groupCode({
+        regionName: null,
+        teacherFullName: "Orakbaev Alibek",
+        seq: 5,
+        groupName: "Frontend",
+      }),
+    ).toBe("OA-5-F");
+  });
 });

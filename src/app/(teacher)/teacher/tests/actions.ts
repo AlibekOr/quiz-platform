@@ -63,7 +63,12 @@ export async function createTest(
 
   // Menejer yaratgan test davrga biriktirilmaydi — buni keyin o'qituvchi qiladi
   const test = await db.test.create({
-    data: { ...parsed.data, createdById: user.id },
+    data: {
+      ...parsed.data,
+      createdById: user.id,
+      // Test o'qituvchiniki; menejer yaratganini u ishlaydigan o'qituvchilar nusxa oladi
+      ownerId: user.role === "TEACHER" ? user.id : null,
+    },
   });
   const base = staffBase(user.role);
   revalidatePath(`${base}/tests`);

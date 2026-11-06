@@ -92,10 +92,14 @@ beforeEach(async () => {
   await resetDatabase();
   const north = (await db.region.create({ data: { name: "Shimol" } })).id;
   const south = (await db.region.create({ data: { name: "Janub" } })).id;
-  mine = (await db.group.create({ data: { name: "N-1", regionId: north } })).id;
-  other = (await db.group.create({ data: { name: "S-1", regionId: south } }))
-    .id;
   teacher = await user("teacher", "TEACHER");
+  const teacherId = teacher.id;
+  mine = (
+    await db.group.create({ data: { teacherId, name: "N-1", regionId: north } })
+  ).id;
+  other = (
+    await db.group.create({ data: { teacherId, name: "S-1", regionId: south } })
+  ).id;
   manager = await user("manager", "MANAGER", { regionId: north });
 });
 

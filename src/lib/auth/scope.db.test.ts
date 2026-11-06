@@ -38,10 +38,24 @@ beforeEach(async () => {
   teacher = await user("teacher", "TEACHER");
   north = (await db.region.create({ data: { name: "Shimol" } })).id;
   south = (await db.region.create({ data: { name: "Janub" } })).id;
-  g1 = (await db.group.create({ data: { name: "N-1", regionId: north } })).id;
-  g2 = (await db.group.create({ data: { name: "N-2", regionId: north } })).id;
-  g3 = (await db.group.create({ data: { name: "S-1", regionId: south } })).id;
-  g4 = (await db.group.create({ data: { name: "Erkin" } })).id;
+  g1 = (
+    await db.group.create({
+      data: { teacherId: teacher.id, name: "N-1", regionId: north },
+    })
+  ).id;
+  g2 = (
+    await db.group.create({
+      data: { teacherId: teacher.id, name: "N-2", regionId: north },
+    })
+  ).id;
+  g3 = (
+    await db.group.create({
+      data: { teacherId: teacher.id, name: "S-1", regionId: south },
+    })
+  ).id;
+  g4 = (
+    await db.group.create({ data: { teacherId: teacher.id, name: "Erkin" } })
+  ).id;
 });
 
 describe("getAccessibleGroupIds", () => {
@@ -52,13 +66,17 @@ describe("getAccessibleGroupIds", () => {
 
   it("faqat biriktirilgan (regionsiz menejer)", async () => {
     const m = await user("m", "MANAGER");
-    await db.managerGroup.create({ data: { managerId: m.id, groupId: g3 } });
+    await db.managerGroup.create({
+      data: { managerId: m.id, groupId: g3, assignedById: teacher.id },
+    });
     expect(await getAccessibleGroupIds(m)).toEqual([g3]);
   });
 
   it("region va biriktirilgan birga", async () => {
     const m = await user("m", "MANAGER", { regionId: north });
-    await db.managerGroup.create({ data: { managerId: m.id, groupId: g4 } });
+    await db.managerGroup.create({
+      data: { managerId: m.id, groupId: g4, assignedById: teacher.id },
+    });
     expect((await getAccessibleGroupIds(m)).sort()).toEqual(
       [g1, g2, g4].sort(),
     );

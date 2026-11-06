@@ -9,6 +9,8 @@ datasource db {
 }
 
 enum Role {
+  // Markaz rahbariyati: regionlar, o'qituvchilar, butun markaz (ROLES.md)
+  ADMIN
   TEACHER
   MANAGER
   STUDENT
@@ -69,7 +71,17 @@ model User {
   // Menejerning regioni (faqat MANAGER uchun); doirasi: region guruhlari + ManagerGroup
   regionId           String?
   region             Region?           @relation(fields: [regionId], references: [id], onDelete: SetNull)
-  managedGroups      ManagerGroup[]
+  managedGroups      ManagerGroup[]    @relation("ManagerGroupManager")
+  // O'qituvchi: regionlari, guruhlari, menejerlari, jarima shablonlari, testlari
+  teacherRegions     TeacherRegion[]
+  taughtGroups       Group[]           @relation("GroupTeacher")
+  managers           TeacherManager[]  @relation("TeacherManagerTeacher")
+  // Menejer: qaysi o'qituvchilar bilan ishlaydi
+  teachers           TeacherManager[]  @relation("TeacherManagerManager")
+  assignedGroups     ManagerGroup[]    @relation("ManagerGroupAssigner")
+  penaltyTypes       PenaltyType[]
+  ownedTests         Test[]            @relation("TestOwner")
+  testShares         TestShare[]
   // O'quvchini kim qo'shgan (menejer guruhsiz o'quvchini faqat o'zi qo'shgan bo'lsa ko'radi)
   createdById        String?
   createdBy          User?             @relation("CreatedStudents", fields: [createdById], references: [id], onDelete: SetNull)
@@ -80,9 +92,16 @@ model User {
   createdAt          DateTime          @default(now())
 }
 
+// Guruh o'qituvchiga tegishli. Nom takrorlanishi mumkin; guruhni kod farqlaydi
+// (lib/group-code.ts, masalan SHOA-1-SH). seq butun loyiha bo'yicha, qayta berilmaydi;
+// code bir marta yoziladi va o'zgarmaydi (regionsiz guruhda region harfisiz)
 model Group {
   id          String            @id @default(cuid())
-  name        String            @unique
+  name        String
+  seq         Int               @unique @default(autoincrement())
+  code        String?           @unique
+  teacherId   String
+  teacher     User              @relation("GroupTeacher", fields: [teacherId], references: [id], onDelete: Restrict)
   students    User[]
   tests       Test[]
   schedules   GroupSchedule[]
@@ -93,27 +112,37 @@ model Group {
   region      Region?           @relation(fields: [regionId], references: [id], onDelete: SetNull)
   managers    ManagerGroup[]
   createdAt   DateTime          @default(now())
+
+  @@index([teacherId])
 }
 
 model Test {
-  id               String     @id @default(cuid())
+  id               String      @id @default(cuid())
   title            String
   description      String?
   durationMin      Int
-  isActive         Boolean    @default(false)
-  allowRetake      Boolean    @default(true)
-  showAnswers      Boolean    @default(false)
-  shuffleQuestions Boolean    @default(false)
-  shuffleOptions   Boolean    @default(false)
+  isActive         Boolean     @default(false)
+  allowRetake      Boolean     @default(true)
+  showAnswers      Boolean     @default(false)
+  shuffleQuestions Boolean     @default(false)
+  shuffleOptions   Boolean     @default(false)
   // Ochiq bo'lish oralig'i (ixtiyoriy). Ochiq = isActive va startsAt <= hozir < endsAt (lib/tests/schedule.ts)
   startsAt         DateTime?
   endsAt           DateTime?
   createdById      String
-  createdBy        User       @relation("TestAuthor", fields: [createdById], references: [id])
+  createdBy        User        @relation("TestAuthor", fields: [createdById], references: [id])
+  // Egasi — o'qituvchi (menejer yaratgan testda null: u ishlaydigan o'qituvchilar nusxa oladi)
+  ownerId          String?
+  owner            User?       @relation("TestOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  // Ulashilgan testdan olingan nusxa: qaysi testdan
+  copiedFromId     String?
+  copiedFrom       Test?       @relation("TestCopy", fields: [copiedFromId], references: [id], onDelete: SetNull)
+  copies           Test[]      @relation("TestCopy")
+  shares           TestShare[]
   groups           Group[]
   questions        Question[]
   attempts         Attempt[]
-  createdAt        DateTime   @default(now())
+  createdAt        DateTime    @default(now())
 }
 
 model Question {
@@ -375,12 +404,16 @@ model PointAdjustment {
 // lekin eski jarimalarda nomi saqlanadi (o'chirish — faqat ishlatilmagan bo'lsa)
 model PenaltyType {
   id            String    @id @default(cuid())
-  name          String    @unique
+  ownerId       String
+  owner         User      @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  name          String
   defaultPoints Float
   description   String?
   isActive      Boolean   @default(true)
   penalties     Penalty[]
   createdAt     DateTime  @default(now())
+
+  @@unique([ownerId, name])
 }
 
 // Jarima: semestr jamidan 60 lik chegaradan KEYIN ayiriladi (lib/grades.ts).
@@ -404,23 +437,74 @@ model Penalty {
 }
 
 model Region {
-  id        String   @id @default(cuid())
-  name      String   @unique
-  groups    Group[]
-  managers  User[]
-  createdAt DateTime @default(now())
+  id         String          @id @default(cuid())
+  name       String          @unique
+  groups     Group[]
+  managers   User[]
+  teachers   TeacherRegion[]
+  testShares TestShare[]
+  createdAt  DateTime        @default(now())
 }
 
-// O'qituvchi menejerga qo'lda biriktirgan qo'shimcha guruhlar (regiondan tashqari)
+// Menejer doirasi: o'qituvchilar unga biriktirgan guruhlar (boshqa regiondan ham bo'lishi
+// mumkin). O'qituvchi faqat o'z guruhlarini biriktiradi
 model ManagerGroup {
-  id        String   @id @default(cuid())
-  managerId String
-  manager   User     @relation(fields: [managerId], references: [id], onDelete: Cascade)
-  groupId   String
-  group     Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
-  createdAt DateTime @default(now())
+  id           String   @id @default(cuid())
+  managerId    String
+  manager      User     @relation("ManagerGroupManager", fields: [managerId], references: [id], onDelete: Cascade)
+  groupId      String
+  group        Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  assignedById String
+  assignedBy   User     @relation("ManagerGroupAssigner", fields: [assignedById], references: [id], onDelete: Cascade)
+  createdAt    DateTime @default(now())
 
   @@unique([managerId, groupId])
+}
+
+// O'qituvchining regionlari (faqat ADMIN biriktiradi). Guruh va o'qituvchi yaratgan menejer
+// regioni shulardan biri bo'ladi
+model TeacherRegion {
+  id        String   @id @default(cuid())
+  teacherId String
+  teacher   User     @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  regionId  String
+  region    Region   @relation(fields: [regionId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([teacherId, regionId])
+  @@index([regionId])
+}
+
+// Qaysi o'qituvchi qaysi menejer bilan ishlaydi
+model TeacherManager {
+  id        String   @id @default(cuid())
+  teacherId String
+  teacher   User     @relation("TeacherManagerTeacher", fields: [teacherId], references: [id], onDelete: Cascade)
+  managerId String
+  manager   User     @relation("TeacherManagerManager", fields: [managerId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([teacherId, managerId])
+  @@index([managerId])
+}
+
+// Test ulashish: regionga (shu regiondagi o'qituvchilar) yoki bitta o'qituvchiga.
+// Oluvchi o'z nusxasini oladi (Test.copiedFromId), asl test o'zgarmaydi.
+// Aynan bittasi to'ldiriladi (CHECK — faqat SQL migratsiyada)
+model TestShare {
+  id        String   @id @default(cuid())
+  testId    String
+  test      Test     @relation(fields: [testId], references: [id], onDelete: Cascade)
+  regionId  String?
+  region    Region?  @relation(fields: [regionId], references: [id], onDelete: Cascade)
+  teacherId String?
+  teacher   User?    @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([testId, regionId])
+  @@unique([testId, teacherId])
+  @@index([teacherId])
+  @@index([regionId])
 }
 
 // Menejerning o'quvchini o'chirish so'rovi. Tasdiqlansa o'quvchi arxivlanadi.

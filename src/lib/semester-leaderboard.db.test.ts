@@ -17,7 +17,7 @@ async function group(
   name: string,
   semester: { from: number; to: number } | null,
 ) {
-  const g = await db.group.create({ data: { name } });
+  const g = await db.group.create({ data: { name, teacherId } });
   if (semester)
     await db.semester.create({
       data: {
@@ -213,7 +213,7 @@ describe("to'plagan, jarima va jami", () => {
       where: { groupId: g1 },
     });
     const type = await db.penaltyType.create({
-      data: { name: "Test jarima", defaultPoints: 2 },
+      data: { ownerId: teacherId, name: "Test jarima", defaultPoints: 2 },
     });
     const penalize = (studentId: string, points: number) =>
       db.penalty.create({

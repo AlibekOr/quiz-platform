@@ -14,11 +14,16 @@ Kerak: Node.js 20+ (24 tavsiya), pnpm, PostgreSQL 15+.
 pnpm install                 # postinstall: prisma generate
 cp .env.example .env         # qiymatlarni to'ldiring (pastga qarang)
 pnpm db:migrate              # migratsiyalarni qo'llash
-pnpm db:seed                 # o'qituvchi + 2 guruh, 10 o'quvchi, namunaviy test va davomat
+pnpm db:seed                 # admin, 3 o'qituvchi, 4 guruh, o'quvchilar, namunaviy test va davomat
 pnpm dev                     # http://localhost:3000
 ```
 
-Kirish: `.env` dagi `SEED_TEACHER_USERNAME` / `SEED_TEACHER_PASSWORD` (o'qituvchi). Namunaviy o'quvchilar: `student11`…`student15`, `student21`…`student25`; menejerlar: `manager1` (Toshkent), `manager2` (Samarqand + Frontend-1). Hammasining paroli `SEED_STUDENT_PASSWORD`.
+Kirish: `.env` dagi `SEED_TEACHER_USERNAME` / `SEED_TEACHER_PASSWORD` (asosiy o'qituvchi). Qolganlarining paroli `SEED_STUDENT_PASSWORD`:
+
+- `admin` — ADMIN;
+- `teacher2` (Karimov Bobur, Toshkent, guruhi ham "Frontend-1" — kod farqlaydi) va `teacher3` (Saidova Malika, Samarqand);
+- menejerlar: `manager1` (asosiy o'qituvchi va `teacher2` bilan ishlaydi), `manager2` (asosiy o'qituvchi, Frontend-1 va Frontend-2);
+- o'quvchilar: `student11`…`student15`, `student21`…`student25`, `student31`…`student33`, `student41`…`student43`.
 
 ## Muhit o'zgaruvchilari
 
@@ -30,6 +35,9 @@ Kirish: `.env` dagi `SEED_TEACHER_USERNAME` / `SEED_TEACHER_PASSWORD` (o'qituvch
 | `SEED_TEACHER_USERNAME` | seed uchun     | O'qituvchi logini                                                                                     |
 | `SEED_TEACHER_PASSWORD` | seed uchun     | O'qituvchi paroli (prod'da kamida 8 belgi)                                                            |
 | `SEED_TEACHER_FULLNAME` | yo'q           | O'qituvchi ismi (standart: "O'qituvchi")                                                              |
+| `SEED_ADMIN_USERNAME`   | admin seed     | ADMIN logini (`pnpm db:seed:admin`)                                                                   |
+| `SEED_ADMIN_PASSWORD`   | admin seed     | ADMIN paroli (kamida 8 belgi)                                                                         |
+| `SEED_ADMIN_FULLNAME`   | yo'q           | ADMIN ismi (standart: "Administrator")                                                                |
 | `SEED_STUDENT_PASSWORD` | faqat dev seed | Namunaviy o'quvchilar va menejerlar paroli                                                            |
 | `TEST_DATABASE_URL`     | testlar uchun  | Reyting/urinish SQL testlari uchun **alohida** baza. Har testda tozalanadi, asosiy bazani bermang     |
 
@@ -93,6 +101,20 @@ pnpm db:seed:prod
 ```
 
 Akkaunt mavjud bo'lsa, unga tegilmaydi (qayta ishga tushirish xavfsiz). `pnpm db:seed` (`prisma db seed`) ni prod'da ishlatmang: u namunaviy ma'lumotlarni ham yaratadi. Keyin o'qituvchi tizimga kirib, guruh va o'quvchilarni o'zi qo'shadi (Excel import ham bor).
+
+### 4a. ADMIN akkaunti (prod seed, bir marta)
+
+Markaz rahbariyati uchun alohida akkaunt (regionlar, o'qituvchilar, butun markaz). Faqat shu akkaunt yaratiladi:
+
+```bash
+DATABASE_URL="<neon pooled>" \
+SEED_ADMIN_USERNAME="admin" \
+SEED_ADMIN_PASSWORD="<kuchli parol>" \
+SEED_ADMIN_FULLNAME="Ism Familiya" \
+pnpm db:seed:admin
+```
+
+Akkaunt mavjud bo'lsa, unga tegilmaydi. Login boshqa rol bilan band bo'lsa, xato beradi.
 
 ### 5. Tekshirish
 

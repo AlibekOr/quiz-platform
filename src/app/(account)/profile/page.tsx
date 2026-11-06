@@ -11,6 +11,7 @@ import { PARENT_RELATION_LABELS } from "@/lib/validators/contact";
 export const metadata: Metadata = { title: "Profil" };
 
 const ROLE_LABEL: Record<Role, string> = {
+  ADMIN: "Administrator",
   TEACHER: "O'qituvchi",
   MANAGER: "Menejer",
   STUDENT: "O'quvchi",

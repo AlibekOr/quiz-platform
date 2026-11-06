@@ -10,7 +10,7 @@ import {
 let teacherId: string;
 
 async function group(name: string) {
-  return (await db.group.create({ data: { name } })).id;
+  return (await db.group.create({ data: { name, teacherId } })).id;
 }
 
 async function student(

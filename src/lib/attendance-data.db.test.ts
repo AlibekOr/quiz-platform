@@ -31,8 +31,21 @@ async function student(fullName: string) {
 
 beforeEach(async () => {
   await resetDatabase();
-  groupId = (await db.group.create({ data: { name: "Frontend-1" } })).id;
-  otherGroupId = (await db.group.create({ data: { name: "Frontend-2" } })).id;
+  const teacherId = (
+    await db.user.create({
+      data: {
+        username: "teacher",
+        fullName: "O'qituvchi",
+        passwordHash: "x",
+        role: "TEACHER",
+      },
+    })
+  ).id;
+  groupId = (await db.group.create({ data: { teacherId, name: "Frontend-1" } }))
+    .id;
+  otherGroupId = (
+    await db.group.create({ data: { teacherId, name: "Frontend-2" } })
+  ).id;
 });
 
 describe("guruhdan ketganlar davomatda", () => {

@@ -176,7 +176,7 @@ export async function setManagerGroups(
   managerId: string,
   input: ManagerGroupsInput,
 ): Promise<ActionResult> {
-  await requireTeacher();
+  const user = await requireTeacher();
   const id = idSchema.parse(managerId);
   const parsed = managerGroupsSchema.safeParse(input);
   if (!parsed.success) return validationFailed(parsed.error);
@@ -195,7 +195,11 @@ export async function setManagerGroups(
       where: { managerId: id, groupId: { notIn: groupIds } },
     }),
     db.managerGroup.createMany({
-      data: groupIds.map((groupId) => ({ managerId: id, groupId })),
+      data: groupIds.map((groupId) => ({
+        managerId: id,
+        groupId,
+        assignedById: user.id,
+      })),
       skipDuplicates: true,
     }),
   ]);

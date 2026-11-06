@@ -2,9 +2,9 @@ import { jwtVerify, SignJWT } from "jose";
 
 // proxy.ts va session.ts ikkalasi ishlatadi, shuning uchun next/headers va server-only yo'q
 
-export type Role = "TEACHER" | "MANAGER" | "STUDENT";
+export type Role = "ADMIN" | "TEACHER" | "MANAGER" | "STUDENT";
 
-const ROLES: readonly Role[] = ["TEACHER", "MANAGER", "STUDENT"];
+const ROLES: readonly Role[] = ["ADMIN", "TEACHER", "MANAGER", "STUDENT"];
 
 function isRole(value: unknown): value is Role {
   return ROLES.includes(value as Role);
@@ -65,6 +65,7 @@ export async function decodeSession(
 }
 
 const HOME: Record<Role, string> = {
+  ADMIN: "/admin",
   TEACHER: "/teacher",
   MANAGER: "/manager",
   STUDENT: "/dashboard",

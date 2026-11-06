@@ -6,12 +6,13 @@ import { z } from "zod";
 import { validationFailed, type ActionResult } from "@/lib/action-result";
 import { requireTeacher } from "@/lib/auth/guards";
 import { db } from "@/lib/db";
+import { createGroupRecord } from "@/lib/groups-data";
 import {
   scheduleFormSchema,
   scheduleRowSchema,
   type ScheduleFormInput,
 } from "@/lib/validators/attendance";
-import { isNotFound, isUniqueViolation } from "@/lib/prisma-errors";
+import { isNotFound } from "@/lib/prisma-errors";
 import { groupRegionSchema } from "@/lib/validators/manager";
 import { groupFormSchema, type GroupFormInput } from "@/lib/validators/student";
 
@@ -34,26 +35,21 @@ async function regionMissing(regionId: string | null): Promise<boolean> {
 export async function createGroup(
   input: GroupFormInput & { regionId: string },
 ): Promise<ActionResult> {
-  await requireTeacher();
+  const user = await requireTeacher();
   const parsed = groupFormSchema.merge(groupRegionSchema).safeParse(input);
   if (!parsed.success) return validationFailed(parsed.error);
   const { name, regionId } = parsed.data;
   if (await regionMissing(regionId))
     return { ok: false, error: "Region topilmadi" };
 
-  try {
-    await db.group.create({ data: { name, regionId } });
-  } catch (e) {
-    if (isUniqueViolation(e))
-      return {
-        ok: false,
-        error: "Maydonlarni tekshiring",
-        fieldErrors: { name: ["Bunday nomli guruh bor"] },
-      };
-    throw e;
-  }
+  // Nom takrorlanishi mumkin — guruhni kod farqlaydi
+  const { code } = await createGroupRecord({
+    name,
+    regionId,
+    teacherId: user.id,
+  });
   revalidate();
-  return { ok: true, message: "Guruh yaratildi" };
+  return { ok: true, message: `Guruh yaratildi: ${code}` };
 }
 
 export async function renameGroup(
@@ -65,15 +61,10 @@ export async function renameGroup(
   const parsed = groupFormSchema.safeParse(input);
   if (!parsed.success) return validationFailed(parsed.error);
 
+  // Kod o'zgarmaydi
   try {
     await db.group.update({ where: { id }, data: { name: parsed.data.name } });
   } catch (e) {
-    if (isUniqueViolation(e))
-      return {
-        ok: false,
-        error: "Maydonlarni tekshiring",
-        fieldErrors: { name: ["Bunday nomli guruh bor"] },
-      };
     if (isNotFound(e)) return { ok: false, error: "Guruh topilmadi" };
     throw e;
   }

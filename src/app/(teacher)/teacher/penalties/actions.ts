@@ -44,11 +44,13 @@ const nameTaken: ActionResult = {
 export async function createPenaltyType(
   input: PenaltyTypeInput,
 ): Promise<ActionResult> {
-  await requireTeacher();
+  const user = await requireTeacher();
   const parsed = penaltyTypeSchema.safeParse(input);
   if (!parsed.success) return validationFailed(parsed.error);
   try {
-    await db.penaltyType.create({ data: parsed.data });
+    await db.penaltyType.create({
+      data: { ...parsed.data, ownerId: user.id },
+    });
   } catch (e) {
     if (isUniqueViolation(e)) return nameTaken;
     throw e;

@@ -63,8 +63,11 @@ beforeEach(async () => {
       },
     })
   ).id;
-  groupId = (await db.group.create({ data: { name: "Frontend-1" } })).id;
-  otherGroupId = (await db.group.create({ data: { name: "Frontend-2" } })).id;
+  groupId = (await db.group.create({ data: { teacherId, name: "Frontend-1" } }))
+    .id;
+  otherGroupId = (
+    await db.group.create({ data: { teacherId, name: "Frontend-2" } })
+  ).id;
   semesterId = (
     await db.semester.create({
       data: {

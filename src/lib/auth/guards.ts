@@ -68,6 +68,11 @@ export async function requireRole(
   return user;
 }
 
+/** Markaz rahbariyati: regionlar, o'qituvchilar, butun markaz (ROLES.md) */
+export function requireAdmin(): Promise<CurrentUser> {
+  return requireRole(["ADMIN"]);
+}
+
 export function requireTeacher(): Promise<CurrentUser> {
   return requireRole(["TEACHER"]);
 }

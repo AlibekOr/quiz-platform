@@ -1,6 +1,8 @@
 // Guruh kodi (ROLES-PLAN.md, §5): REGION + O'QITUVCHI + "-" + seq + "-" + NOM.
 //   Shomanay, Orakbaev Alibek, 1, "Shomanay 135 16:00" → SHOA-1-SH
 // seq butun loyiha bo'yicha (takrorlanmaydi). Kod bir marta yoziladi va o'zgarmaydi.
+// Regionsiz guruhda region harfi yo'q: OA-5-F (region keyin berilsa ham kod o'zgarmaydi).
+// Migratsiya (20261106150000_roles) mavjud guruhlarga shu qoidalarni SQL'da qo'llagan.
 // Sof funksiyalar — testlar bilan.
 
 /** O'zbekcha apostrof va uning o'rnida yoziladigan belgilar: o', g', ʻ, ʼ, ‘, ’, ` */
@@ -42,10 +44,12 @@ export function personInitials(fullName: string): string {
 }
 
 export function groupCode(input: {
-  regionName: string;
+  /** Regionsiz guruhda null */
+  regionName: string | null;
   teacherFullName: string;
   seq: number;
   groupName: string;
 }): string {
-  return `${firstInitial(input.regionName)}${personInitials(input.teacherFullName)}-${input.seq}-${firstInitial(input.groupName)}`;
+  const region = input.regionName === null ? "" : firstInitial(input.regionName);
+  return `${region}${personInitials(input.teacherFullName)}-${input.seq}-${firstInitial(input.groupName)}`;
 }

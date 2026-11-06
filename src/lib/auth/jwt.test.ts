@@ -78,7 +78,7 @@ describe("jwt session", () => {
   });
 
   it("noma'lum rolni rad etadi", async () => {
-    const token = await new SignJWT({ role: "ADMIN", groupId: null })
+    const token = await new SignJWT({ role: "SUPERUSER", groupId: null })
       .setProtectedHeader({ alg: "HS256" })
       .setSubject("u1")
       .setExpirationTime("1h")
@@ -111,6 +111,7 @@ describe("jwt session", () => {
   });
 
   it("rol bo'yicha bosh sahifa", () => {
+    expect(homePathFor("ADMIN")).toBe("/admin");
     expect(homePathFor("TEACHER")).toBe("/teacher");
     expect(homePathFor("STUDENT")).toBe("/dashboard");
     expect(homePathFor("MANAGER")).toBe("/manager");

@@ -53,7 +53,8 @@ beforeEach(async () => {
       },
     })
   ).id;
-  groupId = (await db.group.create({ data: { name: "Frontend-1" } })).id;
+  groupId = (await db.group.create({ data: { teacherId, name: "Frontend-1" } }))
+    .id;
   semesterId = (
     await db.semester.create({
       data: {
@@ -66,7 +67,7 @@ beforeEach(async () => {
   ).id;
   lateId = (
     await db.penaltyType.create({
-      data: { name: "Darsga kechikish", defaultPoints: 1 },
+      data: { ownerId: teacherId, name: "Darsga kechikish", defaultPoints: 1 },
     })
   ).id;
 });
@@ -111,7 +112,9 @@ describe("applyPenalty", () => {
   });
 
   it("semestrda guruhda bo'lmagan o'quvchiga qo'yilmaydi", async () => {
-    const other = await db.group.create({ data: { name: "Frontend-2" } });
+    const other = await db.group.create({
+      data: { teacherId, name: "Frontend-2" },
+    });
     const begona = await student("begona", other.id);
     const r = await applyPenalty({ ...base(), studentIds: [begona] });
     expect(r.ok).toBe(false);
