@@ -269,6 +269,11 @@ const MENUS: Record<NavVariant, { main: MenuItem[]; footer: MenuLink[] }> = {
         icon: ClipboardListIcon,
         children: [
           {
+            href: "/tests",
+            label: "Testlarim",
+            icon: ClipboardListIcon,
+          },
+          {
             href: "/tests/leaderboard",
             label: "Test reytingi",
             icon: MedalIcon,
