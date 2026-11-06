@@ -42,9 +42,7 @@ export default async function AdminRiskPage({
 
   return (
     <>
-      <h1 className="text-2xl font-semibold">
-        Xavf ostidagi o&apos;quvchilar
-      </h1>
+      <h1 className="text-2xl font-semibold">Xavf ostidagi o&apos;quvchilar</h1>
       <div className="flex flex-wrap gap-2">
         <ParamSelect
           name="teacher"

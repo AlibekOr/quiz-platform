@@ -346,8 +346,7 @@ export async function importToBank(
       const key = normalizeText(name);
       topicId =
         byName.get(key) ??
-        (await db.topic.create({ data: { ownerId, name, parentId: null } }))
-          .id;
+        (await db.topic.create({ data: { ownerId, name, parentId: null } })).id;
       byName.set(key, topicId);
     }
     resolved.push({

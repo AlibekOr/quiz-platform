@@ -20,7 +20,14 @@ import { getSharedTests } from "@/lib/tests/sharing";
 import { CopySharedButton } from "@/components/teacher/tests/share-controls";
 
 /** Testlar ro'yxati (o'qituvchi — hammasi, menejer — doiradagi va o'zi yaratganlari) */
-export async function TestsListView({ user }: { user: CurrentUser }) {
+export async function TestsListView({
+  user,
+  openCreate = false,
+}: {
+  user: CurrentUser;
+  /** Yon paneldagi "Test yaratish" (?new=1) */
+  openCreate?: boolean;
+}) {
   const scope = await getScope(user);
   const base = staffBase(user.role);
   const tests = await db.test.findMany({
@@ -60,7 +67,7 @@ export async function TestsListView({ user }: { user: CurrentUser }) {
             <TrophyIcon />
             Test reytingi
           </Link>
-          <CreateTestButton />
+          <CreateTestButton key={String(openCreate)} defaultOpen={openCreate} />
         </div>
       </div>
 

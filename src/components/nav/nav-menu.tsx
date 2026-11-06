@@ -26,7 +26,9 @@ import {
   UsersIcon,
   UsersRoundIcon,
   type LucideIcon,
+  FilePlusIcon,
   LibraryIcon,
+  MedalIcon,
   SirenIcon,
   TriangleAlertIcon,
 } from "lucide-react";
@@ -78,8 +80,19 @@ const MENUS: Record<NavVariant, { main: MenuItem[]; footer: MenuLink[] }> = {
       { href: "/admin/managers", label: "Menejerlar", icon: BriefcaseIcon },
       { href: "/admin/groups", label: "Guruhlar", icon: UsersRoundIcon },
       { href: "/admin/students", label: "O'quvchilar", icon: UsersIcon },
-      { href: "/admin/tests", label: "Testlar", icon: ClipboardListIcon },
-      { href: "/admin/bank", label: "Savollar banki", icon: LibraryIcon },
+      {
+        id: "tests",
+        label: "Testlar",
+        icon: ClipboardListIcon,
+        children: [
+          {
+            href: "/admin/tests",
+            label: "Barcha testlar",
+            icon: ClipboardListIcon,
+          },
+          { href: "/admin/bank", label: "Savollar banki", icon: LibraryIcon },
+        ],
+      },
       { href: "/leaderboard", label: "Reyting", icon: TrophyIcon },
     ],
     footer: [PROFILE],
@@ -120,6 +133,29 @@ const MENUS: Record<NavVariant, { main: MenuItem[]; footer: MenuLink[] }> = {
         ],
       },
       {
+        id: "tests",
+        label: "Testlar",
+        icon: ClipboardListIcon,
+        children: [
+          {
+            href: "/teacher/tests",
+            label: "Barcha testlar",
+            icon: ClipboardListIcon,
+          },
+          {
+            href: "/teacher/tests?new=1",
+            label: "Test yaratish",
+            icon: FilePlusIcon,
+          },
+          {
+            href: "/teacher/tests/leaderboard",
+            label: "Test reytingi",
+            icon: MedalIcon,
+          },
+          { href: "/teacher/bank", label: "Savollar banki", icon: LibraryIcon },
+        ],
+      },
+      {
         id: "grading",
         label: "Umumiy baholash",
         icon: GraduationCapIcon,
@@ -128,12 +164,6 @@ const MENUS: Record<NavVariant, { main: MenuItem[]; footer: MenuLink[] }> = {
             href: "/teacher/homework",
             label: "Uyga vazifalar",
             icon: BookOpenCheckIcon,
-          },
-          { href: "/teacher/tests", label: "Testlar", icon: ClipboardListIcon },
-          {
-            href: "/teacher/bank",
-            label: "Savollar banki",
-            icon: LibraryIcon,
           },
           {
             href: "/teacher/grades",
@@ -200,7 +230,28 @@ const MENUS: Record<NavVariant, { main: MenuItem[]; footer: MenuLink[] }> = {
         label: "Davomat",
         icon: CalendarCheckIcon,
       },
-      { href: "/manager/tests", label: "Testlar", icon: ClipboardListIcon },
+      {
+        id: "tests",
+        label: "Testlar",
+        icon: ClipboardListIcon,
+        children: [
+          {
+            href: "/manager/tests",
+            label: "Barcha testlar",
+            icon: ClipboardListIcon,
+          },
+          {
+            href: "/manager/tests?new=1",
+            label: "Test yaratish",
+            icon: FilePlusIcon,
+          },
+          {
+            href: "/manager/tests/leaderboard",
+            label: "Test reytingi",
+            icon: MedalIcon,
+          },
+        ],
+      },
       { href: "/leaderboard", label: "Reyting", icon: TrophyIcon },
       { href: "/manager/requests", label: "So'rovlarim", icon: InboxIcon },
     ],
@@ -223,6 +274,18 @@ const MENUS: Record<NavVariant, { main: MenuItem[]; footer: MenuLink[] }> = {
       },
       { href: "/grades", label: "Baholarim", icon: GraduationCapIcon },
       { href: "/leaderboard", label: "Reyting", icon: TrophyIcon },
+      {
+        id: "tests",
+        label: "Testlar",
+        icon: ClipboardListIcon,
+        children: [
+          {
+            href: "/tests/leaderboard",
+            label: "Test reytingi",
+            icon: MedalIcon,
+          },
+        ],
+      },
     ],
     footer: [PROFILE],
   },

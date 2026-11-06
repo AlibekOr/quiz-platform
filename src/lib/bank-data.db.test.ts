@@ -284,7 +284,11 @@ describe("takroriy savollar", () => {
     expect(result).toEqual({ added: 2, skipped: 1 });
     const rows = await db.bankQuestion.findMany({
       orderBy: { text: "asc" },
-      select: { text: true, difficulty: true, topic: { select: { name: true } } },
+      select: {
+        text: true,
+        difficulty: true,
+        topic: { select: { name: true } },
+      },
     });
     expect(rows).toEqual([
       { text: "Flex nima?", difficulty: "EASY", topic: { name: "Flexbox" } },
@@ -300,9 +304,7 @@ describe("huquqlar", () => {
     expect(await actions.updateBankQuestion(own, editInput(css, "x"))).toEqual(
       FORBIDDEN,
     );
-    expect(await actions.setBankQuestionArchived(own, true)).toEqual(
-      FORBIDDEN,
-    );
+    expect(await actions.setBankQuestionArchived(own, true)).toEqual(FORBIDDEN);
     expect(await actions.duplicateBankQuestion(own)).toEqual(FORBIDDEN);
     expect(await actions.deleteTopic(js)).toEqual(FORBIDDEN);
     expect(await actions.createTopic({ name: "Ichki", parentId: css })).toEqual(
@@ -344,7 +346,9 @@ describe("statistika", () => {
     const bq = await bankQuestion(js, "Savol");
     const t = await test("Test");
     await copyBankToTest(alibek.id, t, [bq]);
-    const question = await db.question.findFirstOrThrow({ where: { testId: t } });
+    const question = await db.question.findFirstOrThrow({
+      where: { testId: t },
+    });
     const answer = async (
       i: number,
       isCorrect: boolean,
