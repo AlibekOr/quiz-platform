@@ -13,56 +13,68 @@ export const optionInputSchema = z.object({
   isCorrect: z.boolean(),
 });
 
+/** Savol maydonlari — test savoli va bank savoli uchun umumiy */
+export const questionFields = {
+  text: z
+    .string()
+    .trim()
+    .min(1, "Savol matnini kiriting")
+    .max(2000, "Savol 2000 belgidan oshmasin"),
+  type: z.enum(["SINGLE", "MULTIPLE"], {
+    error: "Turi SINGLE yoki MULTIPLE bo'lsin",
+  }),
+  points: z
+    .number({ error: "Ball son bo'lsin" })
+    .int("Ball butun son bo'lsin")
+    .min(1, "Ball kamida 1")
+    .max(100, "Ball 100 dan oshmasin"),
+  options: z
+    .array(optionInputSchema)
+    .max(MAX_OPTIONS, `Ko'pi bilan ${MAX_OPTIONS} ta variant`),
+};
+
+/** Variantlar: kamida 2 ta, to'g'ri javob(lar) turiga mos, takrorsiz */
+export function checkQuestionOptions(
+  q: {
+    type: "SINGLE" | "MULTIPLE";
+    options: readonly { text: string; isCorrect: boolean }[];
+  },
+  ctx: z.RefinementCtx,
+): void {
+  if (q.options.length < 2) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["options"],
+      message: "Kamida 2 ta variant kerak",
+    });
+  }
+  const correct = q.options.filter((o) => o.isCorrect).length;
+  if (correct === 0) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["options"],
+      message: "Kamida 1 ta to'g'ri javob belgilang",
+    });
+  } else if (q.type === "SINGLE" && correct !== 1) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["options"],
+      message: "SINGLE savolda aynan 1 ta to'g'ri javob bo'ladi",
+    });
+  }
+  const texts = q.options.map((o) => o.text.trim().toLowerCase());
+  if (new Set(texts).size !== texts.length) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["options"],
+      message: "Variantlar takrorlanmasin",
+    });
+  }
+}
+
 export const questionInputSchema = z
-  .object({
-    text: z
-      .string()
-      .trim()
-      .min(1, "Savol matnini kiriting")
-      .max(2000, "Savol 2000 belgidan oshmasin"),
-    type: z.enum(["SINGLE", "MULTIPLE"], {
-      error: "Turi SINGLE yoki MULTIPLE bo'lsin",
-    }),
-    points: z
-      .number({ error: "Ball son bo'lsin" })
-      .int("Ball butun son bo'lsin")
-      .min(1, "Ball kamida 1")
-      .max(100, "Ball 100 dan oshmasin"),
-    options: z
-      .array(optionInputSchema)
-      .max(MAX_OPTIONS, `Ko'pi bilan ${MAX_OPTIONS} ta variant`),
-  })
-  .superRefine((q, ctx) => {
-    if (q.options.length < 2) {
-      ctx.addIssue({
-        code: "custom",
-        path: ["options"],
-        message: "Kamida 2 ta variant kerak",
-      });
-    }
-    const correct = q.options.filter((o) => o.isCorrect).length;
-    if (correct === 0) {
-      ctx.addIssue({
-        code: "custom",
-        path: ["options"],
-        message: "Kamida 1 ta to'g'ri javob belgilang",
-      });
-    } else if (q.type === "SINGLE" && correct !== 1) {
-      ctx.addIssue({
-        code: "custom",
-        path: ["options"],
-        message: "SINGLE savolda aynan 1 ta to'g'ri javob bo'ladi",
-      });
-    }
-    const texts = q.options.map((o) => o.text.trim().toLowerCase());
-    if (new Set(texts).size !== texts.length) {
-      ctx.addIssue({
-        code: "custom",
-        path: ["options"],
-        message: "Variantlar takrorlanmasin",
-      });
-    }
-  });
+  .object(questionFields)
+  .superRefine(checkQuestionOptions);
 
 export type QuestionInput = z.input<typeof questionInputSchema>;
 

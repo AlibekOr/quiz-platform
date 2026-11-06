@@ -26,6 +26,7 @@ import {
   UsersIcon,
   UsersRoundIcon,
   type LucideIcon,
+  LibraryIcon,
   SirenIcon,
   TriangleAlertIcon,
 } from "lucide-react";
@@ -78,6 +79,7 @@ const MENUS: Record<NavVariant, { main: MenuItem[]; footer: MenuLink[] }> = {
       { href: "/admin/groups", label: "Guruhlar", icon: UsersRoundIcon },
       { href: "/admin/students", label: "O'quvchilar", icon: UsersIcon },
       { href: "/admin/tests", label: "Testlar", icon: ClipboardListIcon },
+      { href: "/admin/bank", label: "Savollar banki", icon: LibraryIcon },
       { href: "/leaderboard", label: "Reyting", icon: TrophyIcon },
     ],
     footer: [PROFILE],
@@ -128,6 +130,11 @@ const MENUS: Record<NavVariant, { main: MenuItem[]; footer: MenuLink[] }> = {
             icon: BookOpenCheckIcon,
           },
           { href: "/teacher/tests", label: "Testlar", icon: ClipboardListIcon },
+          {
+            href: "/teacher/bank",
+            label: "Savollar banki",
+            icon: LibraryIcon,
+          },
           {
             href: "/teacher/grades",
             label: "Baholar",

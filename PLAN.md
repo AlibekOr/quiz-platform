@@ -533,6 +533,13 @@ Batafsil talablar `ROLES.md`, reja va qarorlar `ROLES-PLAN.md` da.
 - Signallar `lib/risk.ts` (sof), ma'lumot `lib/risk-data.ts` (guruh bo'yicha, 5 daqiqa kesh). `RiskSettings` (o'qituvchiniki, Sozlamalar → Xavf sozlamalari), `RiskReview` ("Ko'rib chiqildi", yangi signal paydo bo'lsa qayta ko'tariladi)
 - O'qituvchi: bosh sahifa bloki, `/teacher/risk` (guruh, daraja filtrlari), o'quvchi kartochkasida signallar va tarix. Menejer: bosh sahifada faqat davomat va vazifa signallari. Admin: statistikada "Xavf ostida" ustuni (Excel), `/admin/risk`
 
+### 29-bosqich: savollar banki (FEATURES.md, B qism)
+
+- `Topic` (ichma-ich), `BankQuestion`, `BankOption`, `Question.sourceBankQuestionId` (migratsiya `question_bank`). Qoidalar `lib/bank.ts` (sof), baza `lib/bank-data.ts`
+- `/teacher/bank`: mavzular daraxti, qidiruv, qiyinlik/tur/teg/arxiv filtrlari, qo'shish, tahrirlash, nusxa, arxiv; har savolda qaysi testlarda ishlatilgani va to'g'ri javob foizi (10 tadan kam javobda ko'rsatilmaydi). Import — test formatlari + `topic`, `difficulty` ustunlari
+- Test sahifasida "Bankka saqlash" (takroriylar qo'shilmaydi) va "Bankdan" (`/teacher/tests/[id]/bank`: qo'lda tanlash yoki qoidalar bo'yicha avtomatik, "Boshqasi", shu guruhlarda ishlatilganlarni chiqarish). Bankdan qo'shilgan savol testga NUSXA bo'ladi
+- Bank faqat egasiga; admin `/admin/bank` da faqat ko'radi; menejerda bank yo'q
+
 ---
 
 ## Keyingi versiyalar (hozir qilinmaydi)

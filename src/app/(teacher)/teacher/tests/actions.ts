@@ -13,12 +13,8 @@ import { copySharedTest, setTestShares } from "@/lib/tests/sharing";
 import { db } from "@/lib/db";
 import { isNotFound } from "@/lib/prisma-errors";
 import { fromLocalDateTime } from "@/lib/time";
-import { getUploadedFile, readFirstSheet } from "@/lib/excel";
-import {
-  parseJsonQuestions,
-  sheetToQuestions,
-  type ParsedQuestion,
-} from "@/lib/tests/import";
+import type { ParsedQuestion } from "@/lib/tests/import";
+import { parseQuestionFile } from "@/lib/tests/question-file";
 import {
   createTestSchema,
   issueMessages,
@@ -345,18 +341,6 @@ export async function moveQuestion(
   ]);
   revalidateTest(question.testId);
   return { ok: true };
-}
-
-async function parseQuestionFile(
-  formData: FormData,
-): Promise<{ questions: ParsedQuestion[] } | { error: string }> {
-  const upload = getUploadedFile(formData, ["xlsx", "json"]);
-  if ("error" in upload) return upload;
-  if (upload.kind === "json")
-    return parseJsonQuestions(await upload.file.text());
-  const sheet = await readFirstSheet(upload.file);
-  if ("error" in sheet) return sheet;
-  return sheetToQuestions(sheet);
 }
 
 export type QuestionImportPreview =

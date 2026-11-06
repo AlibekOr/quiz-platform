@@ -27,6 +27,12 @@ enum QuestionType {
   MULTIPLE
 }
 
+enum Difficulty {
+  EASY
+  MEDIUM
+  HARD
+}
+
 enum AttendanceStatus {
   PRESENT
   ABSENT
@@ -84,6 +90,8 @@ model User {
   riskSettings       RiskSettings?
   riskReviews        RiskReview[]      @relation("RiskReviewStudent")
   riskReviewsMade    RiskReview[]      @relation("RiskReviewer")
+  bankTopics         Topic[]
+  bankQuestions      BankQuestion[]
   ownedTests         Test[]            @relation("TestOwner")
   testShares         TestShare[]
   // O'quvchini kim qo'shgan (menejer guruhsiz o'quvchini faqat o'zi qo'shgan bo'lsa ko'radi)
@@ -150,15 +158,20 @@ model Test {
 }
 
 model Question {
-  id      String       @id @default(cuid())
-  testId  String
-  test    Test         @relation(fields: [testId], references: [id], onDelete: Cascade)
-  text    String
-  type    QuestionType @default(SINGLE)
-  points  Int          @default(1)
-  order   Int
-  options Option[]
-  answers Answer[]
+  id                   String        @id @default(cuid())
+  testId               String
+  test                 Test          @relation(fields: [testId], references: [id], onDelete: Cascade)
+  text                 String
+  type                 QuestionType  @default(SINGLE)
+  points               Int           @default(1)
+  order                Int
+  options              Option[]
+  answers              Answer[]
+  // Bankdan nusxalangan bo'lsa — manba (statistika uchun). Bankdagi savol o'zgarsa, bu savol o'zgarmaydi
+  sourceBankQuestionId String?
+  sourceBankQuestion   BankQuestion? @relation(fields: [sourceBankQuestionId], references: [id], onDelete: SetNull)
+
+  @@index([sourceBankQuestionId])
 }
 
 model Option {
@@ -656,4 +669,51 @@ model DeletionRequest {
 
   @@index([status, createdAt])
   @@index([requestedById, createdAt])
+}
+
+// ---------- Savollar banki (FEATURES.md, B qism): o'qituvchining shaxsiy banki ----------
+
+model Topic {
+  id        String         @id @default(cuid())
+  ownerId   String
+  owner     User           @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  name      String
+  // Ichma-ich mavzular; ichida mavzu yoki savol bo'lsa o'chirilmaydi
+  parentId  String?
+  parent    Topic?         @relation("TopicTree", fields: [parentId], references: [id], onDelete: NoAction)
+  children  Topic[]        @relation("TopicTree")
+  questions BankQuestion[]
+  createdAt DateTime       @default(now())
+
+  @@index([ownerId])
+}
+
+model BankQuestion {
+  id          String       @id @default(cuid())
+  ownerId     String
+  owner       User         @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  topicId     String
+  topic       Topic        @relation(fields: [topicId], references: [id], onDelete: NoAction)
+  text        String
+  type        QuestionType @default(SINGLE)
+  difficulty  Difficulty   @default(MEDIUM)
+  points      Int          @default(1)
+  explanation String?
+  tags        String[]
+  archivedAt  DateTime?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  options     BankOption[]
+  copies      Question[]
+
+  @@index([ownerId, topicId])
+}
+
+model BankOption {
+  id             String       @id @default(cuid())
+  bankQuestionId String
+  bankQuestion   BankQuestion @relation(fields: [bankQuestionId], references: [id], onDelete: Cascade)
+  text           String
+  isCorrect      Boolean      @default(false)
+  order          Int
 }

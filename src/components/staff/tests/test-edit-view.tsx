@@ -8,7 +8,9 @@ import { TestStatusBadge } from "@/components/staff/tests/test-status-badge";
 import type { CurrentUser } from "@/lib/auth/guards";
 import { groupScopeWhere } from "@/lib/auth/scope";
 import { db } from "@/lib/db";
+import { SaveToBankButton } from "@/components/teacher/bank/save-to-bank-button";
 import { ShareTestButton } from "@/components/teacher/tests/share-controls";
+import { getTopics } from "@/lib/bank-data";
 import { getTestAccess, staffBase } from "@/lib/tests/access";
 import { getShareOptions } from "@/lib/tests/sharing";
 import { formatTestWindow } from "@/lib/tests/schedule";
@@ -61,6 +63,10 @@ export async function TestEditView({
     user.role === "TEACHER" && test.ownerId === user.id
       ? await getShareOptions(user.id, test.id)
       : null;
+  // Savollar banki — faqat o'qituvchida (FEATURES.md, B qism)
+  const bank = user.role === "TEACHER" && !readOnly;
+  const bankTopics =
+    bank && test.questions.length > 0 ? await getTopics(user.id) : null;
 
   return (
     <>
@@ -88,6 +94,12 @@ export async function TestEditView({
           <div className="flex flex-wrap gap-2">
             {shareOptions && (
               <ShareTestButton testId={test.id} options={shareOptions} />
+            )}
+            {bankTopics && (
+              <SaveToBankButton
+                testId={test.id}
+                topics={bankTopics.map((t) => ({ id: t.id, path: t.path }))}
+              />
             )}
             <TestHeaderActions
               testId={test.id}
@@ -145,6 +157,7 @@ export async function TestEditView({
         testId={test.id}
         basePath={base}
         readOnly={readOnly}
+        bank={bank}
         questions={test.questions.map((q) => ({
           id: q.id,
           text: q.text,

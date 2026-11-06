@@ -5,6 +5,10 @@ import { useRouter } from "next/navigation";
 import { CheckIcon } from "lucide-react";
 import { toast } from "sonner";
 import {
+  importBankQuestions,
+  previewBankImport,
+} from "@/app/(teacher)/teacher/bank/actions";
+import {
   importQuestions,
   previewQuestionImport,
 } from "@/app/(teacher)/teacher/tests/actions";
@@ -12,20 +16,34 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  NativeSelect,
+  NativeSelectOption,
+} from "@/components/ui/native-select";
+import { DIFFICULTY_LABEL, type Difficulty } from "@/lib/bank";
 import { EXCEL_COLUMNS, type ParsedQuestion } from "@/lib/tests/import";
 import { cn } from "@/lib/utils";
 
 const JSON_EXAMPLE = `[{ "text": "...", "type": "SINGLE", "points": 1,
    "options": [{ "text": "...", "isCorrect": true }, { "text": "...", "isCorrect": false }] }]`;
+const JSON_BANK_EXAMPLE = `[{ "text": "...", "type": "SINGLE", "points": 1,
+   "topic": "CSS Flexbox", "difficulty": "oson",
+   "options": [{ "text": "...", "isCorrect": true }, { "text": "...", "isCorrect": false }] }]`;
 
-export function ImportQuestions({
-  testId,
-  basePath = "/teacher",
-}: {
-  testId: string;
-  basePath?: string;
-}) {
+/** Import manzili: test yoki o'qituvchining savollar banki */
+export type ImportTarget =
+  | { kind: "test"; testId: string; basePath: string }
+  | { kind: "bank"; topics: { id: string; path: string }[] };
+
+const DIFFICULTIES: Difficulty[] = ["EASY", "MEDIUM", "HARD"];
+
+export function ImportQuestions({ target }: { target: ImportTarget }) {
   const router = useRouter();
+  const bank = target.kind === "bank";
+  const [topicId, setTopicId] = useState(
+    target.kind === "bank" ? (target.topics[0]?.id ?? "") : "",
+  );
+  const [difficulty, setDifficulty] = useState<Difficulty>("MEDIUM");
   const [file, setFile] = useState<File | null>(null);
   const [questions, setQuestions] = useState<ParsedQuestion[] | null>(null);
   const [error, setError] = useState<string>();
@@ -36,6 +54,10 @@ export function ImportQuestions({
   function toFormData(f: File) {
     const formData = new FormData();
     formData.append("file", f);
+    if (bank) {
+      formData.append("topicId", topicId);
+      formData.append("difficulty", difficulty);
+    }
     return formData;
   }
 
@@ -46,7 +68,9 @@ export function ImportQuestions({
     if (!selected) return;
 
     startTransition(async () => {
-      const preview = await previewQuestionImport(toFormData(selected));
+      const preview = bank
+        ? await previewBankImport(toFormData(selected))
+        : await previewQuestionImport(toFormData(selected));
       if (preview.ok) setQuestions(preview.questions);
       else setError(preview.error);
     });
@@ -56,10 +80,17 @@ export function ImportQuestions({
     if (!file || errorCount > 0) return;
     startTransition(async () => {
       // Server faylni qayta o'qiydi va tekshiradi
-      const result = await importQuestions(testId, toFormData(file));
+      const result =
+        target.kind === "bank"
+          ? await importBankQuestions(toFormData(file))
+          : await importQuestions(target.testId, toFormData(file));
       if (result.ok) {
         toast.success(result.message);
-        router.push(`${basePath}/tests/${testId}`);
+        router.push(
+          target.kind === "bank"
+            ? "/teacher/bank"
+            : `${target.basePath}/tests/${target.testId}`,
+        );
       } else {
         setError(result.error);
       }
@@ -75,6 +106,7 @@ export function ImportQuestions({
             Ustunlar:{" "}
             <code className="bg-muted rounded px-1 py-0.5 break-all">
               {EXCEL_COLUMNS.join(" | ")}
+              {bank && " | topic | difficulty"}
             </code>
           </p>
           <p className="text-muted-foreground">
@@ -83,15 +115,62 @@ export function ImportQuestions({
             qo&apos;shilishi mumkin. <code>type</code> bo&apos;sh bo&apos;lsa,
             javoblar soniga qarab aniqlanadi; <code>points</code> bo&apos;sh
             bo&apos;lsa — 1.
+            {bank && (
+              <>
+                {" "}
+                <code>topic</code> — mavzu nomi (yo&apos;q bo&apos;lsa
+                yaratiladi), <code>difficulty</code> — oson / o&apos;rta /
+                qiyin. Bo&apos;sh bo&apos;lsa — quyida tanlangani.
+              </>
+            )}
           </p>
         </div>
         <div className="flex min-w-0 flex-col gap-2 rounded-lg border p-4">
           <p className="font-medium">JSON (.json)</p>
           <pre className="bg-muted overflow-x-auto rounded p-2 text-xs">
-            {JSON_EXAMPLE}
+            {bank ? JSON_BANK_EXAMPLE : JSON_EXAMPLE}
           </pre>
         </div>
       </div>
+
+      {target.kind === "bank" && (
+        <div className="grid gap-4 sm:max-w-xl sm:grid-cols-2">
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="import-topic">
+              Mavzu (bo&apos;sh qatorlar uchun)
+            </Label>
+            <NativeSelect
+              id="import-topic"
+              value={topicId}
+              disabled={pending || questions !== null}
+              onChange={(e) => setTopicId(e.target.value)}
+            >
+              {target.topics.map((t) => (
+                <NativeSelectOption key={t.id} value={t.id}>
+                  {t.path}
+                </NativeSelectOption>
+              ))}
+            </NativeSelect>
+          </div>
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="import-difficulty">
+              Qiyinlik (bo&apos;sh qatorlar uchun)
+            </Label>
+            <NativeSelect
+              id="import-difficulty"
+              value={difficulty}
+              disabled={pending || questions !== null}
+              onChange={(e) => setDifficulty(e.target.value as Difficulty)}
+            >
+              {DIFFICULTIES.map((d) => (
+                <NativeSelectOption key={d} value={d}>
+                  {DIFFICULTY_LABEL[d]}
+                </NativeSelectOption>
+              ))}
+            </NativeSelect>
+          </div>
+        </div>
+      )}
 
       <div className="flex flex-col gap-2">
         <Label htmlFor="file">Fayl</Label>
@@ -122,7 +201,10 @@ export function ImportQuestions({
                 </span>
               ) : (
                 <span className="text-muted-foreground">
-                  , xato yo&apos;q. Savollar test oxiriga qo&apos;shiladi
+                  , xato yo&apos;q.{" "}
+                  {bank
+                    ? "Bankda bor savollar qayta qo'shilmaydi"
+                    : "Savollar test oxiriga qo'shiladi"}
                 </span>
               )}
             </p>
@@ -146,6 +228,12 @@ export function ImportQuestions({
                     <Badge variant="secondary">{q.preview.type}</Badge>
                   )}
                   <span>{q.preview.points} ball</span>
+                  {bank && q.bank.topic && (
+                    <Badge variant="outline">{q.bank.topic}</Badge>
+                  )}
+                  {bank && q.bank.difficulty && (
+                    <Badge variant="outline">{q.bank.difficulty}</Badge>
+                  )}
                 </div>
                 <p className="font-medium break-words whitespace-pre-wrap">
                   {q.preview.text || "—"}

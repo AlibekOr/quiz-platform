@@ -8,6 +8,7 @@ import {
   CheckIcon,
   CopyIcon,
   FileUpIcon,
+  LibraryIcon,
   PencilIcon,
   PlusIcon,
   Trash2Icon,
@@ -29,9 +30,12 @@ export function QuestionList({
   questions,
   basePath = "/teacher",
   readOnly = false,
+  bank = false,
 }: {
   testId: string;
   questions: EditorQuestion[];
+  /** O'qituvchi: savollar bankidan qo'shish (menejerda bank yo'q) */
+  bank?: boolean;
   /** "/teacher" yoki "/manager" — havolalar uchun */
   basePath?: string;
   /** Faqat ko'rish (menejer boshqa test yoki aralash guruhli testni ochganda) */
@@ -76,6 +80,16 @@ export function QuestionList({
               <CopyIcon />
               Boshqa testdan
             </Link>
+            {bank && (
+              <Link
+                prefetch={false}
+                href={`/teacher/tests/${testId}/bank`}
+                className={buttonVariants({ variant: "outline" })}
+              >
+                <LibraryIcon />
+                Bankdan
+              </Link>
+            )}
             <Button onClick={() => setEditing("new")}>
               <PlusIcon />
               Savol qo&apos;shish

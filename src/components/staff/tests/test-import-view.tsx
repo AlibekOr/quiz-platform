@@ -36,7 +36,9 @@ export async function TestImportView({
         </Link>
         <h1 className="text-2xl font-semibold">Savollarni import qilish</h1>
       </div>
-      <ImportQuestions testId={test.id} basePath={base} />
+      <ImportQuestions
+        target={{ kind: "test", testId: test.id, basePath: base }}
+      />
     </>
   );
 }

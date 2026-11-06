@@ -31,6 +31,8 @@ export type ParsedQuestion = {
     options: { text: string; isCorrect: boolean }[];
   };
   errors: string[];
+  /** Bank importi uchun ixtiyoriy ustunlar (test importida e'tiborsiz) */
+  bank: { topic: string; difficulty: string };
 };
 
 export type ParseResult = { questions: ParsedQuestion[] } | { error: string };
@@ -44,18 +46,25 @@ function validate(
   line: number,
   raw: unknown,
   preview: ParsedQuestion["preview"],
+  bank: ParsedQuestion["bank"],
 ): ParsedQuestion {
   const parsed = questionInputSchema.safeParse(raw);
   return parsed.success
-    ? { line, question: parsed.data, preview, errors: [] }
-    : { line, question: null, preview, errors: issueMessages(parsed.error) };
+    ? { line, question: parsed.data, preview, errors: [], bank }
+    : {
+        line,
+        question: null,
+        preview,
+        errors: issueMessages(parsed.error),
+        bank,
+      };
 }
 
 function normalizeType(value: unknown): unknown {
   return typeof value === "string" ? value.trim().toUpperCase() : value;
 }
 
-/** JSON: [{ text, type, points, options: [{ text, isCorrect }] }] */
+/** JSON: [{ text, type, points, options: [{ text, isCorrect }], topic?, difficulty? }] */
 export function parseJsonQuestions(source: string): ParseResult {
   let data: unknown;
   try {
@@ -94,19 +103,24 @@ export function parseJsonQuestions(source: string): ParseResult {
       points: obj.points ?? 1,
       options,
     };
-    return validate(i + 1, raw, {
-      text: str(obj.text),
-      type: str(raw.type),
-      points: str(raw.points),
-      options,
-    });
+    return validate(
+      i + 1,
+      raw,
+      {
+        text: str(obj.text),
+        type: str(raw.type),
+        points: str(raw.points),
+        options,
+      },
+      { topic: str(obj.topic), difficulty: str(obj.difficulty) },
+    );
   });
   return { questions };
 }
 
 /**
  * Excel: text | type | points | A | B | C | D | correct (correct: "B" yoki "A,C").
- * A–J ustunlaridan bo'shlari tashlab yuboriladi. type bo'sh bo'lsa to'g'ri javoblar soniga qarab aniqlanadi.
+ * A–J ustunlaridan bo'shlari tashlab yuboriladi. Bank uchun ixtiyoriy: topic | difficulty. type bo'sh bo'lsa to'g'ri javoblar soniga qarab aniqlanadi.
  */
 export function sheetToQuestions(
   sheet: readonly (readonly unknown[])[],
@@ -161,11 +175,14 @@ export function sheetToQuestions(
     const pointsCell = col("points") === -1 ? "" : str(cells[col("points")]);
     const points = pointsCell === "" ? 1 : Number(pointsCell);
     const text = str(cells[col("text")]);
+    const optional = (name: string) =>
+      col(name) === -1 ? "" : str(cells[col(name)]);
 
     const result = validate(
       line,
       { text, type, points, options },
       { text, type, points: pointsCell || "1", options },
+      { topic: optional("topic"), difficulty: optional("difficulty") },
     );
     if (errors.length > 0) {
       result.errors = [...errors, ...result.errors];

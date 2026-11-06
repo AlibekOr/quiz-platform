@@ -83,6 +83,38 @@ export function topicWithDescendants(
   return result;
 }
 
+/**
+ * Mavzular to'liq yo'l bilan ("CSS / Flexbox"), daraxt tartibida (ota, keyin bolalari, nom bo'yicha).
+ * depth — chuqurlik (0 — ildiz). Sikl bo'lsa ham to'xtaydi
+ */
+export function topicTree<
+  T extends { id: string; parentId: string | null; name: string },
+>(topics: readonly T[]): (T & { path: string; depth: number })[] {
+  const ids = new Set(topics.map((t) => t.id));
+  const children = new Map<string | null, T[]>();
+  for (const t of topics) {
+    const parent =
+      t.parentId !== null && ids.has(t.parentId) ? t.parentId : null;
+    children.set(parent, [...(children.get(parent) ?? []), t]);
+  }
+  const result: (T & { path: string; depth: number })[] = [];
+  const visited = new Set<string>();
+  const walk = (parent: string | null, prefix: string, depth: number) => {
+    const list = [...(children.get(parent) ?? [])].sort((a, b) =>
+      a.name.localeCompare(b.name, "uz"),
+    );
+    for (const t of list) {
+      if (visited.has(t.id)) continue;
+      visited.add(t.id);
+      const path = prefix ? `${prefix} / ${t.name}` : t.name;
+      result.push({ ...t, path, depth });
+      walk(t.id, path, depth + 1);
+    }
+  };
+  walk(null, "", 0);
+  return result;
+}
+
 // ---------- Testni bankdan avtomatik yig'ish ----------
 
 export type BankItem = {

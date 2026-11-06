@@ -6,6 +6,7 @@ import {
   pickQuestions,
   pickReplacement,
   questionFingerprint,
+  topicTree,
   topicWithDescendants,
   type BankItem,
   type QuestionShape,
@@ -98,6 +99,23 @@ describe("mavzular daraxti", () => {
       { id: "b", parentId: "a" },
     ];
     expect(topicWithDescendants(loop, "a").sort()).toEqual(["a", "b"]);
+  });
+
+  it("topicTree: yo'l, chuqurlik va daraxt tartibi", () => {
+    const named = [
+      { id: "js", parentId: null, name: "JS" },
+      { id: "grid", parentId: "css", name: "Grid" },
+      { id: "css", parentId: null, name: "CSS" },
+      { id: "flex", parentId: "css", name: "Flexbox" },
+      { id: "lost", parentId: "deleted", name: "Yetim" },
+    ];
+    expect(topicTree(named).map((t) => [t.path, t.depth])).toEqual([
+      ["CSS", 0],
+      ["CSS / Flexbox", 1],
+      ["CSS / Grid", 1],
+      ["JS", 0],
+      ["Yetim", 0],
+    ]);
   });
 });
 
