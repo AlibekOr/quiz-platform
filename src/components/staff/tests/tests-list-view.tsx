@@ -16,8 +16,14 @@ import { getScope, studentScopeWhere } from "@/lib/auth/scope";
 import { db } from "@/lib/db";
 import { staffBase, testScopeWhere } from "@/lib/tests/access";
 import { formatTestWindow } from "@/lib/tests/schedule";
-import { getSharedTests } from "@/lib/tests/sharing";
-import { CopySharedButton } from "@/components/teacher/tests/share-controls";
+import { getSharedTests, getShareTargets } from "@/lib/tests/sharing";
+import {
+  BulkShareButton,
+  CopySharedButton,
+  SelectAllTestsCheckbox,
+  SelectTestCheckbox,
+  TestSelectionProvider,
+} from "@/components/teacher/tests/share-controls";
 
 /** Testlar ro'yxati (o'qituvchi — hammasi, menejer — doiradagi va o'zi yaratganlari) */
 export async function TestsListView({ user }: { user: CurrentUser }) {
@@ -29,6 +35,7 @@ export async function TestsListView({ user }: { user: CurrentUser }) {
     select: {
       id: true,
       title: true,
+      ownerId: true,
       durationMin: true,
       isActive: true,
       startsAt: true,
@@ -45,10 +52,17 @@ export async function TestsListView({ user }: { user: CurrentUser }) {
   });
   const now = new Date();
   // O'qituvchiga ulashilganlar — faqat nusxa olish uchun (savollari ko'rsatilmaydi)
-  const shared = user.role === "TEACHER" ? await getSharedTests(user.id) : [];
+  const isTeacher = user.role === "TEACHER";
+  const shared = isTeacher ? await getSharedTests(user.id) : [];
+  // Bir yo'la ulashish — faqat o'qituvchining o'z testlari
+  const shareTargets = isTeacher ? await getShareTargets(user.id) : null;
+  const ownedIds = isTeacher
+    ? tests.filter((t) => t.ownerId === user.id).map((t) => t.id)
+    : [];
+  const selectable = ownedIds.length > 0;
 
   return (
-    <>
+    <TestSelectionProvider ids={ownedIds}>
       <div className="flex items-center justify-between gap-4">
         <h1 className="text-2xl font-semibold">Testlar</h1>
         <div className="flex flex-wrap gap-2">
@@ -60,6 +74,9 @@ export async function TestsListView({ user }: { user: CurrentUser }) {
             <TrophyIcon />
             Test reytingi
           </Link>
+          {selectable && shareTargets && (
+            <BulkShareButton targets={shareTargets} />
+          )}
           <CreateTestButton />
         </div>
       </div>
@@ -73,6 +90,11 @@ export async function TestsListView({ user }: { user: CurrentUser }) {
           <Table>
             <TableHeader>
               <TableRow>
+                {selectable && (
+                  <TableHead className="w-8">
+                    <SelectAllTestsCheckbox />
+                  </TableHead>
+                )}
                 <TableHead className="text-muted-foreground w-10">№</TableHead>
                 <TableHead>Nomi</TableHead>
                 <TableHead>Guruhlar</TableHead>
@@ -85,6 +107,13 @@ export async function TestsListView({ user }: { user: CurrentUser }) {
             <TableBody>
               {tests.map((t, i) => (
                 <TableRow key={t.id}>
+                  {selectable && (
+                    <TableCell>
+                      {t.ownerId === user.id && (
+                        <SelectTestCheckbox testId={t.id} title={t.title} />
+                      )}
+                    </TableCell>
+                  )}
                   <TableCell className="text-muted-foreground tabular-nums">
                     {i + 1}
                   </TableCell>
@@ -154,6 +183,6 @@ export async function TestsListView({ user }: { user: CurrentUser }) {
           </ul>
         </section>
       )}
-    </>
+    </TestSelectionProvider>
   );
 }

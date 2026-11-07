@@ -61,6 +61,51 @@ export async function setTestShares(
 ): Promise<{ ok: true; count: number } | { ok: false }> {
   const test = await db.test.count({ where: { id: testId, ownerId } });
   if (test === 0) return { ok: false };
+  const targets = await validTargets(ownerId, input);
+  if (!targets) return { ok: false };
+  const { regionIds, teacherIds } = targets;
+  await db.$transaction([
+    db.testShare.deleteMany({ where: { testId } }),
+    db.testShare.createMany({
+      data: [
+        ...regionIds.map((regionId) => ({ testId, regionId })),
+        ...teacherIds.map((teacherId) => ({ testId, teacherId })),
+      ],
+    }),
+  ]);
+  return { ok: true, count: regionIds.length + teacherIds.length };
+}
+
+/**
+ * Bir nechta testni bir yo'la ulashish: mavjud ulashishlar saqlanadi, yangilari qo'shiladi.
+ * Hamma testlar egasiniki bo'lishi shart (bittasi begona bo'lsa — hech narsa o'zgarmaydi)
+ */
+export async function addTestShares(
+  ownerId: string,
+  testIds: string[],
+  input: { regionIds: string[]; teacherIds: string[] },
+): Promise<{ ok: true; tests: number } | { ok: false }> {
+  const ids = [...new Set(testIds)];
+  const owned = await db.test.count({ where: { id: { in: ids }, ownerId } });
+  if (ids.length === 0 || owned !== ids.length) return { ok: false };
+  const targets = await validTargets(ownerId, input);
+  if (!targets || targets.regionIds.length + targets.teacherIds.length === 0)
+    return { ok: false };
+  await db.testShare.createMany({
+    data: ids.flatMap((testId) => [
+      ...targets.regionIds.map((regionId) => ({ testId, regionId })),
+      ...targets.teacherIds.map((teacherId) => ({ testId, teacherId })),
+    ]),
+    skipDuplicates: true,
+  });
+  return { ok: true, tests: ids.length };
+}
+
+/** Faqat o'z regionlari va ulardagi o'qituvchilar (o'zidan tashqari); aks holda null */
+async function validTargets(
+  ownerId: string,
+  input: { regionIds: string[]; teacherIds: string[] },
+): Promise<{ regionIds: string[]; teacherIds: string[] } | null> {
   const regionIds = [...new Set(input.regionIds)];
   const teacherIds = [...new Set(input.teacherIds)].filter(
     (id) => id !== ownerId,
@@ -80,22 +125,13 @@ export async function setTestShares(
     }),
   ]);
   if (ownRegions !== regionIds.length || teachers !== teacherIds.length)
-    return { ok: false };
-  await db.$transaction([
-    db.testShare.deleteMany({ where: { testId } }),
-    db.testShare.createMany({
-      data: [
-        ...regionIds.map((regionId) => ({ testId, regionId })),
-        ...teacherIds.map((teacherId) => ({ testId, teacherId })),
-      ],
-    }),
-  ]);
-  return { ok: true, count: regionIds.length + teacherIds.length };
+    return null;
+  return { regionIds, teacherIds };
 }
 
-/** Ulashish dialogi uchun: o'z regionlari, ulardagi boshqa o'qituvchilar, hozirgi ulashish */
-export async function getShareOptions(ownerId: string, testId: string) {
-  const [regions, teachers, current] = await Promise.all([
+/** Ulashish uchun tanlov: o'z regionlari va ulardagi boshqa faol o'qituvchilar */
+export async function getShareTargets(ownerId: string) {
+  const [regions, teachers] = await Promise.all([
     db.region.findMany({
       where: { teachers: { some: { teacherId: ownerId } } },
       orderBy: { name: "asc" },
@@ -113,14 +149,24 @@ export async function getShareOptions(ownerId: string, testId: string) {
       orderBy: { fullName: "asc" },
       select: { id: true, fullName: true },
     }),
+  ]);
+  return {
+    regions,
+    teachers: teachers.map((t) => ({ id: t.id, name: t.fullName })),
+  };
+}
+
+/** Ulashish dialogi uchun: o'z regionlari, ulardagi boshqa o'qituvchilar, hozirgi ulashish */
+export async function getShareOptions(ownerId: string, testId: string) {
+  const [targets, current] = await Promise.all([
+    getShareTargets(ownerId),
     db.testShare.findMany({
       where: { testId },
       select: { regionId: true, teacherId: true },
     }),
   ]);
   return {
-    regions,
-    teachers: teachers.map((t) => ({ id: t.id, name: t.fullName })),
+    ...targets,
     regionIds: current.flatMap((s) => (s.regionId ? [s.regionId] : [])),
     teacherIds: current.flatMap((s) => (s.teacherId ? [s.teacherId] : [])),
   };

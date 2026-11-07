@@ -9,7 +9,11 @@ import { requireStaff, type CurrentUser } from "@/lib/auth/guards";
 import { canAccessStudent, FORBIDDEN, type Scope } from "@/lib/auth/scope";
 import { requireTeacherScope } from "@/lib/auth/staff";
 import { getTestAccess, outOfScopeGroups, staffBase } from "@/lib/tests/access";
-import { copySharedTest, setTestShares } from "@/lib/tests/sharing";
+import {
+  addTestShares,
+  copySharedTest,
+  setTestShares,
+} from "@/lib/tests/sharing";
 import { db } from "@/lib/db";
 import { isNotFound } from "@/lib/prisma-errors";
 import { fromLocalDateTime } from "@/lib/time";
@@ -486,6 +490,29 @@ export async function shareTestAction(
     ok: true,
     message: result.count === 0 ? "Ulashish bekor qilindi" : "Test ulashildi",
   };
+}
+
+const bulkShareSchema = shareSchema.extend({
+  testIds: z
+    .array(idSchema)
+    .min(1, "Test tanlanmagan")
+    .max(200, "Bir martada ko'pi bilan 200 ta test ulashiladi"),
+});
+
+/** Ro'yxatda belgilangan testlarni bir yo'la ulashish (mavjud ulashishlar saqlanadi) */
+export async function shareTestsAction(
+  input: z.input<typeof bulkShareSchema>,
+): Promise<ActionResult> {
+  const { user } = await requireTeacherScope();
+  const parsed = bulkShareSchema.safeParse(input);
+  if (!parsed.success) return validationFailed(parsed.error);
+  const { testIds, ...targets } = parsed.data;
+  if (targets.regionIds.length + targets.teacherIds.length === 0)
+    return { ok: false, error: "Region yoki o'qituvchini tanlang" };
+  const result = await addTestShares(user.id, testIds, targets);
+  if (!result.ok) return FORBIDDEN;
+  revalidatePath("/teacher/tests", "layout");
+  return { ok: true, message: `${result.tests} ta test ulashildi` };
 }
 
 /** Ulashilgan testdan o'z nusxasi; nusxa sahifasiga o'tadi */

@@ -1,7 +1,12 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { db } from "@/lib/db";
 import { resetDatabase } from "@/test/db";
-import { copySharedTest, getSharedTests, setTestShares } from "./sharing";
+import {
+  addTestShares,
+  copySharedTest,
+  getSharedTests,
+  setTestShares,
+} from "./sharing";
 
 // Test ulashish: egasi ulashadi, oluvchi nusxa oladi; nusxa asl testga bog'liq emas
 
@@ -124,5 +129,56 @@ describe("ulashish", () => {
       "Menejer testi",
     ]);
     expect(await getSharedTests(alibek)).toEqual([]);
+  });
+});
+
+describe("bir yo'la ulashish", () => {
+  async function ownTest(title: string, owner: string) {
+    return (
+      await db.test.create({
+        data: { title, durationMin: 5, createdById: owner, ownerId: owner },
+      })
+    ).id;
+  }
+
+  it("hamma tanlangan testlar ulashiladi, avvalgi ulashish saqlanadi", async () => {
+    const second = await ownTest("HTML", alibek);
+    await setTestShares(alibek, testId, { regionIds: [north], teacherIds: [] });
+    expect(
+      await addTestShares(alibek, [testId, second], {
+        regionIds: [],
+        teacherIds: [bobur],
+      }),
+    ).toEqual({ ok: true, tests: 2 });
+    expect(await db.testShare.count({ where: { testId } })).toBe(2);
+    expect((await getSharedTests(bobur)).map((t) => t.title).sort()).toEqual([
+      "CSS",
+      "HTML",
+    ]);
+  });
+
+  it("qayta ulashilsa takrorlanmaydi", async () => {
+    const input = { regionIds: [north], teacherIds: [] };
+    await addTestShares(alibek, [testId], input);
+    await addTestShares(alibek, [testId], input);
+    expect(await db.testShare.count({ where: { testId } })).toBe(1);
+  });
+
+  it("begona test yoki begona region bo'lsa — hech narsa o'zgarmaydi", async () => {
+    const foreign = await ownTest("Begona", bobur);
+    const target = { regionIds: [north], teacherIds: [] };
+    expect(await addTestShares(alibek, [testId, foreign], target)).toEqual({
+      ok: false,
+    });
+    expect(
+      await addTestShares(alibek, [testId], {
+        regionIds: [south],
+        teacherIds: [],
+      }),
+    ).toEqual({ ok: false });
+    expect(
+      await addTestShares(alibek, [testId], { regionIds: [], teacherIds: [] }),
+    ).toEqual({ ok: false });
+    expect(await db.testShare.count()).toBe(0);
   });
 });
