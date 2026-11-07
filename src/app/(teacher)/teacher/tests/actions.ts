@@ -474,7 +474,7 @@ const shareSchema = z.object({
   teacherIds: z.array(idSchema).max(200),
 });
 
-/** Faqat test egasi: o'z regionlariga yoki ulardagi o'qituvchilarga */
+/** Faqat test egasi: istalgan regionga yoki o'qituvchilarga */
 export async function shareTestAction(
   testId: string,
   input: z.input<typeof shareSchema>,

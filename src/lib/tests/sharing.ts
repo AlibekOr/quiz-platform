@@ -2,8 +2,8 @@ import "server-only";
 import type { Prisma } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
 
-// Test ulashish (ROLES.md, 2026-11-06 qarori): egasi testni regionga yoki tanlangan
-// o'qituvchilarga ulashadi; oluvchi o'z NUSXASINI oladi (asl test va uning natijalari
+// Test ulashish (ROLES.md, 2026-11-06 qarori; 2026-11-07 dan istalgan regionga): egasi
+// testni regionga yoki tanlangan o'qituvchilarga (boshqa regionlardagilarga ham) ulashadi; oluvchi o'z NUSXASINI oladi (asl test va uning natijalari
 // o'zgarmaydi). Menejer yaratgan testdan u ishlaydigan o'qituvchilar nusxa oladi.
 // Boshqa o'qituvchining ulashilmagan testini olib bo'lmaydi
 
@@ -50,10 +50,7 @@ export async function getSharedTests(teacherId: string): Promise<SharedTest[]> {
   }));
 }
 
-/**
- * Ulashishni to'liq almashtirish. Faqat egasi; regionlar — o'z regionlari, o'qituvchilar —
- * o'z regionlaridan biridagi o'qituvchilar
- */
+/** Ulashishni to'liq almashtirish. Faqat egasi; istalgan region va boshqa o'qituvchilar */
 export async function setTestShares(
   ownerId: string,
   testId: string,
@@ -101,7 +98,7 @@ export async function addTestShares(
   return { ok: true, tests: ids.length };
 }
 
-/** Faqat o'z regionlari va ulardagi o'qituvchilar (o'zidan tashqari); aks holda null */
+/** Mavjud regionlar va boshqa faol o'qituvchilar (o'zidan tashqari); aks holda null */
 async function validTargets(
   ownerId: string,
   input: { regionIds: string[]; teacherIds: string[] },
@@ -110,53 +107,70 @@ async function validTargets(
   const teacherIds = [...new Set(input.teacherIds)].filter(
     (id) => id !== ownerId,
   );
-  const [ownRegions, teachers] = await Promise.all([
-    db.teacherRegion.count({
-      where: { teacherId: ownerId, regionId: { in: regionIds } },
-    }),
+  const [regions, teachers] = await Promise.all([
+    db.region.count({ where: { id: { in: regionIds } } }),
     db.user.count({
-      where: {
-        id: { in: teacherIds },
-        role: "TEACHER",
-        teacherRegions: {
-          some: { region: { teachers: { some: { teacherId: ownerId } } } },
-        },
-      },
+      where: { id: { in: teacherIds }, role: "TEACHER", isActive: true },
     }),
   ]);
-  if (ownRegions !== regionIds.length || teachers !== teacherIds.length)
+  if (regions !== regionIds.length || teachers !== teacherIds.length)
     return null;
   return { regionIds, teacherIds };
 }
 
-/** Ulashish uchun tanlov: o'z regionlari va ulardagi boshqa faol o'qituvchilar */
-export async function getShareTargets(ownerId: string) {
-  const [regions, teachers] = await Promise.all([
+type Option = { id: string; name: string };
+
+export type ShareTargets = {
+  /** Hamma regionlar — o'zinikilari birinchi — va ulardagi boshqa faol o'qituvchilar */
+  regions: (Option & { own: boolean; teachers: Option[] })[];
+  /** Regionga biriktirilmagan faol o'qituvchilar */
+  unassigned: Option[];
+};
+
+/** Ulashish uchun tanlov: regionlar, har birida o'qituvchilari */
+export async function getShareTargets(ownerId: string): Promise<ShareTargets> {
+  const activeTeacher = {
+    role: "TEACHER",
+    isActive: true,
+    id: { not: ownerId },
+  } satisfies Prisma.UserWhereInput;
+  const [regions, unassigned] = await Promise.all([
     db.region.findMany({
-      where: { teachers: { some: { teacherId: ownerId } } },
       orderBy: { name: "asc" },
-      select: { id: true, name: true },
+      select: {
+        id: true,
+        name: true,
+        teachers: {
+          where: { teacher: activeTeacher },
+          orderBy: { teacher: { fullName: "asc" } },
+          select: { teacherId: true, teacher: { select: { fullName: true } } },
+        },
+        _count: { select: { teachers: { where: { teacherId: ownerId } } } },
+      },
     }),
     db.user.findMany({
-      where: {
-        role: "TEACHER",
-        isActive: true,
-        id: { not: ownerId },
-        teacherRegions: {
-          some: { region: { teachers: { some: { teacherId: ownerId } } } },
-        },
-      },
+      where: { ...activeTeacher, teacherRegions: { none: {} } },
       orderBy: { fullName: "asc" },
       select: { id: true, fullName: true },
     }),
   ]);
   return {
-    regions,
-    teachers: teachers.map((t) => ({ id: t.id, name: t.fullName })),
+    regions: regions
+      .map((r) => ({
+        id: r.id,
+        name: r.name,
+        own: r._count.teachers > 0,
+        teachers: r.teachers.map((t) => ({
+          id: t.teacherId,
+          name: t.teacher.fullName,
+        })),
+      }))
+      .sort((a, b) => Number(b.own) - Number(a.own)),
+    unassigned: unassigned.map((t) => ({ id: t.id, name: t.fullName })),
   };
 }
 
-/** Ulashish dialogi uchun: o'z regionlari, ulardagi boshqa o'qituvchilar, hozirgi ulashish */
+/** Ulashish dialogi uchun: tanlov va hozirgi ulashish */
 export async function getShareOptions(ownerId: string, testId: string) {
   const [targets, current] = await Promise.all([
     getShareTargets(ownerId),

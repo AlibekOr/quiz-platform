@@ -7,7 +7,7 @@ import {
   useTransition,
   type ReactNode,
 } from "react";
-import { CopyIcon, Share2Icon } from "lucide-react";
+import { ChevronRightIcon, CopyIcon, Share2Icon } from "lucide-react";
 import { toast } from "sonner";
 import {
   copySharedTestAction,
@@ -24,53 +24,177 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import type { ShareTargets } from "@/lib/tests/sharing";
+import { cn } from "@/lib/utils";
 
 type Option = { id: string; name: string };
 
-export type ShareOptions = {
-  regions: Option[];
-  teachers: Option[];
+export type ShareOptions = ShareTargets & {
   regionIds: string[];
   teacherIds: string[];
 };
 
-function Checklist({
-  title,
-  items,
+function toggle(set: ReadonlySet<string>, id: string, on: boolean) {
+  const next = new Set(set);
+  if (on) next.add(id);
+  else next.delete(id);
+  return next;
+}
+
+function TeacherList({
+  teachers,
   selected,
   onChange,
 }: {
-  title: string;
-  items: Option[];
+  teachers: Option[];
   selected: ReadonlySet<string>;
   onChange: (next: Set<string>) => void;
 }) {
+  if (teachers.length === 0)
+    return (
+      <p className="text-muted-foreground text-sm">
+        Boshqa o&apos;qituvchi yo&apos;q.
+      </p>
+    );
   return (
-    <fieldset className="flex flex-col gap-2">
-      <legend className="mb-1 text-sm font-medium">{title}</legend>
-      {items.length === 0 ? (
-        <p className="text-muted-foreground text-sm">Yo&apos;q.</p>
+    <div className="flex flex-col gap-2">
+      {teachers.map((t) => (
+        <label key={t.id} className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            className="accent-primary size-4"
+            checked={selected.has(t.id)}
+            onChange={(e) => onChange(toggle(selected, t.id, e.target.checked))}
+          />
+          {t.name}
+        </label>
+      ))}
+    </div>
+  );
+}
+
+/**
+ * Avval region, keyin undagi o'qituvchilar. Butun regionga yoki alohida o'qituvchilarga
+ * (istalgan regiondan) ulashiladi
+ */
+function ShareTargetsPicker({
+  targets,
+  regions,
+  teachers,
+  onRegionsChange,
+  onTeachersChange,
+}: {
+  targets: ShareTargets;
+  regions: ReadonlySet<string>;
+  teachers: ReadonlySet<string>;
+  onRegionsChange: (next: Set<string>) => void;
+  onTeachersChange: (next: Set<string>) => void;
+}) {
+  const [query, setQuery] = useState("");
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const q = query.trim().toLowerCase();
+  const groups = [
+    ...targets.regions,
+    ...(targets.unassigned.length > 0
+      ? [
+          {
+            id: "",
+            name: "Regionsiz",
+            own: false,
+            teachers: targets.unassigned,
+          },
+        ]
+      : []),
+  ]
+    .map((r) => {
+      const regionHit = q !== "" && r.name.toLowerCase().includes(q);
+      const shown =
+        q && !regionHit
+          ? r.teachers.filter((t) => t.name.toLowerCase().includes(q))
+          : r.teachers;
+      return { ...r, shown, regionHit };
+    })
+    .filter((r) => !q || r.regionHit || r.shown.length > 0);
+
+  return (
+    <div className="flex flex-col gap-3">
+      <Input
+        type="search"
+        placeholder="Region yoki o'qituvchini qidirish"
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+      />
+      {groups.length === 0 ? (
+        <p className="text-muted-foreground text-sm">Hech narsa topilmadi.</p>
       ) : (
-        <div className="flex max-h-48 flex-col gap-2 overflow-y-auto">
-          {items.map((item) => (
-            <label key={item.id} className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                className="accent-primary size-4"
-                checked={selected.has(item.id)}
-                onChange={(e) => {
-                  const next = new Set(selected);
-                  if (e.target.checked) next.add(item.id);
-                  else next.delete(item.id);
-                  onChange(next);
-                }}
-              />
-              {item.name}
-            </label>
-          ))}
-        </div>
+        <ul className="flex max-h-[50svh] flex-col divide-y overflow-y-auto rounded-md border">
+          {groups.map((r) => {
+            const open = q !== "" || expanded.has(r.id);
+            const picked = r.teachers.filter((t) => teachers.has(t.id)).length;
+            return (
+              <li key={r.id || "none"} className="flex flex-col">
+                <div className="flex items-center gap-2 px-3 py-2">
+                  <button
+                    type="button"
+                    aria-expanded={open}
+                    className="flex min-w-0 flex-1 items-center gap-1 text-left text-sm font-medium"
+                    onClick={() => setExpanded(toggle(expanded, r.id, !open))}
+                  >
+                    <ChevronRightIcon
+                      className={cn(
+                        "size-4 shrink-0 transition-transform",
+                        open && "rotate-90",
+                      )}
+                    />
+                    <span className="truncate">{r.name}</span>
+                    {r.own && (
+                      <span className="text-muted-foreground shrink-0 text-xs font-normal">
+                        (mening)
+                      </span>
+                    )}
+                    <span className="text-muted-foreground ml-auto shrink-0 text-xs font-normal">
+                      {picked > 0 ? `${picked}/` : ""}
+                      {r.teachers.length} o&apos;qit.
+                    </span>
+                  </button>
+                  {r.id && (
+                    <label className="flex shrink-0 items-center gap-1.5 text-xs">
+                      <input
+                        type="checkbox"
+                        className="accent-primary size-4"
+                        checked={regions.has(r.id)}
+                        onChange={(e) =>
+                          onRegionsChange(
+                            toggle(regions, r.id, e.target.checked),
+                          )
+                        }
+                      />
+                      Butun region
+                    </label>
+                  )}
+                </div>
+                {open && (
+                  <div className="bg-muted/40 px-3 py-2 pl-8">
+                    {r.id && regions.has(r.id) && (
+                      <p className="text-muted-foreground mb-2 text-xs">
+                        Region tanlangan — undagi hamma o&apos;qituvchilar
+                        ko&apos;radi.
+                      </p>
+                    )}
+                    <TeacherList
+                      teachers={r.shown}
+                      selected={teachers}
+                      onChange={onTeachersChange}
+                    />
+                  </div>
+                )}
+              </li>
+            );
+          })}
+        </ul>
       )}
-    </fieldset>
+    </div>
   );
 }
 
@@ -100,9 +224,10 @@ export function ShareTestButton({
           <DialogHeader>
             <DialogTitle>Testni ulashish</DialogTitle>
             <DialogDescription>
-              Tanlangan region o&apos;qituvchilari yoki tanlangan
-              o&apos;qituvchilar testning o&apos;z nusxasini oladi. Sizning
-              testingiz va natijalari o&apos;zgarmaydi, ularga ko&apos;rinmaydi.
+              Regionni oching va undagi o&apos;qituvchilarni belgilang (boshqa
+              regionlardan ham) yoki butun regionni tanlang — ular testning
+              o&apos;z nusxasini oladi. Sizning testingiz va natijalari
+              o&apos;zgarmaydi, ularga ko&apos;rinmaydi.
             </DialogDescription>
           </DialogHeader>
           <form
@@ -122,17 +247,12 @@ export function ShareTestButton({
               });
             }}
           >
-            <Checklist
-              title="Regionlarim"
-              items={options.regions}
-              selected={regions}
-              onChange={setRegions}
-            />
-            <Checklist
-              title="O'qituvchilar"
-              items={options.teachers}
-              selected={teachers}
-              onChange={setTeachers}
+            <ShareTargetsPicker
+              targets={options}
+              regions={regions}
+              teachers={teachers}
+              onRegionsChange={setRegions}
+              onTeachersChange={setTeachers}
             />
             <FormError message={error} />
             <DialogFooter>
@@ -222,11 +342,7 @@ export function SelectTestCheckbox({
 }
 
 /** Belgilangan testlarni region yoki o'qituvchilarga ulashish (mavjudlari saqlanadi) */
-export function BulkShareButton({
-  targets,
-}: {
-  targets: { regions: Option[]; teachers: Option[] };
-}) {
+export function BulkShareButton({ targets }: { targets: ShareTargets }) {
   const { selected, setSelected } = useSelection();
   const [open, setOpen] = useState(false);
   const [pending, startTransition] = useTransition();
@@ -279,17 +395,12 @@ export function BulkShareButton({
               });
             }}
           >
-            <Checklist
-              title="Regionlarim"
-              items={targets.regions}
-              selected={regions}
-              onChange={setRegions}
-            />
-            <Checklist
-              title="O'qituvchilar"
-              items={targets.teachers}
-              selected={teachers}
-              onChange={setTeachers}
+            <ShareTargetsPicker
+              targets={targets}
+              regions={regions}
+              teachers={teachers}
+              onRegionsChange={setRegions}
+              onTeachersChange={setTeachers}
             />
             <FormError message={error} />
             <DialogFooter>
