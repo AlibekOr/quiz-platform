@@ -11,6 +11,7 @@ import {
   FORBIDDEN,
   getAccessibleGroupIds,
   getScope,
+  groupScopeWhere,
   semesterGroupInScope,
   studentScopeWhere,
   type ScopeUser,
@@ -109,6 +110,21 @@ describe("getAccessibleGroupIds", () => {
     expect(await canAccessStudent(await getScope(m), s.id)).toBe(false);
     await assign(m.id, alibek.id, a2);
     expect(await canAccessStudent(await getScope(m), s.id)).toBe(true);
+  });
+
+  it("groupScopeWhere o'z id sharti bilan yoyilganda o'sha guruhni qaytaradi", async () => {
+    const scope = await getScope(alibek);
+    for (const id of [a1, a2, aFree]) {
+      const g = await db.group.findFirst({
+        where: { id, ...groupScopeWhere(scope) },
+        select: { id: true },
+      });
+      expect(g?.id).toBe(id);
+    }
+    // Doiradan tashqaridagi id — topilmaydi
+    expect(
+      await db.group.findFirst({ where: { id: b1, ...groupScopeWhere(scope) } }),
+    ).toBeNull();
   });
 });
 

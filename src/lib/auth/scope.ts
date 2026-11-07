@@ -88,8 +88,15 @@ export function canAccessGroup(scope: Scope, groupId: string): boolean {
   return scope.kind === "all" || scope.groupIds.includes(groupId);
 }
 
+/**
+ * Guruhlar so'rovlariga qo'shiladigan shart. AND ichida qaytadi: chaqiruvchining
+ * o'z `id` sharti bilan yoyilganda (`{ id, ...groupScopeWhere(scope) }`) bir-birini
+ * ustidan yozmaydi.
+ */
 export function groupScopeWhere(scope: Scope): Prisma.GroupWhereInput {
-  return scope.kind === "all" ? {} : { id: { in: scope.groupIds } };
+  return scope.kind === "all"
+    ? {}
+    : { AND: [{ id: { in: scope.groupIds } }] };
 }
 
 /**
