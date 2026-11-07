@@ -3,14 +3,17 @@
 import {
   createContext,
   useContext,
+  useEffect,
   useState,
   useTransition,
   type ReactNode,
 } from "react";
-import { ChevronRightIcon, CopyIcon, Share2Icon } from "lucide-react";
+import { ChevronRightIcon, CopyIcon, Share2Icon, XIcon } from "lucide-react";
 import { toast } from "sonner";
 import {
   copySharedTestAction,
+  regionShareTeachersAction,
+  searchShareTeachersAction,
   shareTestAction,
   shareTestsAction,
 } from "@/app/(teacher)/teacher/tests/actions";
@@ -25,15 +28,18 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import type { ShareTargets } from "@/lib/tests/sharing";
+import type { ShareSearchResult, ShareTargets } from "@/lib/tests/sharing";
 import { cn } from "@/lib/utils";
 
 type Option = { id: string; name: string };
 
 export type ShareOptions = ShareTargets & {
   regionIds: string[];
-  teacherIds: string[];
+  teachers: Option[];
 };
+
+/** Tanlangan o'qituvchilar: id → ism (chiplarda ko'rsatish uchun) */
+type Picked = ReadonlyMap<string, string>;
 
 function toggle(set: ReadonlySet<string>, id: string, on: boolean) {
   const next = new Set(set);
@@ -42,14 +48,21 @@ function toggle(set: ReadonlySet<string>, id: string, on: boolean) {
   return next;
 }
 
+function togglePicked(picked: Picked, teacher: Option, on: boolean) {
+  const next = new Map(picked);
+  if (on) next.set(teacher.id, teacher.name);
+  else next.delete(teacher.id);
+  return next;
+}
+
 function TeacherList({
   teachers,
-  selected,
+  picked,
   onChange,
 }: {
-  teachers: Option[];
-  selected: ReadonlySet<string>;
-  onChange: (next: Set<string>) => void;
+  teachers: (Option & { hint?: string })[];
+  picked: Picked;
+  onChange: (next: Map<string, string>) => void;
 }) {
   if (teachers.length === 0)
     return (
@@ -63,20 +76,32 @@ function TeacherList({
         <label key={t.id} className="flex items-center gap-2 text-sm">
           <input
             type="checkbox"
-            className="accent-primary size-4"
-            checked={selected.has(t.id)}
-            onChange={(e) => onChange(toggle(selected, t.id, e.target.checked))}
+            className="accent-primary size-4 shrink-0"
+            checked={picked.has(t.id)}
+            onChange={(e) =>
+              onChange(togglePicked(picked, t, e.target.checked))
+            }
           />
-          {t.name}
+          <span className="min-w-0">
+            {t.name}
+            {t.hint && (
+              <span className="text-muted-foreground ml-1 text-xs">
+                · {t.hint}
+              </span>
+            )}
+          </span>
         </label>
       ))}
     </div>
   );
 }
 
+/** "none" — regionsiz o'qituvchilar */
+const NO_REGION = "none";
+
 /**
- * Avval region, keyin undagi o'qituvchilar. Butun regionga yoki alohida o'qituvchilarga
- * (istalgan regiondan) ulashiladi
+ * Avval region, keyin undagi o'qituvchilar (ochilganda serverdan yuklanadi). Butun
+ * regionga — faqat o'z regionlari; alohida o'qituvchilarga — istalgan regiondan
  */
 function ShareTargetsPicker({
   targets,
@@ -87,59 +112,135 @@ function ShareTargetsPicker({
 }: {
   targets: ShareTargets;
   regions: ReadonlySet<string>;
-  teachers: ReadonlySet<string>;
+  teachers: Picked;
   onRegionsChange: (next: Set<string>) => void;
-  onTeachersChange: (next: Set<string>) => void;
+  onTeachersChange: (next: Map<string, string>) => void;
 }) {
   const [query, setQuery] = useState("");
-  const [expanded, setExpanded] = useState<Set<string>>(new Set());
-  const q = query.trim().toLowerCase();
-  const groups = [
+  const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set());
+  const [loaded, setLoaded] = useState<Record<string, Option[]>>({});
+  const [found, setFound] = useState<ShareSearchResult & { query: string }>();
+  const q = query.trim();
+
+  // Qidiruv serverda (o'qituvchilar ko'p bo'lishi mumkin); kichik kechikish bilan
+  useEffect(() => {
+    if (q.length < 2) return;
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      const result = await searchShareTeachersAction(q);
+      if (!cancelled) setFound({ ...result, query: q });
+    }, 300);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [q]);
+
+  async function expand(key: string) {
+    const open = !expanded.has(key);
+    setExpanded(toggle(expanded, key, open));
+    if (!open || loaded[key]) return;
+    const list = await regionShareTeachersAction(
+      key === NO_REGION ? null : key,
+    );
+    setLoaded((prev) => ({ ...prev, [key]: list }));
+  }
+
+  const rows = [
     ...targets.regions,
-    ...(targets.unassigned.length > 0
+    ...(targets.unassignedCount > 0
       ? [
           {
-            id: "",
+            id: NO_REGION,
             name: "Regionsiz",
             own: false,
-            teachers: targets.unassigned,
+            teacherCount: targets.unassignedCount,
           },
         ]
       : []),
-  ]
-    .map((r) => {
-      const regionHit = q !== "" && r.name.toLowerCase().includes(q);
-      const shown =
-        q && !regionHit
-          ? r.teachers.filter((t) => t.name.toLowerCase().includes(q))
-          : r.teachers;
-      return { ...r, shown, regionHit };
-    })
-    .filter((r) => !q || r.regionHit || r.shown.length > 0);
+  ];
+  const lower = q.toLowerCase();
+  const shownRows = q
+    ? rows.filter((r) => r.name.toLowerCase().includes(lower))
+    : rows;
+  const searching = q.length >= 2;
+  const results = found?.query === q ? found : undefined;
 
   return (
     <div className="flex flex-col gap-3">
+      {teachers.size > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {[...teachers].map(([id, name]) => (
+            <span
+              key={id}
+              className="bg-secondary flex items-center gap-1 rounded-full py-0.5 pr-1 pl-2.5 text-xs"
+            >
+              {name}
+              <button
+                type="button"
+                aria-label={`${name} — olib tashlash`}
+                className="hover:bg-background rounded-full p-0.5"
+                onClick={() =>
+                  onTeachersChange(togglePicked(teachers, { id, name }, false))
+                }
+              >
+                <XIcon className="size-3" />
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
       <Input
         type="search"
-        placeholder="Region yoki o'qituvchini qidirish"
+        placeholder="Region yoki o'qituvchi ismini qidirish"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
       />
-      {groups.length === 0 ? (
-        <p className="text-muted-foreground text-sm">Hech narsa topilmadi.</p>
+      {searching && (
+        <div className="flex flex-col gap-2 rounded-md border px-3 py-2">
+          <p className="text-muted-foreground text-xs font-medium">
+            O&apos;qituvchilar
+          </p>
+          {!results ? (
+            <p className="text-muted-foreground text-sm">Qidirilmoqda…</p>
+          ) : results.teachers.length === 0 ? (
+            <p className="text-muted-foreground text-sm">Topilmadi.</p>
+          ) : (
+            <>
+              <TeacherList
+                teachers={results.teachers.map((t) => ({
+                  ...t,
+                  hint: t.regions || "Regionsiz",
+                }))}
+                picked={teachers}
+                onChange={onTeachersChange}
+              />
+              {results.more && (
+                <p className="text-muted-foreground text-xs">
+                  Hammasi ko&apos;rsatilmadi — ismni aniqroq yozing.
+                </p>
+              )}
+            </>
+          )}
+        </div>
+      )}
+      {shownRows.length === 0 ? (
+        !searching && (
+          <p className="text-muted-foreground text-sm">Region topilmadi.</p>
+        )
       ) : (
         <ul className="flex max-h-[50svh] flex-col divide-y overflow-y-auto rounded-md border">
-          {groups.map((r) => {
-            const open = q !== "" || expanded.has(r.id);
-            const picked = r.teachers.filter((t) => teachers.has(t.id)).length;
+          {shownRows.map((r) => {
+            const open = expanded.has(r.id);
+            const list = loaded[r.id];
             return (
-              <li key={r.id || "none"} className="flex flex-col">
+              <li key={r.id} className="flex flex-col">
                 <div className="flex items-center gap-2 px-3 py-2">
                   <button
                     type="button"
                     aria-expanded={open}
                     className="flex min-w-0 flex-1 items-center gap-1 text-left text-sm font-medium"
-                    onClick={() => setExpanded(toggle(expanded, r.id, !open))}
+                    onClick={() => void expand(r.id)}
                   >
                     <ChevronRightIcon
                       className={cn(
@@ -154,11 +255,10 @@ function ShareTargetsPicker({
                       </span>
                     )}
                     <span className="text-muted-foreground ml-auto shrink-0 text-xs font-normal">
-                      {picked > 0 ? `${picked}/` : ""}
-                      {r.teachers.length} o&apos;qit.
+                      {r.teacherCount} o&apos;qit.
                     </span>
                   </button>
-                  {r.id && (
+                  {r.own && (
                     <label className="flex shrink-0 items-center gap-1.5 text-xs">
                       <input
                         type="checkbox"
@@ -176,17 +276,23 @@ function ShareTargetsPicker({
                 </div>
                 {open && (
                   <div className="bg-muted/40 px-3 py-2 pl-8">
-                    {r.id && regions.has(r.id) && (
+                    {regions.has(r.id) && (
                       <p className="text-muted-foreground mb-2 text-xs">
                         Region tanlangan — undagi hamma o&apos;qituvchilar
                         ko&apos;radi.
                       </p>
                     )}
-                    <TeacherList
-                      teachers={r.shown}
-                      selected={teachers}
-                      onChange={onTeachersChange}
-                    />
+                    {list ? (
+                      <TeacherList
+                        teachers={list}
+                        picked={teachers}
+                        onChange={onTeachersChange}
+                      />
+                    ) : (
+                      <p className="text-muted-foreground text-sm">
+                        Yuklanmoqda…
+                      </p>
+                    )}
                   </div>
                 )}
               </li>
@@ -209,9 +315,11 @@ export function ShareTestButton({
   const [open, setOpen] = useState(false);
   const [pending, startTransition] = useTransition();
   const [regions, setRegions] = useState(new Set(options.regionIds));
-  const [teachers, setTeachers] = useState(new Set(options.teacherIds));
+  const [teachers, setTeachers] = useState<Picked>(
+    new Map(options.teachers.map((t) => [t.id, t.name])),
+  );
   const [error, setError] = useState<string>();
-  const shared = options.regionIds.length + options.teacherIds.length;
+  const shared = options.regionIds.length + options.teachers.length;
 
   return (
     <>
@@ -224,9 +332,9 @@ export function ShareTestButton({
           <DialogHeader>
             <DialogTitle>Testni ulashish</DialogTitle>
             <DialogDescription>
-              Regionni oching va undagi o&apos;qituvchilarni belgilang (boshqa
-              regionlardan ham) yoki butun regionni tanlang — ular testning
-              o&apos;z nusxasini oladi. Sizning testingiz va natijalari
+              Regionni oching va undagi o&apos;qituvchilarni belgilang (istalgan
+              regiondan) yoki o&apos;z regioningizni butunlay tanlang — ular
+              testning o&apos;z nusxasini oladi. Sizning testingiz va natijalari
               o&apos;zgarmaydi, ularga ko&apos;rinmaydi.
             </DialogDescription>
           </DialogHeader>
@@ -238,7 +346,7 @@ export function ShareTestButton({
               startTransition(async () => {
                 const result = await shareTestAction(testId, {
                   regionIds: [...regions],
-                  teacherIds: [...teachers],
+                  teacherIds: [...teachers.keys()],
                 });
                 if (result.ok) {
                   toast.success(result.message);
@@ -347,7 +455,7 @@ export function BulkShareButton({ targets }: { targets: ShareTargets }) {
   const [open, setOpen] = useState(false);
   const [pending, startTransition] = useTransition();
   const [regions, setRegions] = useState<Set<string>>(new Set());
-  const [teachers, setTeachers] = useState<Set<string>>(new Set());
+  const [teachers, setTeachers] = useState<Picked>(new Map());
   const [error, setError] = useState<string>();
 
   return (
@@ -383,14 +491,14 @@ export function BulkShareButton({ targets }: { targets: ShareTargets }) {
                 const result = await shareTestsAction({
                   testIds: [...selected],
                   regionIds: [...regions],
-                  teacherIds: [...teachers],
+                  teacherIds: [...teachers.keys()],
                 });
                 if (result.ok) {
                   toast.success(result.message);
                   setOpen(false);
                   setSelected(new Set());
                   setRegions(new Set());
-                  setTeachers(new Set());
+                  setTeachers(new Map());
                 } else setError(result.error);
               });
             }}

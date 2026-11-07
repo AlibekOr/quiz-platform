@@ -5,7 +5,9 @@ import {
   addTestShares,
   copySharedTest,
   getSharedTests,
+  getRegionShareTeachers,
   getShareTargets,
+  searchShareTeachers,
   setTestShares,
 } from "./sharing";
 
@@ -64,26 +66,43 @@ beforeEach(async () => {
 });
 
 describe("ulashish", () => {
-  it("faqat egasi; istalgan region va boshqa regiondagi o'qituvchiga ham", async () => {
+  it("faqat egasi; butun region — o'ziniki, o'qituvchi — istalgan regiondan", async () => {
     const share = (owner: string, regionIds: string[], teacherIds: string[]) =>
       setTestShares(owner, testId, { regionIds, teacherIds });
     expect(await share(bobur, [], [alibek])).toEqual({ ok: false });
-    expect(await share(alibek, ["missing"], [])).toEqual({ ok: false });
+    expect(await share(alibek, [south], [])).toEqual({ ok: false });
     expect(await share(alibek, [], ["missing"])).toEqual({ ok: false });
-    expect(await share(alibek, [south], [])).toEqual({ ok: true, count: 1 });
-    expect(await share(alibek, [], [saida])).toEqual({ ok: true, count: 1 });
+    await db.user.update({ where: { id: saida }, data: { isActive: false } });
+    expect(await share(alibek, [], [saida])).toEqual({ ok: false });
+    await db.user.update({ where: { id: saida }, data: { isActive: true } });
+    expect(await share(alibek, [north], [saida])).toEqual({
+      ok: true,
+      count: 2,
+    });
     expect((await getSharedTests(saida)).map((t) => t.title)).toEqual(["CSS"]);
   });
 
-  it("tanlov: hamma regionlar (o'zinikilari birinchi), ichida o'qituvchilari", async () => {
+  it("tanlov: hamma regionlar (o'zinikilari birinchi) va o'qituvchilar soni", async () => {
     const targets = await getShareTargets(alibek);
-    expect(targets.regions.map((r) => [r.name, r.own])).toEqual([
-      ["Shimol", true],
-      ["Janub", false],
+    expect(targets.regions.map((r) => [r.name, r.own, r.teacherCount])).toEqual(
+      [
+        ["Shimol", true, 1],
+        ["Janub", false, 1],
+      ],
+    );
+    expect(targets.unassignedCount).toBe(0);
+    expect(await getRegionShareTeachers(alibek, north)).toEqual([
+      { id: bobur, name: "bobur" },
     ]);
-    expect(targets.regions[0].teachers.map((t) => t.id)).toEqual([bobur]);
-    expect(targets.regions[1].teachers.map((t) => t.id)).toEqual([saida]);
-    expect(targets.unassigned).toEqual([]);
+    expect(await getRegionShareTeachers(alibek, null)).toEqual([]);
+  });
+
+  it("qidiruv: hamma regionlardan, o'zisiz, regionlari bilan", async () => {
+    expect(await searchShareTeachers(alibek, "AID")).toEqual({
+      teachers: [{ id: saida, name: "saida", regions: "Janub" }],
+      more: false,
+    });
+    expect((await searchShareTeachers(alibek, "alib")).teachers).toEqual([]);
   });
 
   it("ulashilmagan test ko'rinmaydi va nusxa olinmaydi", async () => {
@@ -178,7 +197,7 @@ describe("bir yo'la ulashish", () => {
     expect(await db.testShare.count({ where: { testId } })).toBe(1);
   });
 
-  it("begona test yoki yo'q region bo'lsa — hech narsa o'zgarmaydi", async () => {
+  it("begona test yoki begona region bo'lsa — hech narsa o'zgarmaydi", async () => {
     const foreign = await ownTest("Begona", bobur);
     const target = { regionIds: [north], teacherIds: [] };
     expect(await addTestShares(alibek, [testId, foreign], target)).toEqual({
@@ -186,7 +205,7 @@ describe("bir yo'la ulashish", () => {
     });
     expect(
       await addTestShares(alibek, [testId], {
-        regionIds: ["missing"],
+        regionIds: [south],
         teacherIds: [],
       }),
     ).toEqual({ ok: false });

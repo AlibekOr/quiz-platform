@@ -12,6 +12,8 @@ import { getTestAccess, outOfScopeGroups, staffBase } from "@/lib/tests/access";
 import {
   addTestShares,
   copySharedTest,
+  getRegionShareTeachers,
+  searchShareTeachers,
   setTestShares,
 } from "@/lib/tests/sharing";
 import { db } from "@/lib/db";
@@ -474,7 +476,23 @@ const shareSchema = z.object({
   teacherIds: z.array(idSchema).max(200),
 });
 
-/** Faqat test egasi: istalgan regionga yoki o'qituvchilarga */
+/** Ulashish dialogi: region ochilganda undagi o'qituvchilar (null — regionsizlar) */
+export async function regionShareTeachersAction(regionId: string | null) {
+  const { user } = await requireTeacherScope();
+  const id = idSchema.nullable().parse(regionId);
+  return getRegionShareTeachers(user.id, id);
+}
+
+/** Ulashish dialogi: o'qituvchini ism bo'yicha qidirish (hamma regionlardan) */
+export async function searchShareTeachersAction(query: string) {
+  const { user } = await requireTeacherScope();
+  const q = z.string().trim().min(2).max(100).safeParse(query);
+  return q.success
+    ? searchShareTeachers(user.id, q.data)
+    : { teachers: [], more: false };
+}
+
+/** Faqat test egasi: o'z regioniga butunlay yoki istalgan o'qituvchilarga */
 export async function shareTestAction(
   testId: string,
   input: z.input<typeof shareSchema>,

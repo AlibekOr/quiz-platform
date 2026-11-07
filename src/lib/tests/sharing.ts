@@ -2,10 +2,10 @@ import "server-only";
 import type { Prisma } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
 
-// Test ulashish (ROLES.md, 2026-11-06 qarori; 2026-11-07 dan istalgan regionga): egasi
-// testni regionga yoki tanlangan o'qituvchilarga (boshqa regionlardagilarga ham) ulashadi; oluvchi o'z NUSXASINI oladi (asl test va uning natijalari
-// o'zgarmaydi). Menejer yaratgan testdan u ishlaydigan o'qituvchilar nusxa oladi.
-// Boshqa o'qituvchining ulashilmagan testini olib bo'lmaydi
+// Test ulashish (ROLES.md, 2026-11-06 qarori; 2026-11-08 aniqlik): egasi testni o'z
+// regioniga butunlay yoki tanlangan o'qituvchilarga (istalgan regiondan) ulashadi; oluvchi
+// o'z NUSXASINI oladi (asl test va uning natijalari o'zgarmaydi). Menejer yaratgan testdan
+// u ishlaydigan o'qituvchilar nusxa oladi. Boshqa o'qituvchining ulashilmagan testini olib bo'lmaydi
 
 /** O'qituvchiga ulashilgan (yoki u ishlaydigan menejer yaratgan) testlar — o'zinikisiz */
 export function sharedWithWhere(teacherId: string): Prisma.TestWhereInput {
@@ -50,7 +50,7 @@ export async function getSharedTests(teacherId: string): Promise<SharedTest[]> {
   }));
 }
 
-/** Ulashishni to'liq almashtirish. Faqat egasi; istalgan region va boshqa o'qituvchilar */
+/** Ulashishni to'liq almashtirish. Faqat egasi; maqsadlar — validTargets */
 export async function setTestShares(
   ownerId: string,
   testId: string,
@@ -98,7 +98,10 @@ export async function addTestShares(
   return { ok: true, tests: ids.length };
 }
 
-/** Mavjud regionlar va boshqa faol o'qituvchilar (o'zidan tashqari); aks holda null */
+/**
+ * Butun region — faqat o'z regionlari; o'qituvchilar — istalgan regiondagi boshqa faol
+ * o'qituvchilar. Aks holda null
+ */
 async function validTargets(
   ownerId: string,
   input: { regionIds: string[]; teacherIds: string[] },
@@ -107,82 +110,142 @@ async function validTargets(
   const teacherIds = [...new Set(input.teacherIds)].filter(
     (id) => id !== ownerId,
   );
-  const [regions, teachers] = await Promise.all([
-    db.region.count({ where: { id: { in: regionIds } } }),
+  const [ownRegions, teachers] = await Promise.all([
+    db.teacherRegion.count({
+      where: { teacherId: ownerId, regionId: { in: regionIds } },
+    }),
     db.user.count({
-      where: { id: { in: teacherIds }, role: "TEACHER", isActive: true },
+      where: { ...shareableTeacher(ownerId), id: { in: teacherIds } },
     }),
   ]);
-  if (regions !== regionIds.length || teachers !== teacherIds.length)
+  if (ownRegions !== regionIds.length || teachers !== teacherIds.length)
     return null;
   return { regionIds, teacherIds };
+}
+
+/** Ulashsa bo'ladigan o'qituvchi: faol, egasining o'zi emas */
+function shareableTeacher(ownerId: string) {
+  return {
+    role: "TEACHER",
+    isActive: true,
+    id: { not: ownerId },
+  } satisfies Prisma.UserWhereInput;
 }
 
 type Option = { id: string; name: string };
 
 export type ShareTargets = {
-  /** Hamma regionlar — o'zinikilari birinchi — va ulardagi boshqa faol o'qituvchilar */
-  regions: (Option & { own: boolean; teachers: Option[] })[];
-  /** Regionga biriktirilmagan faol o'qituvchilar */
-  unassigned: Option[];
+  /** Hamma regionlar (o'zinikilari birinchi); o'qituvchilar ochilganda yuklanadi */
+  regions: (Option & { own: boolean; teacherCount: number })[];
+  /** Regionga biriktirilmagan faol o'qituvchilar soni */
+  unassignedCount: number;
 };
 
-/** Ulashish uchun tanlov: regionlar, har birida o'qituvchilari */
+/** Ulashish uchun tanlov: regionlar va ulardagi o'qituvchilar soni (ro'yxatsiz) */
 export async function getShareTargets(ownerId: string): Promise<ShareTargets> {
-  const activeTeacher = {
-    role: "TEACHER",
-    isActive: true,
-    id: { not: ownerId },
-  } satisfies Prisma.UserWhereInput;
-  const [regions, unassigned] = await Promise.all([
+  const teacher = shareableTeacher(ownerId);
+  const [regions, own, unassignedCount] = await Promise.all([
     db.region.findMany({
       orderBy: { name: "asc" },
       select: {
         id: true,
         name: true,
-        teachers: {
-          where: { teacher: activeTeacher },
-          orderBy: { teacher: { fullName: "asc" } },
-          select: { teacherId: true, teacher: { select: { fullName: true } } },
-        },
-        _count: { select: { teachers: { where: { teacherId: ownerId } } } },
+        _count: { select: { teachers: { where: { teacher } } } },
       },
     }),
-    db.user.findMany({
-      where: { ...activeTeacher, teacherRegions: { none: {} } },
-      orderBy: { fullName: "asc" },
-      select: { id: true, fullName: true },
+    db.teacherRegion.findMany({
+      where: { teacherId: ownerId },
+      select: { regionId: true },
     }),
+    db.user.count({ where: { ...teacher, teacherRegions: { none: {} } } }),
   ]);
+  const ownIds = new Set(own.map((r) => r.regionId));
   return {
     regions: regions
       .map((r) => ({
         id: r.id,
         name: r.name,
-        own: r._count.teachers > 0,
-        teachers: r.teachers.map((t) => ({
-          id: t.teacherId,
-          name: t.teacher.fullName,
-        })),
+        own: ownIds.has(r.id),
+        teacherCount: r._count.teachers,
       }))
       .sort((a, b) => Number(b.own) - Number(a.own)),
-    unassigned: unassigned.map((t) => ({ id: t.id, name: t.fullName })),
+    unassignedCount,
   };
 }
 
-/** Ulashish dialogi uchun: tanlov va hozirgi ulashish */
+/** Bitta regiondagi (null — regionsiz) boshqa faol o'qituvchilar */
+export async function getRegionShareTeachers(
+  ownerId: string,
+  regionId: string | null,
+): Promise<Option[]> {
+  const teachers = await db.user.findMany({
+    where: {
+      ...shareableTeacher(ownerId),
+      teacherRegions: regionId ? { some: { regionId } } : { none: {} },
+    },
+    orderBy: { fullName: "asc" },
+    select: { id: true, fullName: true },
+  });
+  return teachers.map((t) => ({ id: t.id, name: t.fullName }));
+}
+
+const SHARE_SEARCH_LIMIT = 30;
+
+export type ShareSearchResult = {
+  teachers: (Option & { regions: string })[];
+  /** Limitdan ko'p topildi — aniqroq yozish kerak */
+  more: boolean;
+};
+
+/** Ism bo'yicha qidiruv (hamma regionlardan), regionlari bilan */
+export async function searchShareTeachers(
+  ownerId: string,
+  query: string,
+): Promise<ShareSearchResult> {
+  const found = await db.user.findMany({
+    where: {
+      ...shareableTeacher(ownerId),
+      fullName: { contains: query, mode: "insensitive" },
+    },
+    orderBy: { fullName: "asc" },
+    take: SHARE_SEARCH_LIMIT + 1,
+    select: {
+      id: true,
+      fullName: true,
+      teacherRegions: {
+        orderBy: { region: { name: "asc" } },
+        select: { region: { select: { name: true } } },
+      },
+    },
+  });
+  return {
+    teachers: found.slice(0, SHARE_SEARCH_LIMIT).map((t) => ({
+      id: t.id,
+      name: t.fullName,
+      regions: t.teacherRegions.map((r) => r.region.name).join(", "),
+    })),
+    more: found.length > SHARE_SEARCH_LIMIT,
+  };
+}
+
+/** Ulashish dialogi uchun: tanlov va hozirgi ulashish (tanlangan o'qituvchilar ismi bilan) */
 export async function getShareOptions(ownerId: string, testId: string) {
   const [targets, current] = await Promise.all([
     getShareTargets(ownerId),
     db.testShare.findMany({
       where: { testId },
-      select: { regionId: true, teacherId: true },
+      select: {
+        regionId: true,
+        teacher: { select: { id: true, fullName: true } },
+      },
     }),
   ]);
   return {
     ...targets,
     regionIds: current.flatMap((s) => (s.regionId ? [s.regionId] : [])),
-    teacherIds: current.flatMap((s) => (s.teacherId ? [s.teacherId] : [])),
+    teachers: current.flatMap((s) =>
+      s.teacher ? [{ id: s.teacher.id, name: s.teacher.fullName }] : [],
+    ),
   };
 }
 
