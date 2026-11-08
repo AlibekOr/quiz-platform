@@ -29,6 +29,7 @@ export async function BankView({
   readOnly,
   testHref,
   hidden = {},
+  tests = [],
 }: {
   ownerId: string;
   params: Params;
@@ -38,6 +39,8 @@ export async function BankView({
   testHref: string | null;
   /** Qidiruvda saqlanadigan qo'shimcha parametrlar (masalan, admin uchun teacher) */
   hidden?: Record<string, string>;
+  /** Tanlangan savollarni qo'shish mumkin bo'lgan testlar */
+  tests?: { id: string; title: string }[];
 }) {
   const topics = await getTopics(ownerId);
   const difficulty = param(params.difficulty);
@@ -151,6 +154,7 @@ export async function BankView({
           activeTopicId={filters.topicId}
           readOnly={readOnly}
           testHref={testHref}
+          tests={tests}
         />
       </div>
     </div>

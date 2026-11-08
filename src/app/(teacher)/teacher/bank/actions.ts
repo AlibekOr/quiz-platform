@@ -174,6 +174,34 @@ export async function setBankQuestionArchived(
   };
 }
 
+/** Tanlangan savollarni birdaniga arxivlash yoki qaytarish */
+export async function setBankQuestionsArchived(
+  questionIds: string[],
+  archived: boolean,
+): Promise<ActionResult> {
+  const { user } = await requireTeacherScope();
+  const parsed = bankQuestionIdsSchema.safeParse(questionIds);
+  if (!parsed.success)
+    return { ok: false, error: issueMessages(parsed.error).join(". ") };
+  const ids = [...new Set(parsed.data)];
+  const owned = await db.bankQuestion.count({
+    where: { id: { in: ids }, ownerId: user.id },
+  });
+  if (owned !== ids.length) return FORBIDDEN;
+  const isArchived = z.boolean().parse(archived);
+  await db.bankQuestion.updateMany({
+    where: { id: { in: ids }, ownerId: user.id },
+    data: { archivedAt: isArchived ? new Date() : null },
+  });
+  revalidateBank();
+  return {
+    ok: true,
+    message: isArchived
+      ? `${ids.length} ta savol arxivlandi`
+      : `${ids.length} ta savol arxivdan qaytarildi`,
+  };
+}
+
 /** Nusxa: tahrirlash uchun (takroriylik tekshirilmaydi, matn oxiriga belgi qo'shiladi) */
 export async function duplicateBankQuestion(
   questionId: string,
@@ -323,10 +351,30 @@ export async function addBankQuestionsToTest(
   const parsed = bankQuestionIdsSchema.safeParse(questionIds);
   if (!parsed.success)
     return { ok: false, error: issueMessages(parsed.error).join(". ") };
-  const count = await copyBankToTest(ctx.user.id, ctx.testId, parsed.data);
+  const ids = [...new Set(parsed.data)];
+  const owned = await db.bankQuestion.count({
+    where: { id: { in: ids }, ownerId: ctx.user.id, archivedAt: null },
+  });
+  if (owned !== ids.length) return FORBIDDEN;
+  // Testda nusxasi bor savollar qayta qo'shilmaydi
+  const present = await db.question.findMany({
+    where: { testId: ctx.testId, sourceBankQuestionId: { in: ids } },
+    select: { sourceBankQuestionId: true },
+  });
+  const skip = new Set(present.map((q) => q.sourceBankQuestionId));
+  const fresh = ids.filter((id) => !skip.has(id));
+  if (fresh.length === 0)
+    return { ok: false, error: "Tanlangan savollarning hammasi testda bor" };
+  const count = await copyBankToTest(ctx.user.id, ctx.testId, fresh);
   if (count === "FORBIDDEN") return FORBIDDEN;
   revalidateTest(ctx.testId);
-  return { ok: true, message: `Testga ${count} ta savol qo'shildi` };
+  return {
+    ok: true,
+    message:
+      skip.size > 0
+        ? `Testga ${count} ta savol qo'shildi, ${skip.size} tasi testda bor edi`
+        : `Testga ${count} ta savol qo'shildi`,
+  };
 }
 
 export type PickPreview =

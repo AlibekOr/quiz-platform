@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { BankView } from "@/components/teacher/bank/bank-view";
 import { requireTeacherScope } from "@/lib/auth/staff";
+import { db } from "@/lib/db";
 
 export const metadata: Metadata = { title: "Savollar banki" };
 
@@ -9,6 +10,14 @@ export default async function BankPage({
   searchParams,
 }: PageProps<"/teacher/bank">) {
   const { user } = await requireTeacherScope();
+  // Tanlangan savollarni qo'shish uchun: o'qituvchining o'z testlari
+  // (tahrirlash huquqi action'da getTestAccess bilan qayta tekshiriladi)
+  const tests = await db.test.findMany({
+    where: { OR: [{ createdById: user.id }, { ownerId: user.id }] },
+    orderBy: { createdAt: "desc" },
+    take: 300,
+    select: { id: true, title: true },
+  });
   return (
     <>
       <div>
@@ -25,6 +34,7 @@ export default async function BankPage({
         action="/teacher/bank"
         readOnly={false}
         testHref="/teacher/tests"
+        tests={tests}
       />
     </>
   );
