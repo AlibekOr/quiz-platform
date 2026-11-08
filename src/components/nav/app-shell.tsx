@@ -2,6 +2,7 @@ import type { CurrentUser } from "@/lib/auth/guards";
 import { studentScopeWhere } from "@/lib/auth/scope";
 import { getScopeOf } from "@/lib/auth/staff";
 import { db } from "@/lib/db";
+import { countNewSharedTests } from "@/lib/tests/sharing";
 import { MobileNav } from "./mobile-nav";
 import { NavMenu, type NavVariant } from "./nav-menu";
 
@@ -41,6 +42,7 @@ export async function AppShell({
               student: studentScopeWhere(await getScopeOf(user)),
             },
           }),
+          "/teacher/tests/shared": await countNewSharedTests(user.id),
         }
       : {};
 

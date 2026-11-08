@@ -30,9 +30,32 @@ export type SharedTest = {
   author: string;
 };
 
-export async function getSharedTests(teacherId: string): Promise<SharedTest[]> {
+/**
+ * "Menga ulashilgan": new — hali qabul qilinmagan (nusxasi yo'q) va olib tashlanmaganlar;
+ * hidden — o'qituvchi olib tashlaganlar (qaytarish mumkin)
+ */
+export function sharedViewWhere(
+  teacherId: string,
+  view: SharedView,
+): Prisma.TestWhereInput {
+  const dismissed = { shareDismissals: { some: { teacherId } } };
+  return {
+    AND: [
+      sharedWithWhere(teacherId),
+      { copies: { none: { ownerId: teacherId } } },
+      view === "hidden" ? dismissed : { NOT: dismissed },
+    ],
+  };
+}
+
+export type SharedView = "new" | "hidden";
+
+export async function getSharedTests(
+  teacherId: string,
+  view: SharedView = "new",
+): Promise<SharedTest[]> {
   const tests = await db.test.findMany({
-    where: sharedWithWhere(teacherId),
+    where: sharedViewWhere(teacherId, view),
     orderBy: { createdAt: "desc" },
     select: {
       id: true,
@@ -48,6 +71,65 @@ export async function getSharedTests(teacherId: string): Promise<SharedTest[]> {
     questionCount: t._count.questions,
     author: t.owner?.fullName ?? t.createdBy.fullName,
   }));
+}
+
+/** Yon paneldagi son: yangi ulashilgan testlar */
+export function countNewSharedTests(teacherId: string): Promise<number> {
+  return db.test.count({ where: sharedViewWhere(teacherId, "new") });
+}
+
+/** Hammasi o'qituvchiga ulashilganmi (bittasi bo'lmasa — hech narsa qilinmaydi) */
+async function allSharedWith(
+  teacherId: string,
+  testIds: readonly string[],
+): Promise<boolean> {
+  const unique = [...new Set(testIds)];
+  const count = await db.test.count({
+    where: { id: { in: unique }, ...sharedWithWhere(teacherId) },
+  });
+  return count === unique.length;
+}
+
+/** Ulashilgan testlarni "olib tashlash" yoki qaytarish. false — begona test bor */
+export async function setSharedTestsDismissed(
+  teacherId: string,
+  testIds: readonly string[],
+  dismissed: boolean,
+): Promise<boolean> {
+  if (!(await allSharedWith(teacherId, testIds))) return false;
+  const unique = [...new Set(testIds)];
+  if (dismissed)
+    await db.testShareDismissal.createMany({
+      data: unique.map((testId) => ({ testId, teacherId })),
+      skipDuplicates: true,
+    });
+  else
+    await db.testShareDismissal.deleteMany({
+      where: { teacherId, testId: { in: unique } },
+    });
+  return true;
+}
+
+/**
+ * Bir nechta ulashilgan testni qabul qilish (har biridan nusxa). Nusxasi bor test
+ * qayta nusxalanmaydi. null — begona test bor; aks holda yangi nusxalar soni
+ */
+export async function copySharedTests(
+  teacherId: string,
+  testIds: readonly string[],
+): Promise<number | null> {
+  if (!(await allSharedWith(teacherId, testIds))) return null;
+  const copied = await db.test.findMany({
+    where: { ownerId: teacherId, copiedFromId: { in: [...testIds] } },
+    select: { copiedFromId: true },
+  });
+  const skip = new Set(copied.map((c) => c.copiedFromId));
+  let count = 0;
+  for (const id of new Set(testIds)) {
+    if (skip.has(id)) continue;
+    if (await copySharedTest(teacherId, id)) count++;
+  }
+  return count;
 }
 
 /** Ulashishni to'liq almashtirish. Faqat egasi; maqsadlar — validTargets */

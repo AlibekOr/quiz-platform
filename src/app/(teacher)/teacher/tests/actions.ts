@@ -11,7 +11,8 @@ import { requireTeacherScope } from "@/lib/auth/staff";
 import { getTestAccess, outOfScopeGroups, staffBase } from "@/lib/tests/access";
 import {
   addTestShares,
-  copySharedTest,
+  copySharedTests,
+  setSharedTestsDismissed,
   getRegionShareTeachers,
   searchShareTeachers,
   setTestShares,
@@ -533,14 +534,49 @@ export async function shareTestsAction(
   return { ok: true, message: `${result.tests} ta test ulashildi` };
 }
 
-/** Ulashilgan testdan o'z nusxasi; nusxa sahifasiga o'tadi */
-export async function copySharedTestAction(
-  testId: string,
+const sharedIdsSchema = z
+  .array(idSchema)
+  .min(1, "Kamida bitta test tanlang")
+  .max(100, "Bir martada ko'pi bilan 100 ta test");
+
+function revalidateShared() {
+  revalidatePath("/teacher/tests", "layout");
+}
+
+/** Tanlangan ulashilgan testlarni qabul qilish: har biridan o'z nusxasi */
+export async function acceptSharedTestsAction(
+  testIds: string[],
 ): Promise<ActionResult> {
   const { user } = await requireTeacherScope();
-  const id = idSchema.parse(testId);
-  const copyId = await copySharedTest(user.id, id);
-  if (!copyId) return FORBIDDEN;
-  revalidatePath("/teacher/tests");
-  redirect(`/teacher/tests/${copyId}`);
+  const parsed = sharedIdsSchema.safeParse(testIds);
+  if (!parsed.success)
+    return { ok: false, error: parsed.error.issues[0].message };
+  const count = await copySharedTests(user.id, parsed.data);
+  if (count === null) return FORBIDDEN;
+  revalidateShared();
+  return { ok: true, message: `${count} ta test testlaringizga qo'shildi` };
+}
+
+/** Ulashilgan testlarni ro'yxatdan olib tashlash yoki qaytarish */
+export async function setSharedTestsDismissedAction(
+  testIds: string[],
+  dismissed: boolean,
+): Promise<ActionResult> {
+  const { user } = await requireTeacherScope();
+  const parsed = sharedIdsSchema.safeParse(testIds);
+  if (!parsed.success)
+    return { ok: false, error: parsed.error.issues[0].message };
+  const ok = await setSharedTestsDismissed(
+    user.id,
+    parsed.data,
+    z.boolean().parse(dismissed),
+  );
+  if (!ok) return FORBIDDEN;
+  revalidateShared();
+  return {
+    ok: true,
+    message: dismissed
+      ? `${parsed.data.length} ta test olib tashlandi`
+      : `${parsed.data.length} ta test qaytarildi`,
+  };
 }

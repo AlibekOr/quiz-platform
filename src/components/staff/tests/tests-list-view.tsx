@@ -16,10 +16,9 @@ import { getScope, studentScopeWhere } from "@/lib/auth/scope";
 import { db } from "@/lib/db";
 import { staffBase, testScopeWhere } from "@/lib/tests/access";
 import { formatTestWindow } from "@/lib/tests/schedule";
-import { getSharedTests, getShareTargets } from "@/lib/tests/sharing";
+import { countNewSharedTests, getShareTargets } from "@/lib/tests/sharing";
 import {
   BulkShareButton,
-  CopySharedButton,
   SelectAllTestsCheckbox,
   SelectTestCheckbox,
   TestSelectionProvider,
@@ -51,9 +50,9 @@ export async function TestsListView({ user }: { user: CurrentUser }) {
     },
   });
   const now = new Date();
-  // O'qituvchiga ulashilganlar — faqat nusxa olish uchun (savollari ko'rsatilmaydi)
+  // Ulashilganlar alohida sahifada qabul qilinadi; ro'yxatda faqat qabul qilinganlar (nusxalar)
   const isTeacher = user.role === "TEACHER";
-  const shared = isTeacher ? await getSharedTests(user.id) : [];
+  const sharedCount = isTeacher ? await countNewSharedTests(user.id) : 0;
   // Bir yo'la ulashish — faqat o'qituvchining o'z testlari
   const shareTargets = isTeacher ? await getShareTargets(user.id) : null;
   const ownedIds = isTeacher
@@ -157,31 +156,17 @@ export async function TestsListView({ user }: { user: CurrentUser }) {
         </div>
       )}
 
-      {shared.length > 0 && (
-        <section className="flex flex-col gap-2">
-          <h2 className="font-semibold">Menga ulashilgan</h2>
-          <p className="text-muted-foreground text-sm">
-            Boshqa o&apos;qituvchilar ulashgan va siz ishlaydigan menejerlar
-            yaratgan testlar. Nusxa olsangiz, test sizniki bo&apos;ladi:
-            tahrirlab, guruhlaringizga berasiz.
-          </p>
-          <ul className="divide-y rounded-lg border text-sm">
-            {shared.map((t) => (
-              <li
-                key={t.id}
-                className="flex flex-wrap items-center justify-between gap-2 p-3"
-              >
-                <span>
-                  <span className="font-medium">{t.title}</span>
-                  <span className="text-muted-foreground block text-xs">
-                    {t.author} · {t.questionCount} ta savol
-                  </span>
-                </span>
-                <CopySharedButton testId={t.id} />
-              </li>
-            ))}
-          </ul>
-        </section>
+      {sharedCount > 0 && (
+        <p className="text-sm">
+          Sizga {sharedCount} ta yangi test ulashilgan.{" "}
+          <Link
+            prefetch={false}
+            href="/teacher/tests/shared"
+            className="font-medium underline"
+          >
+            Ko&apos;rish
+          </Link>
+        </p>
       )}
     </TestSelectionProvider>
   );

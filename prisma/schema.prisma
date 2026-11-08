@@ -53,55 +53,56 @@ enum AttemptStatus {
 }
 
 model User {
-  id                 String            @id @default(cuid())
-  username           String            @unique
-  fullName           String
-  passwordHash       String
-  role               Role              @default(STUDENT)
-  isActive           Boolean           @default(true)
+  id                  String               @id @default(cuid())
+  username            String               @unique
+  fullName            String
+  passwordHash        String
+  role                Role                 @default(STUDENT)
+  isActive            Boolean              @default(true)
   // Parol tiklanganda oshiriladi: eski sessiyalar (JWT) yaroqsiz bo'ladi
-  sessionVersion     Int               @default(0)
+  sessionVersion      Int                  @default(0)
   // Arxivlangan (yumshoq o'chirilgan) o'quvchi: kira olmaydi, ro'yxat va reytinglarda ko'rinmaydi
-  archivedAt         DateTime?
-  groupId            String?
-  group              Group?            @relation(fields: [groupId], references: [id])
-  attempts           Attempt[]
-  profile            StudentProfile?
-  attendances        Attendance[]
-  memberships        GroupMembership[]
-  assignmentGrades   AssignmentGrade[]
-  adjustments        PointAdjustment[]
-  oralScores         OralScore[]
-  penalties          Penalty[]
-  createdTests       Test[]            @relation("TestAuthor")
+  archivedAt          DateTime?
+  groupId             String?
+  group               Group?               @relation(fields: [groupId], references: [id])
+  attempts            Attempt[]
+  profile             StudentProfile?
+  attendances         Attendance[]
+  memberships         GroupMembership[]
+  assignmentGrades    AssignmentGrade[]
+  adjustments         PointAdjustment[]
+  oralScores          OralScore[]
+  penalties           Penalty[]
+  createdTests        Test[]               @relation("TestAuthor")
   // Menejerning regioni (faqat MANAGER uchun); doirasi: region guruhlari + ManagerGroup
-  regionId           String?
-  region             Region?           @relation(fields: [regionId], references: [id], onDelete: SetNull)
-  managedGroups      ManagerGroup[]    @relation("ManagerGroupManager")
+  regionId            String?
+  region              Region?              @relation(fields: [regionId], references: [id], onDelete: SetNull)
+  managedGroups       ManagerGroup[]       @relation("ManagerGroupManager")
   // O'qituvchi: regionlari, guruhlari, menejerlari, jarima shablonlari, testlari
-  teacherRegions     TeacherRegion[]
-  taughtGroups       Group[]           @relation("GroupTeacher")
-  managers           TeacherManager[]  @relation("TeacherManagerTeacher")
+  teacherRegions      TeacherRegion[]
+  taughtGroups        Group[]              @relation("GroupTeacher")
+  managers            TeacherManager[]     @relation("TeacherManagerTeacher")
   // Menejer: qaysi o'qituvchilar bilan ishlaydi
-  teachers           TeacherManager[]  @relation("TeacherManagerManager")
-  assignedGroups     ManagerGroup[]    @relation("ManagerGroupAssigner")
-  penaltyTypes       PenaltyType[]
-  gradingTemplates   GradingTemplate[]
-  riskSettings       RiskSettings?
-  riskReviews        RiskReview[]      @relation("RiskReviewStudent")
-  riskReviewsMade    RiskReview[]      @relation("RiskReviewer")
-  bankTopics         Topic[]
-  bankQuestions      BankQuestion[]
-  ownedTests         Test[]            @relation("TestOwner")
-  testShares         TestShare[]
+  teachers            TeacherManager[]     @relation("TeacherManagerManager")
+  assignedGroups      ManagerGroup[]       @relation("ManagerGroupAssigner")
+  penaltyTypes        PenaltyType[]
+  gradingTemplates    GradingTemplate[]
+  riskSettings        RiskSettings?
+  riskReviews         RiskReview[]         @relation("RiskReviewStudent")
+  riskReviewsMade     RiskReview[]         @relation("RiskReviewer")
+  bankTopics          Topic[]
+  bankQuestions       BankQuestion[]
+  ownedTests          Test[]               @relation("TestOwner")
+  testShares          TestShare[]
+  testShareDismissals TestShareDismissal[]
   // O'quvchini kim qo'shgan (menejer guruhsiz o'quvchini faqat o'zi qo'shgan bo'lsa ko'radi)
-  createdById        String?
-  createdBy          User?             @relation("CreatedStudents", fields: [createdById], references: [id], onDelete: SetNull)
-  createdUsers       User[]            @relation("CreatedStudents")
-  deletionRequests   DeletionRequest[] @relation("DeletionStudent")
-  requestedDeletions DeletionRequest[] @relation("DeletionRequester")
-  decidedDeletions   DeletionRequest[] @relation("DeletionDecider")
-  createdAt          DateTime          @default(now())
+  createdById         String?
+  createdBy           User?                @relation("CreatedStudents", fields: [createdById], references: [id], onDelete: SetNull)
+  createdUsers        User[]               @relation("CreatedStudents")
+  deletionRequests    DeletionRequest[]    @relation("DeletionStudent")
+  requestedDeletions  DeletionRequest[]    @relation("DeletionRequester")
+  decidedDeletions    DeletionRequest[]    @relation("DeletionDecider")
+  createdAt           DateTime             @default(now())
 }
 
 // Guruh o'qituvchiga tegishli. Nom takrorlanishi mumkin; guruhni kod farqlaydi
@@ -129,32 +130,33 @@ model Group {
 }
 
 model Test {
-  id               String      @id @default(cuid())
+  id               String               @id @default(cuid())
   title            String
   description      String?
   durationMin      Int
-  isActive         Boolean     @default(false)
-  allowRetake      Boolean     @default(true)
-  showAnswers      Boolean     @default(false)
-  shuffleQuestions Boolean     @default(false)
-  shuffleOptions   Boolean     @default(false)
+  isActive         Boolean              @default(false)
+  allowRetake      Boolean              @default(true)
+  showAnswers      Boolean              @default(false)
+  shuffleQuestions Boolean              @default(false)
+  shuffleOptions   Boolean              @default(false)
   // Ochiq bo'lish oralig'i (ixtiyoriy). Ochiq = isActive va startsAt <= hozir < endsAt (lib/tests/schedule.ts)
   startsAt         DateTime?
   endsAt           DateTime?
   createdById      String
-  createdBy        User        @relation("TestAuthor", fields: [createdById], references: [id])
+  createdBy        User                 @relation("TestAuthor", fields: [createdById], references: [id])
   // Egasi — o'qituvchi (menejer yaratgan testda null: u ishlaydigan o'qituvchilar nusxa oladi)
   ownerId          String?
-  owner            User?       @relation("TestOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  owner            User?                @relation("TestOwner", fields: [ownerId], references: [id], onDelete: SetNull)
   // Ulashilgan testdan olingan nusxa: qaysi testdan
   copiedFromId     String?
-  copiedFrom       Test?       @relation("TestCopy", fields: [copiedFromId], references: [id], onDelete: SetNull)
-  copies           Test[]      @relation("TestCopy")
+  copiedFrom       Test?                @relation("TestCopy", fields: [copiedFromId], references: [id], onDelete: SetNull)
+  copies           Test[]               @relation("TestCopy")
   shares           TestShare[]
+  shareDismissals  TestShareDismissal[]
   groups           Group[]
   questions        Question[]
   attempts         Attempt[]
-  createdAt        DateTime    @default(now())
+  createdAt        DateTime             @default(now())
 }
 
 model Question {
@@ -609,6 +611,18 @@ model TestShare {
   @@unique([testId, teacherId])
   @@index([teacherId])
   @@index([regionId])
+}
+
+// O'qituvchi ulashilgan testni "olib tashladi": "Menga ulashilgan" ro'yxatida ko'rinmaydi
+model TestShareDismissal {
+  testId    String
+  test      Test     @relation(fields: [testId], references: [id], onDelete: Cascade)
+  teacherId String
+  teacher   User     @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@id([testId, teacherId])
+  @@index([teacherId])
 }
 
 // Menejerning o'quvchini o'chirish so'rovi. Tasdiqlansa o'quvchi arxivlanadi.

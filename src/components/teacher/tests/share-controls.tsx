@@ -8,10 +8,9 @@ import {
   useTransition,
   type ReactNode,
 } from "react";
-import { ChevronRightIcon, CopyIcon, Share2Icon, XIcon } from "lucide-react";
+import { ChevronRightIcon, Share2Icon, XIcon } from "lucide-react";
 import { toast } from "sonner";
 import {
-  copySharedTestAction,
   regionShareTeachersAction,
   searchShareTeachersAction,
   shareTestAction,
@@ -523,26 +522,5 @@ export function BulkShareButton({ targets }: { targets: ShareTargets }) {
         </DialogContent>
       </Dialog>
     </>
-  );
-}
-
-/** Ulashilgan testdan o'z nusxasini olish (nusxa sahifasi ochiladi) */
-export function CopySharedButton({ testId }: { testId: string }) {
-  const [pending, startTransition] = useTransition();
-  return (
-    <Button
-      size="sm"
-      variant="outline"
-      disabled={pending}
-      onClick={() =>
-        startTransition(async () => {
-          const result = await copySharedTestAction(testId);
-          if (result && !result.ok) toast.error(result.error);
-        })
-      }
-    >
-      <CopyIcon />
-      Nusxa olish
-    </Button>
   );
 }

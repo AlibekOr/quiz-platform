@@ -4,10 +4,13 @@ import { resetDatabase } from "@/test/db";
 import {
   addTestShares,
   copySharedTest,
+  copySharedTests,
+  countNewSharedTests,
   getSharedTests,
   getRegionShareTeachers,
   getShareTargets,
   searchShareTeachers,
+  setSharedTestsDismissed,
   setTestShares,
 } from "./sharing";
 
@@ -213,5 +216,62 @@ describe("bir yo'la ulashish", () => {
       await addTestShares(alibek, [testId], { regionIds: [], teacherIds: [] }),
     ).toEqual({ ok: false });
     expect(await db.testShare.count()).toBe(0);
+  });
+});
+
+describe("menga ulashilgan: qabul qilish va olib tashlash", () => {
+  it("qabul qilingan test yangilar ro'yxatidan chiqadi, qayta nusxalanmaydi", async () => {
+    const second = (
+      await db.test.create({
+        data: {
+          title: "HTML",
+          durationMin: 5,
+          createdById: alibek,
+          ownerId: alibek,
+        },
+      })
+    ).id;
+    await addTestShares(alibek, [testId, second], {
+      regionIds: [],
+      teacherIds: [bobur],
+    });
+    expect(await countNewSharedTests(bobur)).toBe(2);
+    expect(await copySharedTests(bobur, [testId, second])).toBe(2);
+    expect(await getSharedTests(bobur)).toEqual([]);
+    expect(await copySharedTests(bobur, [testId])).toBe(0);
+    expect(await db.test.count({ where: { ownerId: bobur } })).toBe(2);
+  });
+
+  it("olib tashlangan — yashirinlarda, qaytarilsa yana yangilarda", async () => {
+    await setTestShares(alibek, testId, { regionIds: [north], teacherIds: [] });
+    expect(await setSharedTestsDismissed(bobur, [testId], true)).toBe(true);
+    expect(await getSharedTests(bobur)).toEqual([]);
+    expect((await getSharedTests(bobur, "hidden")).map((t) => t.title)).toEqual(
+      ["CSS"],
+    );
+    // Takror olib tashlash xato bermaydi
+    expect(await setSharedTestsDismissed(bobur, [testId], true)).toBe(true);
+    await setSharedTestsDismissed(bobur, [testId], false);
+    expect(await countNewSharedTests(bobur)).toBe(1);
+  });
+
+  it("ulashilmagan test bo'lsa — hech narsa qilinmaydi", async () => {
+    await setTestShares(alibek, testId, { regionIds: [], teacherIds: [bobur] });
+    const own = (
+      await db.test.create({
+        data: {
+          title: "Begona",
+          durationMin: 5,
+          createdById: saida,
+          ownerId: saida,
+        },
+      })
+    ).id;
+    expect(await copySharedTests(bobur, [testId, own])).toBeNull();
+    expect(await setSharedTestsDismissed(bobur, [testId, own], true)).toBe(
+      false,
+    );
+    expect(await db.test.count({ where: { ownerId: bobur } })).toBe(0);
+    expect(await db.testShareDismissal.count()).toBe(0);
   });
 });
