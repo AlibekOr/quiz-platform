@@ -285,7 +285,7 @@ function TemplateForm({
           {...form.register("extraBeyondMax")}
         />
         <span>
-          Jami ball qo&apos;shimcha ball hisobiga oshishi mumkin
+          Jami ball qo&apos;shimcha ball va ball tuzatish hisobiga oshishi mumkin
           <span className="text-muted-foreground block text-xs">
             Belgilanmasa, jami hech qachon &quot;Jami ball&quot;dan oshmaydi.
           </span>

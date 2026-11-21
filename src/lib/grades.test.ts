@@ -132,7 +132,12 @@ describe("standart shablon = eski tizim", () => {
 });
 
 describe("hozirgi o'qituvchi qoidalari (ANYTIME, 60 dan oshadi)", () => {
-  it("60 dan faqat EXTRA hisobiga oshadi", () => {
+  it("60 dan faqat EXTRA va tuzatish hisobiga oshadi", () => {
+    expect(
+      result(current, { homework: 30, practical: 20, oral: 10, bonus: 15 })
+        .total,
+    ).toBe(60);
+    // 75 -> 60, +5 tuzatish = 65
     expect(
       result(current, {
         homework: 30,
@@ -140,8 +145,18 @@ describe("hozirgi o'qituvchi qoidalari (ANYTIME, 60 dan oshadi)", () => {
         oral: 10,
         bonus: 15,
         adjustments: 5,
+      }),
+    ).toMatchObject({ withoutExtra: 65, total: 65 });
+    // manfiy tuzatish chegaradan keyin ayiriladi: 75 -> 60, −5 = 55
+    expect(
+      result(current, {
+        homework: 30,
+        practical: 20,
+        oral: 10,
+        bonus: 15,
+        adjustments: -5,
       }).total,
-    ).toBe(60);
+    ).toBe(55);
     const r = result(current, {
       homework: 30,
       practical: 20,

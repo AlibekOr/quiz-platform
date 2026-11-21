@@ -5,8 +5,9 @@ import { addDays, type DateStr } from "@/lib/time";
 // Qoidalar semestrning o'z nusxasidan (shablondan olingan snapshot) keladi:
 //
 //   counted(k) = min(earned(k), cap(k))           // cap = null — chegarasiz
-//   base       = Σ counted (EXTRA'dan tashqari) + tuzatishlar
-//   capped     = min(base, maxTotal)
+//   base       = Σ counted (EXTRA'dan tashqari)
+//   capped     = extraBeyondMax ? min(base, maxTotal) + tuzatishlar
+//                               : min(base + tuzatishlar, maxTotal)
 //   withExtra  = extraBeyondMax ? capped + extra : min(capped + extra, maxTotal)
 //   total      = max(0, withExtra − jarimalar)
 //   passScore  = maxTotal * passPercent / 100   // 36
@@ -215,7 +216,10 @@ export function computeSemesterResult(
       .filter((c) => (c.kind === "EXTRA") === extra)
       .reduce((s, c) => s + c.counted, 0);
 
-  const capped = Math.min(sumOf(false) + adjustments, rules.maxTotal);
+  // 60 dan oshish yoqilgan bo'lsa, tuzatish ham EXTRA kabi chegaradan keyin qo'shiladi
+  const capped = rules.extraBeyondMax
+    ? Math.min(sumOf(false), rules.maxTotal) + adjustments
+    : Math.min(sumOf(false) + adjustments, rules.maxTotal);
   const withExtra = rules.extraBeyondMax
     ? capped + sumOf(true)
     : Math.min(capped + sumOf(true), rules.maxTotal);
