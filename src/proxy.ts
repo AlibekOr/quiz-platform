@@ -34,8 +34,8 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   // API o'zi 401 qaytaradi; statik fayllar himoyalanmaydi;
-  // manifest va ikonkalar (PWA) ham login'siz ochilishi kerak
+  // manifest va ikonkalar (PWA), robots.txt va sitemap.xml (SEO) ham login'siz ochilishi kerak
   matcher: [
-    "/((?!api|_next/static|_next/image|favicon.ico|manifest.webmanifest|icon(?:/|$)|apple-icon(?:/|$)|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
+    "/((?!api|_next/static|_next/image|favicon.ico|manifest.webmanifest|robots.txt|sitemap.xml|icon(?:/|$)|apple-icon(?:/|$)|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
   ],
 };

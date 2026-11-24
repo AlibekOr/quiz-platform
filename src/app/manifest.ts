@@ -1,11 +1,12 @@
 import type { MetadataRoute } from "next";
+import { SITE_DESCRIPTION, SITE_NAME } from "@/lib/site";
 
 // Telefonda ilova sifatida o'rnatish (PWA). Offline rejim yo'q: test serverda tekshiriladi
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Test platformasi",
+    name: SITE_NAME,
     short_name: "Testlar",
-    description: "O'qituvchi va o'quvchilar uchun test platformasi",
+    description: SITE_DESCRIPTION,
     start_url: "/",
     display: "standalone",
     lang: "uz",
