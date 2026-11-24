@@ -42,6 +42,8 @@ export async function AttemptView({
       deadlineAt: true,
       questionOrder: true,
       shuffleOptions: true,
+      tabLeaves: true,
+      closedForLeaving: true,
       user: {
         select: { fullName: true, group: { select: { name: true } } },
       },
@@ -154,6 +156,14 @@ export async function AttemptView({
               ) : attempt.status === "EXPIRED" ? (
                 <Badge variant="outline">Vaqt tugagan</Badge>
               ) : null}
+              {attempt.tabLeaves > 0 && (
+                <Badge
+                  variant={attempt.closedForLeaving ? "destructive" : "outline"}
+                >
+                  ⚠️ {attempt.tabLeaves} marta boshqa oynaga chiqdi
+                  {attempt.closedForLeaving && " · test yopildi"}
+                </Badge>
+              )}
             </div>
           </div>
           <CancelAttemptButton

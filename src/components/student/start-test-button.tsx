@@ -13,6 +13,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { TAB_LEAVE_LIMIT } from "@/lib/tests/integrity";
+import { enterFullscreen, exitFullscreen } from "./use-fullscreen";
 
 export function StartTestButton({
   test,
@@ -34,10 +36,13 @@ export function StartTestButton({
   const [pending, startTransition] = useTransition();
 
   function start() {
+    // Bosish paytida so'raladi (brauzer faqat shunda ruxsat beradi); test sahifasida ham saqlanadi
+    void enterFullscreen();
     startTransition(async () => {
       // Muvaffaqiyatda action /test/[id] ga redirect qiladi
       const result = await startAttempt(test.id);
       if (!result.ok) {
+        exitFullscreen();
         toast.error(result.error);
         setOpen(false);
       }
@@ -75,6 +80,12 @@ export function StartTestButton({
                 <li>
                   Javoblar avtomatik saqlanadi. Vaqt tugasa, test o&apos;zi
                   topshiriladi.
+                </li>
+                <li>
+                  Test to&apos;liq ekranda ishlanadi. Boshqa tab yoki ilovaga
+                  o&apos;tmang:{" "}
+                  <b>{TAB_LEAVE_LIMIT} marta chiqsangiz, test yopiladi</b> va
+                  o&apos;qituvchi buni ko&apos;radi.
                 </li>
                 {isRetake && (
                   <li>

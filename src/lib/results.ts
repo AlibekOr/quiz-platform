@@ -1,6 +1,7 @@
 // Sof funksiyalar: o'qituvchi uchun test natijalari va savollar statistikasi (PLAN.md, 8-bosqich)
 import { percent } from "@/lib/format";
 import { markFromPercent, type Mark } from "@/lib/grading";
+import { integrityFlags, type IntegrityFlag } from "@/lib/tests/integrity";
 import { formatDateTime, formatDuration } from "@/lib/time";
 
 export type ResultStudent = {
@@ -19,6 +20,8 @@ export type ResultAttempt = {
   maxScore: number | null;
   durationSec: number | null;
   startedAt: Date;
+  tabLeaves: number;
+  closedForLeaving: boolean;
 };
 
 export type AttemptSummary = {
@@ -29,6 +32,8 @@ export type AttemptSummary = {
   percent: number;
   durationSec: number;
   startedAt: Date;
+  tabLeaves: number;
+  closedForLeaving: boolean;
 };
 
 export type StudentResultRow = {
@@ -41,6 +46,8 @@ export type StudentResultRow = {
   best: AttemptSummary | null;
   /** Hozir davom etayotgan urinish */
   inProgressId: string | null;
+  /** Birinchi urinish bo'yicha halollik ogohlantirishlari (lib/tests/integrity.ts) */
+  flags: IntegrityFlag[];
 };
 
 function summarize(a: ResultAttempt): AttemptSummary | null {
@@ -55,6 +62,8 @@ function summarize(a: ResultAttempt): AttemptSummary | null {
     percent: percent(score, maxScore),
     durationSec: a.durationSec ?? 0,
     startedAt: a.startedAt,
+    tabLeaves: a.tabLeaves,
+    closedForLeaving: a.closedForLeaving,
   };
 }
 
@@ -71,6 +80,12 @@ function isBetter(a: AttemptSummary, b: AttemptSummary): boolean {
 export function buildStudentRows(
   students: readonly ResultStudent[],
   attempts: readonly ResultAttempt[],
+  context: {
+    /** Testdagi savollar soni (tezlik ogohlantirishi uchun) */
+    questionCount: number;
+    /** O'quvchining boshqa testlardagi o'rtacha foizi (lib/tests/integrity.ts usualPercent) */
+    usualPercent?: ReadonlyMap<string, number | null>;
+  } = { questionCount: 0 },
 ): StudentResultRow[] {
   const byUser = new Map<string, ResultAttempt[]>();
   for (const a of attempts) {
@@ -89,12 +104,20 @@ export function buildStudentRows(
       (acc, d) => (acc === null || isBetter(d.summary, acc) ? d.summary : acc),
       null,
     );
+    const first = done.find((d) => d.attempt.isFirst)?.summary ?? null;
     return {
       student,
       attemptCount: done.length,
-      first: done.find((d) => d.attempt.isFirst)?.summary ?? null,
+      first,
       best,
       inProgressId: own.find((a) => a.status === "IN_PROGRESS")?.id ?? null,
+      flags: first
+        ? integrityFlags({
+            ...first,
+            questionCount: context.questionCount,
+            usualPercent: context.usualPercent?.get(student.id) ?? null,
+          })
+        : [],
     };
   });
 }

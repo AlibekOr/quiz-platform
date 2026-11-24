@@ -11,6 +11,7 @@ import {
 import { requireStudent } from "@/lib/auth/guards";
 import { db } from "@/lib/db";
 import { isWithinDeadline, shuffle } from "@/lib/grading";
+import { tabLeaveOutcome } from "@/lib/tests/integrity";
 import { attemptDeadline, openTestWhere } from "@/lib/tests/schedule";
 
 const idSchema = z.string().min(1).max(64);
@@ -158,6 +159,58 @@ export async function saveAnswer(
       update: { selectedOptionIds: selected },
     });
     return { ok: true };
+  });
+}
+
+export type TabLeaveResult =
+  | {
+      ok: true;
+      leaves: number;
+      /** Yopilishgacha qolgan chiqishlar */
+      remaining: number;
+      /** Shu chiqish bilan test yopildi */
+      closed: boolean;
+    }
+  | { ok: false; error: string; ended?: boolean };
+
+/**
+ * O'quvchi test davomida boshqa tab/ilovaga chiqdi. TAB_LEAVE_LIMIT ga yetganda
+ * urinish saqlangan javoblar bo'yicha baholanib yopiladi
+ */
+export async function reportTabLeave(
+  attemptId: string,
+): Promise<TabLeaveResult> {
+  const student = await requireStudent();
+  const parsed = idSchema.safeParse(attemptId);
+  if (!parsed.success) return { ok: false, error: "Noto'g'ri so'rov" };
+  const id = parsed.data;
+
+  const owned = await db.attempt.findFirst({
+    where: { id, userId: student.id },
+    select: { id: true },
+  });
+  if (!owned) return { ok: false, error: "Urinish topilmadi", ended: true };
+
+  return db.$transaction(async (tx): Promise<TabLeaveResult> => {
+    await lockAttempt(tx, id);
+    const current = await tx.attempt.findUnique({
+      where: { id },
+      select: { status: true, deadlineAt: true, tabLeaves: true },
+    });
+    if (!current || current.status !== "IN_PROGRESS")
+      return { ok: false, error: "Test yakunlangan", ended: true };
+    // Vaqt tugagan bo'lsa chiqish hisoblanmaydi: urinish EXPIRED bo'lib yopiladi
+    if (!isWithinDeadline(current.deadlineAt, new Date()))
+      return { ok: false, error: "Vaqt tugadi", ended: true };
+
+    const leaves = current.tabLeaves + 1;
+    const { close, remaining } = tabLeaveOutcome(leaves);
+    await tx.attempt.update({
+      where: { id },
+      data: { tabLeaves: leaves, closedForLeaving: close },
+    });
+    if (close) await finalizeAttempt(tx, id, "FINISHED", new Date());
+    return { ok: true, leaves, remaining, closed: close };
   });
 }
 

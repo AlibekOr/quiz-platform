@@ -6,6 +6,7 @@ import {
   type Scope,
 } from "@/lib/auth/scope";
 import { db } from "@/lib/db";
+import { percent } from "@/lib/format";
 import {
   buildStudentRows,
   computeQuestionStats,
@@ -13,6 +14,8 @@ import {
   type ResultStudent,
   type StudentResultRow,
 } from "@/lib/results";
+import { testScopeWhere } from "@/lib/tests/access";
+import { usualPercent } from "@/lib/tests/integrity";
 
 export type TestResults = {
   test: { id: string; title: string; questionCount: number };
@@ -92,6 +95,8 @@ export async function getTestResults(
         maxScore: true,
         durationSec: true,
         startedAt: true,
+        tabLeaves: true,
+        closedForLeaving: true,
         user: { select: studentSelect },
       },
     }),
@@ -116,7 +121,30 @@ export async function getTestResults(
       isActive: u.isActive,
     });
   }
-  const rows = buildStudentRows([...students.values()], attempts);
+  // "Odatdagi" natija: boshqa testlardagi birinchi urinishlar — faqat ko'ruvchining doirasidagi testlar
+  const others = await db.attempt.findMany({
+    where: {
+      userId: { in: [...students.keys()] },
+      testId: { not: testId },
+      test: testScopeWhere(scope),
+      isFirst: true,
+      status: { not: "IN_PROGRESS" },
+    },
+    select: { userId: true, score: true, maxScore: true },
+  });
+  const otherPercents = new Map<string, number[]>();
+  for (const a of others) {
+    const p = percent(a.score ?? 0, a.maxScore ?? 0);
+    const list = otherPercents.get(a.userId);
+    if (list) list.push(p);
+    else otherPercents.set(a.userId, [p]);
+  }
+  const rows = buildStudentRows([...students.values()], attempts, {
+    questionCount: test.questions.length,
+    usualPercent: new Map(
+      [...otherPercents].map(([id, list]) => [id, usualPercent(list)]),
+    ),
+  });
 
   const firstIds = attempts
     .filter((a) => a.isFirst && a.status !== "IN_PROGRESS")

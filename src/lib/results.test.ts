@@ -33,6 +33,8 @@ function attempt(
     startedAt: new Date(Date.UTC(2026, 9, 1, 9, seq)),
     score: 0,
     durationSec: 100,
+    tabLeaves: 0,
+    closedForLeaving: false,
     ...data,
   };
 }

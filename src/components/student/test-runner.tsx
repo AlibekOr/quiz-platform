@@ -7,10 +7,15 @@ import {
   CloudCheckIcon,
   CloudOffIcon,
   LoaderIcon,
+  MaximizeIcon,
+  TriangleAlertIcon,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { submitAttempt } from "@/app/(student)/test/actions";
+import {
+  submitAttempt,
+  type TabLeaveResult,
+} from "@/app/(student)/test/actions";
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -23,8 +28,15 @@ import {
 import { Button } from "@/components/ui/button";
 import { formatDuration } from "@/lib/time";
 import { cn } from "@/lib/utils";
+import { TAB_LEAVE_LIMIT } from "@/lib/tests/integrity";
 import { useAutosave, type SaveStatus } from "./use-autosave";
+import {
+  enterFullscreen,
+  exitFullscreen,
+  useFullscreen,
+} from "./use-fullscreen";
 import { useNow } from "./use-now";
+import { useTabGuard } from "./use-tab-guard";
 
 export type RunnerQuestion = {
   id: string;
@@ -56,6 +68,8 @@ export function TestRunner({
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [submitting, startSubmit] = useTransition();
   const submittedRef = useRef(false);
+  // Yopildi yoki bekor qilindi: sahifa almashguncha overlay va dialoglar chiqmaydi
+  const [ended, setEnded] = useState(false);
   const [clockOffset] = useState(() => serverNow - Date.now());
 
   const now = useNow();
@@ -71,6 +85,8 @@ export function TestRunner({
     () => {
       if (submittedRef.current) return;
       submittedRef.current = true;
+      setEnded(true);
+      exitFullscreen();
       toast.error("Bu urinish o'qituvchi tomonidan bekor qilindi");
       router.replace("/dashboard");
     },
@@ -79,7 +95,9 @@ export function TestRunner({
   function submit(auto: boolean) {
     if (submittedRef.current) return;
     submittedRef.current = true;
+    setEnded(true);
     setConfirmOpen(false);
+    exitFullscreen();
     if (auto) toast.info("Vaqt tugadi. Test topshirilmoqda...");
     startSubmit(async () => {
       await autosave.flush();
@@ -87,10 +105,53 @@ export function TestRunner({
       const result = await submitAttempt(attemptId);
       if (!result.ok) {
         submittedRef.current = false;
+        setEnded(false);
         toast.error(result.error);
       }
     });
   }
+
+  const [warning, setWarning] = useState<{
+    leaves: number;
+    remaining: number;
+  } | null>(null);
+  const fullscreen = useFullscreen();
+  // Brauzer to'liq ekranni rad etsa (cheklangan brauzer, webview) — talab qilinmaydi, test davom etadi
+  const [fullscreenDenied, setFullscreenDenied] = useState(false);
+
+  function requestFullscreen() {
+    enterFullscreen().then((ok) => {
+      if (!ok) setFullscreenDenied(true);
+    });
+  }
+
+  function onTabLeave(result: TabLeaveResult) {
+    if (submittedRef.current) return;
+    if (!result.ok) {
+      // Urinish yopilgan, bekor qilingan yoki vaqt tugagan: submitAttempt to'g'ri sahifaga yo'naltiradi
+      if (result.ended) submit(false);
+      return;
+    }
+    if (result.closed) {
+      // Server urinishni allaqachon yopdi: javoblar saqlanganlari bo'yicha baholandi
+      submittedRef.current = true;
+      setEnded(true);
+      setWarning(null);
+      setConfirmOpen(false);
+      exitFullscreen();
+      toast.error(
+        `Test yopildi: ${TAB_LEAVE_LIMIT} marta boshqa oynaga chiqdingiz`,
+      );
+      router.replace(`/result/${attemptId}`);
+      return;
+    }
+    setWarning({ leaves: result.leaves, remaining: result.remaining });
+  }
+
+  useTabGuard(attemptId, {
+    active: !ended && remainingSec !== 0,
+    onResult: onTabLeave,
+  });
 
   useEffect(() => {
     if (remainingSec === 0) submit(true);
@@ -115,10 +176,36 @@ export function TestRunner({
     autosave.save(question.id, next);
   }
 
-  const locked = submitting || remainingSec === 0;
+  const locked = ended || submitting || remainingSec === 0;
 
   return (
-    <div className="flex flex-col gap-6">
+    // Matnni belgilash, nusxalash va o'ng tugma menyusi o'chirilgan (ChatGPT'ga ko'chirmaslik uchun)
+    <div
+      className="flex flex-col gap-6 select-none [-webkit-touch-callout:none]"
+      onCopy={(e) => e.preventDefault()}
+      onCut={(e) => e.preventDefault()}
+      onContextMenu={(e) => e.preventDefault()}
+      onDragStart={(e) => e.preventDefault()}
+    >
+      {!fullscreen && !fullscreenDenied && !locked && (
+        <div className="bg-background fixed inset-0 z-40 flex flex-col items-center justify-center gap-4 p-6 text-center">
+          <MaximizeIcon className="text-muted-foreground size-10" />
+          <div className="flex max-w-sm flex-col gap-1">
+            <p className="text-lg font-semibold">
+              Test to&apos;liq ekranda ishlanadi
+            </p>
+            <p className="text-muted-foreground text-sm">
+              Davom etish uchun to&apos;liq ekranga o&apos;ting. Vaqt
+              to&apos;xtamaydi.
+            </p>
+          </div>
+          <Button size="lg" onClick={requestFullscreen}>
+            <MaximizeIcon />
+            To&apos;liq ekranga o&apos;tish
+          </Button>
+        </div>
+      )}
+
       <div className="bg-background/95 sticky top-0 z-10 -mx-4 flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3 backdrop-blur">
         <div className="min-w-0">
           <p className="truncate font-semibold">{title}</p>
@@ -246,6 +333,39 @@ export function TestRunner({
           </Button>
         </div>
       )}
+
+      <AlertDialog
+        open={warning !== null}
+        onOpenChange={(open) => !open && setWarning(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-destructive flex items-center gap-2">
+              <TriangleAlertIcon className="size-5" />
+              Ogohlantirish ({warning?.leaves}/{TAB_LEAVE_LIMIT})
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Siz test oynasidan chiqdingiz.{" "}
+              {warning?.remaining === 1 ? (
+                <b>Yana bir marta chiqsangiz, test yopiladi!</b>
+              ) : (
+                `Yana ${warning?.remaining} marta chiqsangiz, test yopiladi.`
+              )}{" "}
+              O&apos;qituvchi chiqishlar sonini ko&apos;radi.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <Button
+              onClick={() => {
+                setWarning(null);
+                requestFullscreen();
+              }}
+            >
+              Tushundim
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <AlertDialogContent>

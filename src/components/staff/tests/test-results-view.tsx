@@ -93,6 +93,7 @@ export async function TestResultsView({
   const markCounts: Record<Mark, number> = { 5: 0, 4: 0, fail: 0 };
   for (const f of firsts) markCounts[markFromPercent(f.percent)]++;
   const inProgress = rows.filter((r) => r.inProgressId).length;
+  const flagged = rows.filter((r) => r.flags.length > 0).length;
   const hardest = hardestQuestions(results.questionStats);
 
   const base = `${staff}/tests/${id}/results`;
@@ -133,6 +134,14 @@ export async function TestResultsView({
         <Stat label="Eng yuqori" value={top === null ? "—" : `${top}%`} />
         <Stat label="Hozir ishlamoqda" value={String(inProgress)} />
       </dl>
+
+      {flagged > 0 && (
+        <p className="rounded-lg border border-amber-500/50 bg-amber-500/10 p-3 text-sm">
+          ⚠️ {flagged} ta o&apos;quvchi natijasida shubhali belgilar bor (boshqa
+          oynaga chiqish, juda tez yoki odatdagidan keskin yuqori natija). Ular
+          quyidagi jadvalda ism ostida ko&apos;rsatilgan.
+        </p>
+      )}
 
       {firsts.length > 0 && (
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
@@ -207,6 +216,23 @@ export async function TestResultsView({
                       {r.student.groupName ?? "Guruhsiz"}
                       {!r.student.isActive && " · bloklangan"}
                     </span>
+                    {r.flags.length > 0 && (
+                      <ul className="mt-1 flex flex-col gap-0.5">
+                        {r.flags.map((f) => (
+                          <li
+                            key={f.kind}
+                            className={cn(
+                              "text-xs",
+                              f.kind === "closed" || f.kind === "leaves"
+                                ? "text-destructive"
+                                : "text-amber-600 dark:text-amber-500",
+                            )}
+                          >
+                            ⚠️ {f.label}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
                   </TableCell>
                   <TableCell className="text-right">
                     {r.first ? (

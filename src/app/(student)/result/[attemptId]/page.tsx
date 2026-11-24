@@ -36,6 +36,8 @@ async function loadAttempt(attemptId: string, userId: string) {
       deadlineAt: true,
       questionOrder: true,
       shuffleOptions: true,
+      tabLeaves: true,
+      closedForLeaving: true,
       test: {
         select: {
           title: true,
@@ -114,6 +116,14 @@ export default async function ResultPage({
         <p className="rounded-lg border border-amber-500/50 bg-amber-500/10 p-3 text-sm">
           Vaqt tugagani uchun test saqlangan javoblar bo&apos;yicha avtomatik
           topshirildi.
+        </p>
+      )}
+
+      {attempt.closedForLeaving && (
+        <p className="border-destructive/50 bg-destructive/10 rounded-lg border p-3 text-sm">
+          Test yopildi: siz {attempt.tabLeaves} marta test oynasidan chiqdingiz.
+          Natija saqlangan javoblar bo&apos;yicha hisoblandi va o&apos;qituvchi
+          buni ko&apos;radi.
         </p>
       )}
 
